@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    "rest_framework",
+    "django.contrib.gis",
 
     # VAKA applications
     "accounts.apps.AccountsConfig",
@@ -52,6 +54,8 @@ INSTALLED_APPS = [
     "discovery.apps.DiscoveryConfig",
     "notifications.apps.NotificationsConfig",
 ]
+
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

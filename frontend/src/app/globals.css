@@ -1,26 +1,204 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --vaka-primary: #006557;
+  --vaka-primary-hover: #005448;
+  --vaka-primary-soft: #e3f0eb;
+  --vaka-primary-pale: #f0f8f4;
+
+  --vaka-bg: #f3f7f5;
+  --vaka-surface: #ffffff;
+  --vaka-surface-muted: #f0f8f4;
+
+  --vaka-text: #182522;
+  --vaka-text-secondary: #66736d;
+  --vaka-text-muted: #8b9891;
+
+  --vaka-border: #dce8e2;
+  --vaka-border-soft: #eaf0ec;
+
+  --vaka-success: #19836e;
+  --vaka-warning: #c87925;
+  --vaka-danger: #d95353;
+
+  --vaka-radius-sm: 0.5rem;
+  --vaka-radius-md: 0.875rem;
+  --vaka-radius-lg: 1.125rem;
+  --vaka-radius-xl: 1.5rem;
+  --vaka-radius-pill: 9999px;
+
+  --vaka-shadow-card:
+    0 10px 24px rgb(24 37 34 / 7%),
+    0 2px 5px rgb(24 37 34 / 3%);
+
+  --vaka-shadow-floating:
+    0 5px 14px rgb(0 101 87 / 16%);
+
+  --vaka-content-width: 1440px;
+
+  --vaka-font:
+    "Vazirmatn",
+    "IRANSansX",
+    Tahoma,
+    Arial,
+    sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  direction: rtl;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--vaka-bg);
+  color: var(--vaka-text);
+  font-family: var(--vaka-font);
+  font-size: 14px;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--vaka-primary);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+}
+
+
+.vaka-card {
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-card);
+}
+
+.vaka-panel {
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-lg);
+  background: var(--vaka-surface-muted);
+}
+
+.vaka-muted {
+  color: var(--vaka-text-secondary);
+}
+
+.vaka-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.vaka-primary-button:hover {
+  background: var(--vaka-primary-hover);
+  box-shadow: var(--vaka-shadow-floating);
+}
+
+.vaka-primary-button:active {
+  transform: translateY(1px);
+}
+
+.vaka-primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.vaka-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.vaka-secondary-button:hover {
+  background: var(--vaka-primary-soft);
+}
+
+
+.task-creation-page {
+  min-height: 100vh;
+  padding: 32px 16px 48px;
+  color: var(--vaka-text, #182522);
+  background-color: var(--vaka-bg, #f3f7f5);
+  background-image: url("/images/background.svg");
+  background-position: top center;
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+}
+
+.task-stepper {
+  overflow-x: auto;
+  border: 1px solid var(--vaka-border, #dce8e2);
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 92%);
+  padding: 16px 24px;
+  box-shadow: 0 4px 16px rgb(24 37 34 / 4%);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd9d1 transparent;
+}
+
+@media (min-width: 640px) {
+  .task-creation-page {
+    padding: 40px 24px 56px;
+  }
+
+  .task-stepper {
+    padding: 16px 28px;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

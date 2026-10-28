@@ -1,0 +1,227 @@
+
+"use client";
+
+import { useState } from "react";
+
+const steps = [
+  {
+    title: "عنوان و مشخصات",
+    description: "معرفی و توضیح تسک",
+    icon: "/icons/step1-clipboard-pen.svg",
+  },
+  {
+    title: "زمان‌بندی و فوریت",
+    description: "زمان انجام کار",
+    icon: "/icons/step2-clock.svg",
+  },
+  {
+    title: "محدوده مکانی",
+    description: "محل انجام کار",
+    icon: "/icons/step3-map-pin.svg",
+  },
+  {
+    title: "بودجه و هزینه‌ها",
+    description: "هزینه انجام تسک",
+    icon: "/icons/step4-wallet-cards.svg",
+  },
+  {
+    title: "بررسی و تأیید نهایی",
+    description: "مرور اطلاعات",
+    icon: "/icons/step5-clipboard-check.svg",
+  },
+];
+
+export default function TaskCreationWizard() {
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === steps.length - 1;
+  const progress = ((currentStep + 1) / steps.length) * 100;
+
+  function goNext() {
+    setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+  }
+
+  function goBack() {
+    setCurrentStep((step) => Math.max(step - 1, 0));
+  }
+
+  return (
+    <main className="task-creation-page" dir="rtl">
+      <div className="mx-auto w-full max-w-6xl">
+        <nav
+          aria-label="مراحل ایجاد تسک"
+          className="task-stepper mb-6"
+        >
+          <ol className="flex min-w-[680px] items-center">
+            {steps.map((step, index) => {
+              const isActive = index === currentStep;
+              const isCompleted = index < currentStep;
+
+              const iconPath = isCompleted
+                ? "/icons/check.svg"
+                : step.icon;
+
+              const iconColor = isActive
+                ? "#ffffff"
+                : isCompleted
+                  ? "var(--vaka-primary)"
+                  : "var(--vaka-text-muted)";
+
+              return (
+                <li
+                  key={step.title}
+                  className="flex min-w-0 flex-1 items-center"
+                  aria-current={isActive ? "step" : undefined}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(index)}
+                    aria-label={`رفتن به مرحله ${index + 1}: ${step.title}`}
+                    className="flex min-w-0 items-center gap-2 text-right"
+                  >
+                    <span
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        isActive
+                          ? "bg-[#006557] text-white shadow-sm"
+                          : isCompleted
+                            ? "bg-[#e3f0eb]"
+                            : "bg-[#edf2ef]"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="block size-5"
+                        style={{
+                          backgroundColor: iconColor,
+                          maskImage: `url("${iconPath}")`,
+                          WebkitMaskImage: `url("${iconPath}")`,
+                          maskRepeat: "no-repeat",
+                          WebkitMaskRepeat: "no-repeat",
+                          maskPosition: "center",
+                          WebkitMaskPosition: "center",
+                          maskSize: "contain",
+                          WebkitMaskSize: "contain",
+                        }}
+                      />
+                    </span>
+
+                    <span className="min-w-0">
+                      <span
+                        className={`block whitespace-nowrap text-[10px] sm:text-xs ${
+                          isActive
+                            ? "font-semibold text-[#006557]"
+                            : "text-[#89948f]"
+                        }`}
+                      >
+                        گام {index + 1}
+                      </span>
+                      <span
+                        className={`mt-1 block whitespace-nowrap text-xs sm:text-sm ${
+                          isActive
+                            ? "font-bold text-[#182522]"
+                            : "text-[#84908a]"
+                        }`}
+                      >
+                        {step.title}
+                      </span>
+                    </span>
+                  </button>
+
+                  {index < steps.length - 1 && (
+                    <div
+                      aria-hidden="true"
+                      className={`mx-3 h-0.5 min-w-3 flex-1 ${
+                        isCompleted
+                          ? "bg-[#7bb8a9]"
+                          : "bg-[#e5ece8]"
+                      }`}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+
+        <section className="overflow-hidden rounded-3xl border border-[#e5ece8] bg-white/95 shadow-sm">
+          <header className="border-b border-[#edf1ee] px-5 py-7 sm:px-8 sm:py-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="inline-flex rounded-full bg-[#e7f1ec] px-3 py-1.5 text-xs font-medium text-[#006557]">
+                  ایجاد تسک جدید
+                </span>
+
+                <h1 className="mt-4 text-xl font-bold text-[#182522] sm:text-2xl">
+                  گام {currentStep + 1} از {steps.length}:{" "}
+                  {steps[currentStep].title}
+                </h1>
+
+                <p className="mt-2 text-sm leading-7 text-[#65716b]">
+                  اطلاعات درخواستت را در چند مرحله وارد کن.
+                </p>
+              </div>
+
+              <span className="shrink-0 rounded-full bg-[#e7f1ec] px-4 py-2 text-xs font-semibold text-[#006557]">
+                {Math.round(progress)}٪ تکمیل شده
+              </span>
+            </div>
+
+            <div
+              className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf2ef]"
+              role="progressbar"
+              aria-label="میزان پیشرفت فرم"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress)}
+            >
+              <div
+                className="h-full rounded-full bg-[#006557] transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </header>
+
+          <div className="min-h-80 px-5 py-8 sm:px-8 sm:py-10">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-[#182522]">
+                {steps[currentStep].title}
+              </h2>
+              <p className="mt-2 text-sm text-[#65716b]">
+                {steps[currentStep].description}
+              </p>
+            </div>
+
+            <div className="flex min-h-52 items-center justify-center rounded-2xl border border-dashed border-[#dce7e1] bg-[#f7faf8]/90 p-6 text-center">
+              <p className="text-sm leading-7 text-[#65716b]">
+                محتوای این مرحله در قدم بعدی پیاده‌سازی می‌شود.
+              </p>
+            </div>
+          </div>
+
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1ee] px-5 py-5 sm:px-8">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={isFirstStep}
+              className="rounded-full border border-[#dce5df] px-5 py-3 text-sm font-semibold text-[#35433d] transition hover:bg-[#f5f8f6] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← مرحله قبل
+            </button>
+
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={isLastStep}
+              className="rounded-full bg-[#006557] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#005448] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isLastStep
+                ? "تأیید و ثبت"
+                : `مرحله بعد: ${steps[currentStep + 1].title} ←`}
+            </button>
+          </footer>
+        </section>
+      </div>
+    </main>
+  );
+}

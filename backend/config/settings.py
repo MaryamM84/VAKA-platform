@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     "notifications.apps.NotificationsConfig",
 ]
 
+AUTH_USER_MODEL = "accounts.User"
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

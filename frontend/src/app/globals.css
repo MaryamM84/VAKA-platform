@@ -170,11 +170,12 @@ select:focus-visible {
   background-size: 100% auto;
 }
 
+
 .task-stepper {
   overflow-x: auto;
   border: 1px solid var(--vaka-border, #dce8e2);
   border-radius: 9999px;
-  background: rgb(255 255 255 / 92%);
+  background: #ffffff34;
   padding: 16px 24px;
   box-shadow: 0 4px 16px rgb(24 37 34 / 4%);
   scrollbar-width: thin;

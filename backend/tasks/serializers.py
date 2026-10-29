@@ -1,4 +1,6 @@
-"""Validation and representation of the first-phase task draft API."""
+
+import math
+
 from rest_framework import serializers
 
 from .models import Skill, Task, TaskCategory
@@ -9,20 +11,21 @@ BIGINT_MAX = 2**63 - 1
 
 
 class RejectUnexpectedFieldsMixin:
-    """Avoid silently accepting client-controlled or not-yet-supported fields."""
-
     def to_internal_value(self, data):
         if not hasattr(data, "keys"):
             raise serializers.ValidationError("Expected a JSON object.")
+
         allowed = {
             name for name, field in self.fields.items() if not field.read_only
         }
         unexpected = set(data.keys()) - allowed
+
         if unexpected:
             raise serializers.ValidationError({
                 name: ["This field is not accepted by this endpoint."]
                 for name in sorted(unexpected)
             })
+
         return super().to_internal_value(data)
 
 
@@ -30,8 +33,24 @@ class RequiredSkillInputSerializer(RejectUnexpectedFieldsMixin, serializers.Seri
     skill_id = serializers.PrimaryKeyRelatedField(
         source="skill", queryset=Skill.objects.all()
     )
-    # The ERD specifies SMALLINT and does not specify an importance scale.
     importance = serializers.IntegerField(min_value=-32768, max_value=32767)
+
+
+class LocationInputSerializer(RejectUnexpectedFieldsMixin, serializers.Serializer):
+    location_type = serializers.CharField(max_length=20)
+    stop_order = serializers.IntegerField(min_value=1, max_value=32767)
+    city = serializers.CharField(max_length=100)
+    region = serializers.CharField(max_length=120)
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+
+    def validate(self, attrs):
+        for name in ("latitude", "longitude"):
+            if not math.isfinite(attrs[name]):
+                raise serializers.ValidationError({
+                    name: "Must be a finite number."
+                })
+        return attrs
 
 
 class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSerializer):
@@ -52,6 +71,10 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
     required_skills = RequiredSkillInputSerializer(
         many=True, required=False, write_only=True
     )
+    locations = LocationInputSerializer(
+        many=True, required=False, write_only=True
+    )
+    saved_locations = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -73,6 +96,8 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
             "proposal_deadline_at",
             "delivery_criteria",
             "required_skills",
+            "locations",
+            "saved_locations",
             "created_at",
             "updated_at",
         ]
@@ -86,17 +111,52 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
             )
         return values
 
+    def validate_locations(self, values):
+        orders = [item["stop_order"] for item in values]
+
+        if len(orders) != len(set(orders)):
+            raise serializers.ValidationError(
+                "Each stop_order must be unique."
+            )
+
+        if sorted(orders) != list(range(1, len(orders) + 1)):
+            raise serializers.ValidationError(
+                "stop_order must start at 1 and be consecutive."
+            )
+
+        return values
+
     def validate(self, attrs):
         start = attrs["execution_window_start_at"]
         end = attrs["execution_window_end_at"]
+
         if end <= start:
             raise serializers.ValidationError({
                 "execution_window_end_at": [
                     "Execution end must be later than execution start."
                 ]
             })
+
         return attrs
 
     def create(self, validated_data):
         employer = validated_data.pop("employer_user")
         return create_task_draft(employer=employer, data=validated_data)
+
+    def get_saved_locations(self, task):
+        return [
+            {
+                "task_location_id": str(item.pk),
+                "location_type": item.location_type,
+                "stop_order": item.stop_order,
+                "city": item.city,
+                "region": item.region,
+            }
+            for item in task.locations.only(
+                "task_location_id",
+                "location_type",
+                "stop_order",
+                "city",
+                "region",
+            )
+        ]

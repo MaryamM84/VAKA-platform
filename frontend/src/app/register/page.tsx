@@ -66,7 +66,7 @@ export default function RegisterPage() {
     setOtpError("");
     try {
       // TODO: اتصال به API بررسی کد، و بعد redirect
-      console.log("OTP:", code);
+      void code;
     } catch {
       setOtpError("کد واردشده نادرست است");
     } finally {

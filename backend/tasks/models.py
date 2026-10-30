@@ -1,12 +1,13 @@
 import uuid
-
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
 from .choices import TaskSkillSource, TaskStatus
-from .fields import CurrencyCodeField
-
+from .fields import (
+    CurrencyCodeField,
+    PostGISGeographyPointField,
+)
 
 class TaskCategory(models.Model):
     category_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -182,5 +183,118 @@ class TaskRequiredSkill(models.Model):
             models.CheckConstraint(
                 condition=Q(source__in=TaskSkillSource.values),
                 name="ck_task_required_skill_source_valid",
+            ),
+        ]
+
+
+class TaskLocation(models.Model):
+    task_location_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="locations",
+    )
+    location_type = models.CharField(max_length=20)
+    stop_order = models.SmallIntegerField()
+
+    city = models.CharField(max_length=100)
+    region = models.CharField(max_length=120)
+
+    approximate_point = PostGISGeographyPointField()
+    exact_point = PostGISGeographyPointField(
+        null=True,
+        blank=True,
+    )
+
+    exact_address_ciphertext = models.BinaryField(
+        null=True,
+        blank=True,
+    )
+    location_notes = models.TextField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "task_locations"
+        ordering = ["stop_order", "task_location_id"]
+
+class PriceEstimate(models.Model):
+    price_estimate_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    requested_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="requested_price_estimates",
+    )
+
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="price_estimates",
+    )
+
+    category = models.ForeignKey(
+        TaskCategory,
+        on_delete=models.PROTECT,
+        related_name="price_estimates",
+    )
+
+    estimated_duration_minutes = models.SmallIntegerField()
+
+    difficulty_level = models.SmallIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    approximate_point = PostGISGeographyPointField(
+        null=True,
+        blank=True,
+    )
+
+    suggested_min_amount = models.BigIntegerField()
+
+    suggested_max_amount = models.BigIntegerField()
+
+    model_version = models.CharField(
+        max_length=80,
+    )
+
+    feature_snapshot = models.JSONField()
+
+    explanation = models.TextField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = "price_estimates"
+
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    suggested_min_amount__lte=F(
+                        "suggested_max_amount"
+                    )
+                ),
+                name="ck_price_estimates_range_order",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(estimated_duration_minutes__gte=1)
+                    & Q(estimated_duration_minutes__lte=300)
+                ),
+                name="ck_price_estimates_duration_1_300",
             ),
         ]

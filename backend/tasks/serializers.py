@@ -1,4 +1,5 @@
-"""Serializers for task creation, task listing, categories, and skills."""
+
+import math
 
 from rest_framework import serializers
 
@@ -17,8 +18,6 @@ SMALLINT_MAX = (2**15) - 1
 
 
 class RejectUnexpectedFieldsMixin:
-    """Reject fields that are read-only or not explicitly supported by an API."""
-
     def to_internal_value(self, data):
         if not hasattr(data, "keys"):
             raise serializers.ValidationError("Expected a JSON object.")
@@ -99,14 +98,27 @@ class RequiredSkillInputSerializer(
         min_value=SMALLINT_MIN,
         max_value=SMALLINT_MAX,
     )
+    importance = serializers.IntegerField(min_value=-32768, max_value=32767)
 
 
-class TaskCreateSerializer(
-    RejectUnexpectedFieldsMixin,
-    serializers.ModelSerializer,
-):
-    """Create a task draft. Ownership and initial status are server-controlled."""
+class LocationInputSerializer(RejectUnexpectedFieldsMixin, serializers.Serializer):
+    location_type = serializers.CharField(max_length=20)
+    stop_order = serializers.IntegerField(min_value=1, max_value=32767)
+    city = serializers.CharField(max_length=100)
+    region = serializers.CharField(max_length=120)
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
 
+    def validate(self, attrs):
+        for name in ("latitude", "longitude"):
+            if not math.isfinite(attrs[name]):
+                raise serializers.ValidationError({
+                    name: "Must be a finite number."
+                })
+        return attrs
+
+
+class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSerializer):
     task_id = serializers.UUIDField(read_only=True)
     employer_user_id = serializers.UUIDField(read_only=True)
 
@@ -145,6 +157,10 @@ class TaskCreateSerializer(
         required=False,
         write_only=True,
     )
+    locations = LocationInputSerializer(
+        many=True, required=False, write_only=True
+    )
+    saved_locations = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
@@ -167,6 +183,8 @@ class TaskCreateSerializer(
             "proposal_deadline_at",
             "delivery_criteria",
             "required_skills",
+            "locations",
+            "saved_locations",
             "created_at",
             "updated_at",
         ]
@@ -186,6 +204,21 @@ class TaskCreateSerializer(
         if len(skill_ids) != len(set(skill_ids)):
             raise serializers.ValidationError(
                 "A skill cannot appear more than once for the same task."
+            )
+
+        return values
+
+    def validate_locations(self, values):
+        orders = [item["stop_order"] for item in values]
+
+        if len(orders) != len(set(orders)):
+            raise serializers.ValidationError(
+                "Each stop_order must be unique."
+            )
+
+        if sorted(orders) != list(range(1, len(orders) + 1)):
+            raise serializers.ValidationError(
+                "stop_order must start at 1 and be consecutive."
             )
 
         return values

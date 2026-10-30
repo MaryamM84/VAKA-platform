@@ -1,12 +1,12 @@
 """Business services for task creation and publication."""
-
-from django.db import transaction
-from django.utils import timezone
+import uuid
+from django.db import connection, transaction
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
 
 from .choices import TaskSkillSource, TaskStatus
 from .models import Task, TaskRequiredSkill, TaskStatusHistory
+from django.utils import timezone
 
 class TaskPublishConflict(APIException):
     """Raised when a task is not in a publishable state."""

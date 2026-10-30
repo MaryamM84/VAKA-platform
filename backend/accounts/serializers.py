@@ -190,3 +190,11 @@ class OTPResendSerializer(OTPPhoneSerializer):
 class OTPPendingResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()
     requires_verification = serializers.BooleanField()
+
+class OTPPendingResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    requires_verification = serializers.BooleanField()
+
+
+class OTPMessageResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()

@@ -1,0 +1,852 @@
+openapi: 3.0.3
+info:
+  title: VAKA API
+  version: 1.0.0
+  description: API documentation for the VAKA platform. Authentication is handled
+    using JWT.
+paths:
+  /api/auth/login/otp/send/:
+    post:
+      operationId: auth_login_otp_send_create
+      summary: Request login OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPPhone'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPPhone'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPPhone'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPPhone'
+          description: ''
+  /api/auth/login/otp/verify/:
+    post:
+      operationId: auth_login_otp_verify_create
+      summary: Login using OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/auth/login/password/:
+    post:
+      operationId: auth_login_password_create
+      summary: Login with phone and password
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLogin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordLogin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordLogin'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+        '401':
+          description: Invalid phone number or password.
+  /api/auth/otp/resend/:
+    post:
+      operationId: auth_otp_resend_create
+      summary: Resend OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPResend'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPResend'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPResend'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPResend'
+          description: ''
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create
+      summary: Register and request phone verification OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPPendingResponse'
+          description: ''
+  /api/auth/register/verify-otp/:
+    post:
+      operationId: auth_register_verify_otp_create
+      summary: Verify registration OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPVerify'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      summary: Refresh JWT access token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+          description: ''
+  /api/auth/token/verify/:
+    post:
+      operationId: auth_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      summary: Verify JWT token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Token is valid.
+        '401':
+          description: Token is invalid or expired.
+  /api/skills/:
+    get:
+      operationId: skills_list
+      description: Returns skills belonging to active categories and global skills.
+        Optionally filter by category_id. Global skills (category=null) remain available
+        when a category filter is supplied.
+      summary: List skills
+      parameters:
+      - in: query
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        description: Optional category UUID used to filter skills.
+      tags:
+      - Task Catalog
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Skill'
+          description: ''
+  /api/task-categories/:
+    get:
+      operationId: task_categories_list
+      description: Returns active task categories, including their parent category
+        when present.
+      summary: List active task categories
+      tags:
+      - Task Catalog
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskCategory'
+          description: ''
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      description: Returns all tasks created by the current authenticated user. Tasks
+        belonging to other users are never included.
+      summary: List tasks created by the authenticated employer
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskRead'
+          description: ''
+    post:
+      operationId: tasks_create
+      description: Creates a task in DRAFT status. The employer and initial status
+        are assigned by the server and cannot be supplied by the client.
+      summary: Create a task draft
+      tags:
+      - Tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCreate'
+          description: ''
+components:
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          allOf:
+          - $ref: '#/components/schemas/UserRead'
+          readOnly: true
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+      - user
+    LocationInput:
+      type: object
+      properties:
+        location_type:
+          type: string
+          maxLength: 20
+        stop_order:
+          type: integer
+          maximum: 32767
+          minimum: 1
+        city:
+          type: string
+          maxLength: 100
+        region:
+          type: string
+          maxLength: 120
+        latitude:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+        longitude:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+      required:
+      - city
+      - latitude
+      - location_type
+      - longitude
+      - region
+      - stop_order
+    OTPPendingResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        requires_verification:
+          type: boolean
+      required:
+      - detail
+      - requires_verification
+    OTPPhone:
+      type: object
+      properties:
+        phone:
+          type: string
+      required:
+      - phone
+    OTPResend:
+      type: object
+      properties:
+        phone:
+          type: string
+        purpose:
+          $ref: '#/components/schemas/PurposeEnum'
+      required:
+      - phone
+      - purpose
+    OTPVerify:
+      type: object
+      properties:
+        phone:
+          type: string
+        code:
+          type: string
+          pattern: ^[0-9]{5}$
+      required:
+      - code
+      - phone
+    PasswordLogin:
+      type: object
+      properties:
+        phone:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - phone
+    PurposeEnum:
+      enum:
+      - REGISTER
+      - LOGIN
+      type: string
+      description: |-
+        * `REGISTER` - Register
+        * `LOGIN` - Login
+    Register:
+      type: object
+      properties:
+        phone:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+        password_confirm:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - password_confirm
+      - phone
+    RequiredSkillInput:
+      type: object
+      description: Input format for a skill required by a new task.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+        importance:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+      required:
+      - importance
+      - skill_id
+    SavedTaskLocation:
+      type: object
+      properties:
+        task_location_id:
+          type: string
+          format: uuid
+        location_type:
+          type: string
+        stop_order:
+          type: integer
+        city:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+      required:
+      - city
+      - location_type
+      - region
+      - stop_order
+      - task_location_id
+    Skill:
+      type: object
+      description: Read-only representation of a skill.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        category_name:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - category_id
+      - category_name
+      - name
+      - skill_id
+    SourceEnum:
+      enum:
+      - MANUAL
+      - AI
+      type: string
+      description: |-
+        * `MANUAL` - Manual
+        * `AI` - AI
+    StatusEnum:
+      enum:
+      - DRAFT
+      - OPEN
+      - FUNDING_PENDING
+      - ASSIGNED
+      - IN_PROGRESS
+      - SUBMITTED
+      - APPROVED
+      - DISPUTED
+      - CANCELLATION_REVIEW
+      - COMPLETED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `OPEN` - Open
+        * `FUNDING_PENDING` - Funding pending
+        * `ASSIGNED` - Assigned
+        * `IN_PROGRESS` - In progress
+        * `SUBMITTED` - Submitted
+        * `APPROVED` - Approved
+        * `DISPUTED` - Disputed
+        * `CANCELLATION_REVIEW` - Cancellation review
+        * `COMPLETED` - Completed
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
+    TaskCategory:
+      type: object
+      description: Read-only representation of a task category.
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        parent_category_name:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - category_id
+      - name
+      - parent_category_id
+      - parent_category_name
+    TaskCreate:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        employer_user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 180
+        description:
+          type: string
+        status:
+          type: string
+          readOnly: true
+        estimated_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        currency_code:
+          type: string
+          readOnly: true
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+          default: false
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredSkillInput'
+          writeOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationInput'
+          writeOnly: true
+        saved_locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedTaskLocation'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_id
+      - category_name
+      - created_at
+      - currency_code
+      - delivery_criteria
+      - description
+      - employer_user_id
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - proposal_deadline_at
+      - saved_locations
+      - status
+      - task_id
+      - title
+      - updated_at
+      - wage_budget_amount
+    TaskRead:
+      type: object
+      description: Representation returned when an employer lists their own tasks.
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        employer_user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 180
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        estimated_duration_minutes:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        currency_code:
+          type: string
+          maxLength: 3
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRequiredSkillRead'
+          readOnly: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_id
+      - category_name
+      - created_at
+      - delivery_criteria
+      - description
+      - employer_user_id
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - proposal_deadline_at
+      - required_skills
+      - task_id
+      - title
+      - updated_at
+      - wage_budget_amount
+    TaskRequiredSkillRead:
+      type: object
+      description: Read-only skill information attached to a task.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        skill_name:
+          type: string
+          readOnly: true
+        importance:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+      required:
+      - importance
+      - skill_id
+      - skill_name
+      - source
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+      required:
+      - refresh
+    TokenRefreshResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+    TokenVerifyRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    UserRead:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+      required:
+      - full_name
+      - phone
+      - user_id
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

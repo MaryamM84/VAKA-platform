@@ -181,15 +181,17 @@ class TaskPublishView(GenericAPIView):
 # 3. TASK CATEGORY LIST
 # ============================================================
 
-@extend_schema(
-    operation_id="task_categories_list",
-    tags=["Task Catalog"],
-    summary="List active task categories",
-    description=(
-        "Returns active task categories, including their parent category "
-        "when present."
-    ),
-    responses=TaskCategorySerializer(many=True),
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="task_categories_list",
+        tags=["Task Catalog"],
+        summary="List active task categories",
+        description=(
+            "Returns active task categories, including their parent category "
+            "when present."
+        ),
+        responses=TaskCategorySerializer(many=True),
+    )
 )
 class TaskCategoryListView(ListAPIView):
 
@@ -212,29 +214,27 @@ class TaskCategoryListView(ListAPIView):
         )
 
 
-# ============================================================
-# 4. SKILL LIST
-# ============================================================
-
-@extend_schema(
-    operation_id="skills_list",
-    tags=["Task Catalog"],
-    summary="List skills",
-    description=(
-        "Returns skills belonging to active categories and global skills. "
-        "Optionally filter by category_id. Global skills remain available "
-        "when a category filter is supplied."
-    ),
-    parameters=[
-        OpenApiParameter(
-            name="category_id",
-            type=OpenApiTypes.UUID,
-            location=OpenApiParameter.QUERY,
-            required=False,
-            description="Optional UUID used to filter skills.",
-        )
-    ],
-    responses=SkillSerializer(many=True),
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="skills_list",
+        tags=["Task Catalog"],
+        summary="List skills",
+        description=(
+            "Returns skills belonging to active categories and global skills. "
+            "Optionally filter by category_id. Global skills (category=null) "
+            "remain available when a category filter is supplied."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="category_id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Optional category UUID used to filter skills.",
+            )
+        ],
+        responses=SkillSerializer(many=True),
+    )
 )
 class SkillListView(ListAPIView):
 
@@ -281,8 +281,7 @@ class SkillListView(ListAPIView):
                 raise ValidationError(
                     {
                         "category_id": (
-                            "The selected category does not exist "
-                            "or is inactive."
+                            "The selected category does not exist or is inactive."
                         )
                     }
                 )

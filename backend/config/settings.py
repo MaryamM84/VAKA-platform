@@ -11,14 +11,30 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-import os
-from dotenv import load_dotenv
 
 load_dotenv(BASE_DIR / ".env")
+
+FERZZ_API_TOKEN = os.getenv("FERZZ_API_TOKEN", "")
+FERZZ_API_URL = os.getenv(
+    "FERZZ_API_URL",
+    "https://gateway.ferzz.ir/send",
+)
+
+# Ferzz documentation is inconsistent about "code" vs "message".
+FERZZ_SMS_CODE_FIELD = os.getenv("FERZZ_SMS_CODE_FIELD", "code")
+
+# OTP policies
+OTP_CODE_LENGTH = 5
+OTP_EXPIRY_SECONDS = 180
+OTP_RESEND_COOLDOWN_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
@@ -42,6 +58,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "rest_framework",
+    # "django.contrib.gis",
+
+    "drf_spectacular",
 
     # VAKA applications
     "accounts.apps.AccountsConfig",
@@ -55,6 +74,25 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = "accounts.User"
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ],
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "VAKA Platform API",
+    "DESCRIPTION": (
+        "API documentation for the VAKA platform. Task creation and listing "
+        "require an authenticated user with the EMPLOYER role."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -144,4 +182,49 @@ MAILERS = {
     'default': {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "register": "10/hour",
+        "otp_send": "12/hour",
+        "otp_verify": "30/hour",
+    },
+}
+
+SIMPLE_JWT = {
+
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    "ROTATE_REFRESH_TOKENS": False,
+
+    "AUTH_HEADER_TYPES": ("Bearer",),
+
+    "USER_ID_FIELD": "user_id",
+
+    "USER_ID_CLAIM": "user_id",
+
+    "CHECK_USER_IS_ACTIVE": True,
+
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "VAKA API",
+    "DESCRIPTION": (
+        "API documentation for the VAKA platform. "
+        "Authentication is handled using JWT."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }

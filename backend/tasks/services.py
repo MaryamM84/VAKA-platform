@@ -86,12 +86,57 @@ def _validate_task_for_publication(task):
         raise ValidationError(errors)
 
 
+def _store_location(*, task, item):
+    longitude = item["longitude"]
+    latitude = item["latitude"]
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO task_locations (
+                task_location_id,
+                task_id,
+                location_type,
+                stop_order,
+                city,
+                region,
+                approximate_point,
+                exact_point
+            )
+            VALUES (
+                %s::uuid,
+                %s::uuid,
+                %s,
+                %s,
+                %s,
+                %s,
+                ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
+            )
+            """,
+            [
+                str(uuid.uuid4()),
+                str(task.pk),
+                item["location_type"],
+                item["stop_order"],
+                item["city"],
+                item["region"],
+                round(longitude, 2),
+                round(latitude, 2),
+                longitude,
+                latitude,
+            ],
+        )
+
+
 @transaction.atomic
 def create_task_draft(*, employer, data):
     """Transactionally create a task draft and related records."""
 
     values = data.copy()
+
     required_skills = values.pop("required_skills", [])
+    locations = values.pop("locations", [])
 
     # Ownership and initial status are controlled by the backend.
     task = Task.objects.create(

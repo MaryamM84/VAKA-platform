@@ -1,4 +1,3 @@
-
 export interface TaskFormData {
   // مرحله اول: عنوان و مشخصات
   title: string;
@@ -14,10 +13,32 @@ export interface TaskFormData {
   deadlineAt: string;
   urgency: string;
 
-  // مرحله چهارم: بودجه و هزینه‌ها
+  // مکان ثابت
+  locationMode: string;
+  locationLatitude: string;
+  locationLongitude: string;
+  locationAddress: string;
+
+  // مبدأ و مقصد
+  originLatitude: string;
+  originLongitude: string;
+  originAddress: string;
+  destinationLatitude: string;
+  destinationLongitude: string;
+  destinationAddress: string;
+
+  // اطلاعات خصوصی
+  locationBuilding: string;
+  locationUnit: string;
+  locationDeliveryNotes: string;
+  locationRadiusMeters: string;
+
+  // بودجه
   wageBudgetAmount: string;
   currencyCode: string;
   itemCostCapAmount: string;
+  goodsPurchaseRequired: string;
+  invoiceRequired: string;
 }
 
 function getLocalDateTime(offsetMinutes = 0): string {
@@ -33,11 +54,13 @@ function getLocalDateTime(offsetMinutes = 0): string {
 }
 
 export const initialTaskFormData: TaskFormData = {
+  // مرحله اول
   title: "",
   categoryName: "",
   description: "",
   deliveryCriteria: "",
 
+  // مرحله دوم
   estimatedDurationMinutes: "",
   proposalDeadlineAt: getLocalDateTime(),
   executionWindowEndAt: getLocalDateTime(),
@@ -45,7 +68,30 @@ export const initialTaskFormData: TaskFormData = {
   deadlineAt: getLocalDateTime(),
   urgency: "normal",
 
-  wageBudgetAmount: "",
+  // مرحله سوم
+  locationMode: "fixed",
+
+  locationLatitude: "",
+  locationLongitude: "",
+  locationRadiusMeters: "2000",
+  locationAddress: "",
+
+  originLatitude: "",
+  originLongitude: "",
+  originAddress: "",
+
+  destinationLatitude: "",
+  destinationLongitude: "",
+  destinationAddress: "",
+
+  locationBuilding: "",
+  locationUnit: "",
+  locationDeliveryNotes: "",
+
+  // مرحله چهارم
+  wageBudgetAmount: "250000",
   currencyCode: "IRR",
-  itemCostCapAmount: "",
+  itemCostCapAmount: "180000",
+  goodsPurchaseRequired: "true",
+  invoiceRequired: "true",
 };

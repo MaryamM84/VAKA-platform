@@ -2,6 +2,7 @@
 import math
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from .models import (
     Skill,
@@ -16,6 +17,12 @@ BIGINT_MAX = 2**63 - 1
 SMALLINT_MIN = -(2**15)
 SMALLINT_MAX = (2**15) - 1
 
+class SavedTaskLocationSerializer(serializers.Serializer):
+    task_location_id = serializers.UUIDField()
+    location_type = serializers.CharField()
+    stop_order = serializers.IntegerField()
+    city = serializers.CharField(allow_null=True, allow_blank=True)
+    region = serializers.CharField(allow_null=True, allow_blank=True)
 
 class RejectUnexpectedFieldsMixin:
     def to_internal_value(self, data):
@@ -268,6 +275,20 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
             employer=employer,
             data=validated_data,
         )
+    @extend_schema_field(SavedTaskLocationSerializer(many=True))
+    def get_saved_locations(self, task):
+        return list(
+            task.locations.order_by("stop_order").values(
+                "task_location_id",
+                "location_type",
+                "stop_order",
+                "city",
+                "region",
+            )
+        )
+    
+ 
+
 
 
 class TaskRequiredSkillReadSerializer(serializers.ModelSerializer):
@@ -318,4 +339,22 @@ class TaskReadSerializer(serializers.ModelSerializer):
             "published_at",
             "created_at",
             "updated_at",
+        ]
+
+    def get_saved_locations(self, task):
+        return [
+            {
+                "task_location_id": str(location["task_location_id"]),
+                "location_type": location["location_type"],
+                "stop_order": location["stop_order"],
+                "city": location["city"],
+                "region": location["region"],
+            }
+            for location in task.locations.order_by("stop_order").values(
+                "task_location_id",
+                "location_type",
+                "stop_order",
+                "city",
+                "region",
+            )
         ]

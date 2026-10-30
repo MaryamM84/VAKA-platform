@@ -19,6 +19,7 @@ from .serializers import (
     TokenRefreshRequestSerializer,
     TokenRefreshResponseSerializer,
     TokenVerifyRequestSerializer,
+    OTPMessageResponseSerializer,
 )
 
 import logging
@@ -235,6 +236,7 @@ class OTPLoginSendView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_scope = "otp_send"
+    serializer_class = OTPPhoneSerializer
 
     @extend_schema(
         tags=["Authentication"],
@@ -314,6 +316,7 @@ class OTPResendView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_scope = "otp_send"
+    serializer_class = OTPResendSerializer
 
     @extend_schema(
         tags=["Authentication"],

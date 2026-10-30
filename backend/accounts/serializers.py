@@ -6,20 +6,36 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.validators import UniqueValidator
 
-from .models import User
+from django.db import transaction
+from .models import User, Role, UserRole
+
+from django.conf import settings
+
+from .otp import normalize_phone
+from .models import OTPChallenge
+
+
+class IranianPhoneField(serializers.CharField):
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+
+        try:
+            return normalize_phone(value)
+        except ValueError:
+            raise serializers.ValidationError(
+                "Enter a valid Iranian mobile number."
+            )
 
 
 class RegisterSerializer(serializers.Serializer):
 
-    phone = serializers.CharField(
-        max_length=32,
-        trim_whitespace=True,
+    phone = IranianPhoneField(
         validators=[
-            UniqueValidator(
-                queryset=User.objects.all(),
-                message="This phone number is already registered.",
-            )
-        ],
+        UniqueValidator(
+            queryset=User.objects.all(),
+            message="This phone number is already registered.",
+        )
+    ],
     )
 
     password = serializers.CharField(
@@ -67,20 +83,27 @@ class RegisterSerializer(serializers.Serializer):
 
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
 
-        return User.objects.create_user(
+    # Create new user
+        user = User.objects.create_user(
             phone=validated_data["phone"],
             password=validated_data["password"],
         )
 
+        employer_role = Role.objects.get(code="EMPLOYER")
+
+        UserRole.objects.get_or_create(
+            user=user,
+            role=employer_role,
+        )
+
+        return user
 
 class PasswordLoginSerializer(serializers.Serializer):
 
-    phone = serializers.CharField(
-        max_length=32,
-        trim_whitespace=True,
-    )
+    phone = IranianPhoneField()
 
     password = serializers.CharField(
         write_only=True,
@@ -144,3 +167,26 @@ class TokenRefreshResponseSerializer(serializers.Serializer):
 class TokenVerifyRequestSerializer(serializers.Serializer):
 
     token = serializers.CharField()
+
+
+
+class OTPPhoneSerializer(serializers.Serializer):
+    phone = IranianPhoneField()
+
+
+class OTPVerifySerializer(OTPPhoneSerializer):
+    code = serializers.RegexField(
+        regex=rf"^[0-9]{{{settings.OTP_CODE_LENGTH}}}$",
+        trim_whitespace=True,
+    )
+
+
+class OTPResendSerializer(OTPPhoneSerializer):
+    purpose = serializers.ChoiceField(
+        choices=OTPChallenge.Purpose.choices,
+    )
+
+
+class OTPPendingResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    requires_verification = serializers.BooleanField()

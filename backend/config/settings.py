@@ -21,6 +21,21 @@ from dotenv import load_dotenv
 
 load_dotenv(BASE_DIR / ".env")
 
+FERZZ_API_TOKEN = os.getenv("FERZZ_API_TOKEN", "")
+FERZZ_API_URL = os.getenv(
+    "FERZZ_API_URL",
+    "https://gateway.ferzz.ir/send",
+)
+
+# Ferzz documentation is inconsistent about "code" vs "message".
+FERZZ_SMS_CODE_FIELD = os.getenv("FERZZ_SMS_CODE_FIELD", "code")
+
+# OTP policies
+OTP_CODE_LENGTH = 5
+OTP_EXPIRY_SECONDS = 180
+OTP_RESEND_COOLDOWN_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
@@ -153,9 +168,18 @@ MAILERS = {
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "register": "10/hour",
+        "otp_send": "12/hour",
+        "otp_verify": "30/hour",
+    },
 }
 
 SIMPLE_JWT = {

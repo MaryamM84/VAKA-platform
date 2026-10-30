@@ -1,13 +1,12 @@
-
 "use client";
 
 import { useState } from "react";
 import Step1Details from "./steps/Step1Details";
 import Step2Schedule from "./steps/Step2Schedule";
-import {
-  initialTaskFormData,
-  type TaskFormData,
-} from "./types";
+import Step3Location from "./steps/Step3Location";
+import Step4Budget from "./steps/Step4Budget";
+import Step5Review from "./steps/Step5Review";
+import { initialTaskFormData, type TaskFormData } from "./types";
 
 const steps = [
   {
@@ -40,13 +39,9 @@ const steps = [
 export default function TaskCreationWizard() {
   const [currentStep, setCurrentStep] = useState(0);
 
-  const [formData, setFormData] =
-    useState<TaskFormData>(initialTaskFormData);
+  const [formData, setFormData] = useState<TaskFormData>(initialTaskFormData);
 
-  function handleFieldChange(
-    field: keyof TaskFormData,
-    value: string
-  ) {
+  function handleFieldChange(field: keyof TaskFormData, value: string) {
     setFormData((previousData) => ({
       ...previousData,
       [field]: value,
@@ -57,9 +52,7 @@ export default function TaskCreationWizard() {
   const isLastStep = currentStep === steps.length - 1;
 
   function goNext() {
-    setCurrentStep((step) =>
-      Math.min(step + 1, steps.length - 1)
-    );
+    setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
   }
 
   function goBack() {
@@ -69,23 +62,16 @@ export default function TaskCreationWizard() {
   return (
     <main className="task-creation-page" dir="rtl">
       <div className="mx-auto w-full max-w-6xl">
-        <nav
-          aria-label="مراحل ایجاد کار"
-          className="task-stepper mb-6"
-        >
+        <nav aria-label="مراحل ایجاد کار" className="task-stepper mb-6">
           <ol className="flex min-w-[600px] items-center lg:min-w-0">
             {steps.map((step, index) => {
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
 
-              const iconPath = isCompleted
-                ? "/icons/check.svg"
-                : step.icon;
+              const iconPath = isCompleted ? "/icons/check.svg" : step.icon;
 
               const iconColor =
-                isActive || isCompleted
-                  ? "#ffffff"
-                  : "var(--vaka-text-muted)";
+                isActive || isCompleted ? "#ffffff" : "var(--vaka-text-muted)";
 
               return (
                 <li
@@ -150,9 +136,7 @@ export default function TaskCreationWizard() {
                     <div
                       aria-hidden="true"
                       className={`mx-3 h-0.5 min-w-3 flex-1 ${
-                        isCompleted
-                          ? "bg-[#7bb8a9]"
-                          : "bg-[#e5ece8]"
+                        isCompleted ? "bg-[#7bb8a9]" : "bg-[#e5ece8]"
                       }`}
                     />
                   )}
@@ -174,7 +158,6 @@ export default function TaskCreationWizard() {
                   گام {currentStep + 1} از {steps.length}:{" "}
                   {steps[currentStep].title}
                 </h1>
-
               </div>
             </div>
 
@@ -185,62 +168,56 @@ export default function TaskCreationWizard() {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(
-                ((currentStep + 1) / steps.length) * 100
+                ((currentStep + 1) / steps.length) * 100,
               )}
             >
               <div
                 className="h-full rounded-full bg-[#006557] transition-all duration-300"
                 style={{
-                  width: `${
-                    ((currentStep + 1) / steps.length) * 100
-                  }%`,
+                  width: `${((currentStep + 1) / steps.length) * 100}%`,
                 }}
               />
             </div>
           </header>
 
           <div className="min-h-80 px-5 py-8 sm:px-8 sm:py-10">
-
             {currentStep === 0 ? (
-              <Step1Details
-                data={formData}
-                onChange={handleFieldChange}
-              />
+              <Step1Details data={formData} onChange={handleFieldChange} />
             ) : currentStep === 1 ? (
-              <Step2Schedule
-                data={formData}
-                onChange={handleFieldChange}
-              />
+              <Step2Schedule data={formData} onChange={handleFieldChange} />
+            ) : currentStep === 2 ? (
+              <Step3Location data={formData} onChange={handleFieldChange} />
+            ) : currentStep === 3 ? (
+              <Step4Budget data={formData} onChange={handleFieldChange} />
             ) : (
-              <div className="flex min-h-52 items-center justify-center rounded-2xl border border-dashed border-[#dce7e1] bg-[#f7faf8]/90 p-6 text-center">
-                <p className="text-sm leading-7 text-[#65716b]">
-                  این مرحله در حال آماده‌سازی است.
-                </p>
-              </div>
+              <Step5Review
+                data={formData}
+                onEditStep={setCurrentStep}
+                onBack={() => setCurrentStep(3)}
+              />
             )}
           </div>
 
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1ee] px-5 py-5 sm:px-8">
-            <button
-              type="button"
-              onClick={goBack}
-              disabled={isFirstStep}
-              className="rounded-full border border-[#dce5df] px-5 py-3 text-sm font-semibold text-[#35433d] transition hover:bg-[#f5f8f6] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              مرحله قبل
-            </button>
+          {currentStep < 4 && (
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1ee] px-5 py-5 sm:px-8">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={isFirstStep}
+                className="rounded-full border border-[#dce5df] px-5 py-3 text-sm font-semibold text-[#35433d] transition hover:bg-[#f5f8f6] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                مرحله قبل
+              </button>
 
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={isLastStep}
-              className="rounded-full bg-[#006557] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#005448] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isLastStep
-                ? "تأیید و ثبت"
-                : `مرحله بعد: ${steps[currentStep + 1].title}`}
-            </button>
-          </footer>
+              <button
+                type="button"
+                onClick={goNext}
+                className="rounded-full bg-[#006557] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#005448]"
+              >
+                مرحله بعد: {steps[currentStep + 1].title}
+              </button>
+            </footer>
+          )}
         </section>
       </div>
     </main>

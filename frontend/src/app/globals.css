@@ -30,20 +30,13 @@
   --vaka-radius-pill: 9999px;
 
   --vaka-shadow-card:
-    0 10px 24px rgb(24 37 34 / 7%),
-    0 2px 5px rgb(24 37 34 / 3%);
+    0 10px 24px rgb(24 37 34 / 7%), 0 2px 5px rgb(24 37 34 / 3%);
 
-  --vaka-shadow-floating:
-    0 5px 14px rgb(0 101 87 / 16%);
+  --vaka-shadow-floating: 0 5px 14px rgb(0 101 87 / 16%);
 
   --vaka-content-width: 1440px;
 
-  --vaka-font:
-    "Vazirmatn",
-    "IRANSansX",
-    Tahoma,
-    Arial,
-    sans-serif;
+  --vaka-font: "Vazirmatn", "IRANSansX", Tahoma, Arial, sans-serif;
 }
 
 html {
@@ -85,7 +78,6 @@ select:focus-visible {
   background: var(--vaka-primary-soft);
   color: var(--vaka-primary);
 }
-
 
 .vaka-card {
   border: 1px solid var(--vaka-border-soft);
@@ -158,7 +150,6 @@ select:focus-visible {
   background: var(--vaka-primary-soft);
 }
 
-
 .task-creation-page {
   min-height: 100vh;
   padding: 32px 16px 48px;
@@ -169,7 +160,6 @@ select:focus-visible {
   background-repeat: no-repeat;
   background-size: 100% auto;
 }
-
 
 .task-stepper {
   overflow-x: auto;
@@ -182,6 +172,29 @@ select:focus-visible {
   scrollbar-color: #cbd9d1 transparent;
 }
 
+/* نشانگر اختصاصی نقشه واکا */
+
+.vaka-map-marker {
+  background: transparent;
+  border: none;
+}
+
+.vaka-map-marker-inner {
+  display: block;
+
+  width: 24px;
+  height: 24px;
+
+  background: #006557;
+  border: 4px solid white;
+
+  border-radius: 50% 50% 50% 0;
+
+  transform: rotate(-45deg);
+
+  box-shadow: 0 2px 10px #163d3566;
+}
+
 @media (min-width: 640px) {
   .task-creation-page {
     padding: 40px 24px 56px;
@@ -191,7 +204,6 @@ select:focus-visible {
     padding: 16px 28px;
   }
 }
-
 
 @media (prefers-reduced-motion: reduce) {
   *,

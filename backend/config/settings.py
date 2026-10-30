@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,7 +43,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "rest_framework",
-    "django.contrib.gis",
+    # "django.contrib.gis",
+
+    "drf_spectacular",
 
     # VAKA applications
     "accounts.apps.AccountsConfig",
@@ -145,4 +148,40 @@ MAILERS = {
     'default': {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ],
+}
+
+SIMPLE_JWT = {
+
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    "ROTATE_REFRESH_TOKENS": False,
+
+    "AUTH_HEADER_TYPES": ("Bearer",),
+
+    "USER_ID_FIELD": "user_id",
+
+    "USER_ID_CLAIM": "user_id",
+
+    "CHECK_USER_IS_ACTIVE": True,
+
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "VAKA API",
+    "DESCRIPTION": (
+        "API documentation for the VAKA platform. "
+        "Authentication is handled using JWT."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }

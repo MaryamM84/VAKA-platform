@@ -7,16 +7,18 @@ from django.db.models import Q
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone, full_name, password=None, **extra_fields):
+    def create_user(self, phone, full_name="", password=None, **extra_fields):
         if not phone:
             raise ValueError("Phone number is required.")
 
-        if not full_name:
-            raise ValueError("Full name is required.")
+        phone = phone.strip()
+
+        if not phone:
+            raise ValueError("Phone number is required.")
 
         user = self.model(
             phone=phone,
-            full_name=full_name,
+            full_name=full_name or "",  
             **extra_fields,
         )
 
@@ -58,7 +60,7 @@ class User(AbstractBaseUser):
         db_column="password_hash",
     )
 
-    full_name = models.CharField(max_length=160)
+    full_name = models.CharField(max_length=160, blank=True,default="")
 
     avatar_key = models.TextField(
         null=True,

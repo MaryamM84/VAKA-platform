@@ -2,33 +2,28 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { FieldError, toEn } from "@/components/ui/form-feedback";
+import { FieldError, toEn, toFa } from "@/components/ui/form-feedback";
 
 type OtpVerificationProps = {
-  /** شماره موبایلی که کد برایش ارسال شده */
+  /** شماره موبایلی که کد برایش ارسال شده است. */
   phone: string;
-  /** تعداد ارقام کد (پیش‌فرض ۵) */
+  /** تعداد ارقام کد مطابق مستندات API (۵ رقم). */
   length?: number;
-  /** زمان انتظار برای ارسال مجدد، به ثانیه (پیش‌فرض ۵۹) */
+  /** مدت انتظار ارسال مجدد به ثانیه. */
   resendSeconds?: number;
   loading?: boolean;
-  /** پیام خطا، مثلاً «کد واردشده نادرست است» */
+  resendLoading?: boolean;
   error?: string;
   onVerify: (code: string) => void | Promise<void>;
-  onResend: () => void | Promise<void>;
-  /** برگشت به مرحلهٔ ثبت شماره (برای «ویرایش شماره» و «بازگشت») */
+  /** با false اعلام می‌کند ارسال مجدد موفق نبوده و شمارنده نباید ریست شود. */
+  onResend: () => boolean | void | Promise<boolean | void>;
   onBack: () => void;
 };
 
-const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
-
-const toFa = (value: string) =>
-  value.replace(/\d/g, (d) => FA_DIGITS[Number(d)]);
-
 const formatTime = (total: number) => {
-  const m = String(Math.floor(total / 60)).padStart(2, "0");
-  const s = String(total % 60).padStart(2, "0");
-  return toFa(`${m}:${s}`);
+  const minutes = String(Math.floor(total / 60)).padStart(2, "0");
+  const seconds = String(total % 60).padStart(2, "0");
+  return toFa(`${minutes}:${seconds}`);
 };
 
 export default function OtpVerification({
@@ -36,6 +31,7 @@ export default function OtpVerification({
   length = 5,
   resendSeconds = 59,
   loading = false,
+  resendLoading = false,
   error,
   onVerify,
   onResend,
@@ -47,17 +43,18 @@ export default function OtpVerification({
 
   const code = values.join("");
   const isComplete = code.length === length;
+  const isBusy = loading || resendLoading;
 
-  // فوکوس روی اولین خانه هنگام نمایش
   useEffect(() => {
     inputsRef.current[0]?.focus();
   }, []);
 
-  // شمارندهٔ ارسال مجدد
   useEffect(() => {
     if (secondsLeft <= 0) return;
-    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearTimeout(timer);
+    const timer = window.setTimeout(() => {
+      setSecondsLeft((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
   }, [secondsLeft]);
 
   function focusInput(index: number) {
@@ -65,17 +62,14 @@ export default function OtpVerification({
     inputsRef.current[index]?.select();
   }
 
-  // پر کردن خانه‌ها از یک اندیس به بعد (برای تایپ، paste و پر شدن خودکار)
   function fillFrom(start: number, digits: string) {
+    const availableDigits = digits.slice(0, length - start).split("");
     const next = [...values];
-    digits
-      .slice(0, length - start)
-      .split("")
-      .forEach((digit, i) => {
-        next[start + i] = digit;
-      });
+    availableDigits.forEach((digit, offset) => {
+      next[start + offset] = digit;
+    });
     setValues(next);
-    focusInput(Math.min(start + digits.length, length - 1));
+    focusInput(Math.min(start + availableDigits.length, length - 1));
   }
 
   function handleChange(index: number, raw: string) {
@@ -101,14 +95,13 @@ export default function OtpVerification({
       next[index - 1] = "";
       setValues(next);
       focusInput(index - 1);
+      return;
     }
 
-    // خانهٔ اول سمت چپ است
     if (event.key === "ArrowLeft" && index > 0) {
       event.preventDefault();
       focusInput(index - 1);
-    }
-    if (event.key === "ArrowRight" && index < length - 1) {
+    } else if (event.key === "ArrowRight" && index < length - 1) {
       event.preventDefault();
       focusInput(index + 1);
     }
@@ -124,8 +117,10 @@ export default function OtpVerification({
   }
 
   async function handleResend() {
-    if (secondsLeft > 0) return;
-    await onResend();
+    if (secondsLeft > 0 || isBusy) return;
+    const result = await onResend();
+    if (result === false) return;
+
     setValues(Array(length).fill(""));
     setSecondsLeft(resendSeconds);
     focusInput(0);
@@ -133,19 +128,18 @@ export default function OtpVerification({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isComplete || loading) return;
+    if (!isComplete || isBusy) return;
     await onVerify(code);
   }
 
   return (
     <main
       dir="rtl"
-      className="flex min-h-screen items-center justify-center bg-[#eff8f5] px-4 py-6 text-[#17283b] sm:px-8"
+      className="flex min-h-screen items-center justify-center bg-[var(--vaka-auth-page)] px-4 py-6 text-[var(--vaka-auth-text)] sm:px-8"
     >
-      <section className="grid w-full max-w-[900px] overflow-hidden rounded-[20px] bg-white shadow-[0_12px_30px_rgba(42,75,68,0.09)] md:grid-cols-[1fr_1.35fr]">
-        {/* کارت شخصیت: سمت راست */}
-        <aside className="relative flex min-h-[260px] flex-col items-center justify-between overflow-hidden bg-[#dfeae7] px-5 pb-6 pt-8 md:min-h-[540px]">
-          <span className="absolute right-8 top-8 h-14 w-14 rounded-full bg-[#cfe0da]/70 blur-xl" />
+      <section className="grid w-full max-w-[900px] overflow-hidden rounded-[20px] bg-[var(--vaka-auth-surface)] shadow-[var(--vaka-auth-card-shadow)] md:grid-cols-[1fr_1.35fr]">
+        <aside className="relative flex min-h-[260px] flex-col items-center justify-between overflow-hidden bg-[var(--vaka-auth-panel-alt)] px-5 pb-6 pt-8 md:min-h-[540px]">
+          <span className="absolute right-8 top-8 h-14 w-14 rounded-full bg-[var(--vaka-auth-panel-glow)] blur-xl" />
 
           <div className="relative z-10 flex flex-1 items-center justify-center">
             <Image
@@ -158,16 +152,14 @@ export default function OtpVerification({
             />
           </div>
 
-          <p className="relative z-10 mt-3 text-center text-sm font-extrabold text-[#263746]">
+          <p className="relative z-10 mt-3 text-center text-sm font-extrabold text-[var(--vaka-auth-heading)]">
             واکا مجموعه‌ای از فرصت‌های کوچک
           </p>
         </aside>
 
-        {/* فرم: سمت چپ */}
         <div className="flex min-h-[500px] flex-col items-center justify-center px-5 py-7 sm:px-8 sm:py-8 lg:px-10">
           <div className="w-full max-w-[340px]">
-            {/* آیکون موبایل */}
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-[#d3e5df] bg-[#e7f1ef] text-[#08715f]">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--vaka-auth-primary-border)] bg-[var(--vaka-auth-primary-soft)] text-[var(--vaka-auth-primary)]">
               <svg
                 aria-hidden="true"
                 viewBox="0 0 24 24"
@@ -185,11 +177,11 @@ export default function OtpVerification({
               کد تأیید را وارد کنید
             </h1>
 
-            <p className="mt-2 text-center text-xs leading-7 text-[#77899d]">
+            <p className="mt-2 text-center text-xs leading-7 text-[var(--vaka-auth-muted)]">
               کد {toFa(String(length))} رقمی ارسال‌شده به شماره{" "}
               <bdi
                 dir="ltr"
-                className="rounded-md bg-[#eef3f6] px-1.5 py-0.5 font-bold text-[#34485a]"
+                className="rounded-md bg-[var(--vaka-auth-code-bg)] px-1.5 py-0.5 font-bold text-[var(--vaka-auth-label)]"
               >
                 {toFa(phone)}
               </bdi>{" "}
@@ -197,48 +189,40 @@ export default function OtpVerification({
               <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex items-center gap-1 font-semibold text-[#f47752] hover:underline"
+                disabled={isBusy}
+                className="inline-flex items-center gap-1 font-semibold text-[var(--vaka-auth-orange)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="h-3 w-3"
-                >
-                  <path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" />
-                </svg>
                 ویرایش شماره
               </button>
             </p>
 
             <form onSubmit={handleSubmit} noValidate className="mt-7">
-              {/* خانه‌های کد: خانهٔ اول سمت چپ */}
               <div dir="ltr" className="flex justify-center gap-2.5 sm:gap-3">
                 {values.map((value, index) => (
                   <input
                     key={index}
-                    ref={(el) => {
-                      inputsRef.current[index] = el;
+                    ref={(element) => {
+                      inputsRef.current[index] = element;
                     }}
-                    value={value}
+                    value={toFa(value)}
                     onChange={(event) => handleChange(index, event.target.value)}
                     onKeyDown={(event) => handleKeyDown(index, event)}
                     onPaste={(event) => handlePaste(index, event)}
                     onFocus={(event) => event.target.select()}
                     type="text"
+                    dir="ltr"
                     inputMode="numeric"
                     autoComplete={index === 0 ? "one-time-code" : "off"}
-                    maxLength={length}
+                    maxLength={index === 0 ? length : 1}
+                    disabled={isBusy}
                     aria-label={`رقم ${toFa(String(index + 1))} کد تأیید`}
-                    aria-invalid={!!error}
-                    className={`h-12 w-12 rounded-xl border-[1.5px] text-center text-lg font-bold outline-none transition sm:h-14 sm:w-14 ${
+                    aria-invalid={Boolean(error)}
+                    className={`h-12 w-12 rounded-xl border-[1.5px] bg-[var(--vaka-auth-surface)] text-center text-lg font-bold text-[var(--vaka-auth-heading)] outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:w-14 ${
                       error
-                        ? "border-[#e5707a] bg-[#fff6f6] text-[#c8404b] focus:ring-4 focus:ring-[#e5707a]/15"
+                        ? "border-[var(--vaka-auth-error-border)] bg-[var(--vaka-auth-error-bg)] focus:ring-[var(--vaka-auth-error)]/15"
                         : value
-                        ? "border-[#16866f] bg-white text-[#263746] focus:ring-4 focus:ring-[#16866f]/10"
-                        : "border-[#cfdad6] bg-white text-[#263746] focus:border-[#16866f] focus:ring-4 focus:ring-[#16866f]/10"
+                          ? "border-[var(--vaka-auth-primary)] focus:ring-[var(--vaka-auth-primary)]/10"
+                          : "border-[var(--vaka-auth-input-border)] focus:border-[var(--vaka-auth-primary)] focus:ring-[var(--vaka-auth-primary)]/10"
                     }`}
                   />
                 ))}
@@ -246,8 +230,7 @@ export default function OtpVerification({
 
               <FieldError message={error} />
 
-              {/* شمارندهٔ ارسال مجدد */}
-              <div className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-[#718198]">
+              <div className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-[var(--vaka-auth-subtle)]">
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
@@ -263,7 +246,7 @@ export default function OtpVerification({
                 {secondsLeft > 0 ? (
                   <span>
                     امکان ارسال مجدد کد پس از{" "}
-                    <span className="font-bold text-[#08715f]">
+                    <span className="font-bold text-[var(--vaka-auth-primary)]">
                       {formatTime(secondsLeft)}
                     </span>
                   </span>
@@ -271,17 +254,18 @@ export default function OtpVerification({
                   <button
                     type="button"
                     onClick={handleResend}
-                    className="font-semibold text-[#08715f] hover:underline"
+                    disabled={isBusy}
+                    className="font-semibold text-[var(--vaka-auth-primary)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    ارسال مجدد کد
+                    {resendLoading ? "در حال ارسال..." : "ارسال مجدد کد"}
                   </button>
                 )}
               </div>
 
               <button
                 type="submit"
-                disabled={!isComplete || loading}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#075749] to-[#087763] py-3 text-sm font-bold text-white shadow-[0_5px_10px_rgba(0,90,73,0.15)] transition hover:brightness-105 focus:outline-none focus:ring-2 focus:ring-[#08715f] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
+                disabled={!isComplete || isBusy}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--vaka-auth-primary-dark)] to-[var(--vaka-auth-primary-hover)] py-3 text-sm font-bold text-[var(--vaka-auth-on-primary)] shadow-[var(--vaka-auth-button-shadow)] transition hover:brightness-105 focus:outline-none focus:ring-2 focus:ring-[var(--vaka-auth-primary)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
               >
                 {loading ? "در حال بررسی..." : "تأیید و ادامه"}
                 <svg
@@ -300,7 +284,8 @@ export default function OtpVerification({
             <button
               type="button"
               onClick={onBack}
-              className="mx-auto mt-5 flex items-center gap-1.5 text-[11px] text-[#718198] transition hover:text-[#08715f]"
+              disabled={isBusy}
+              className="mx-auto mt-5 flex items-center gap-1.5 text-[11px] text-[var(--vaka-auth-subtle)] transition hover:text-[var(--vaka-auth-primary)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               بازگشت به مرحله ثبت شماره
               <svg

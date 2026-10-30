@@ -5,6 +5,10 @@ from .views import (
     PasswordLoginView,
     AuthTokenRefreshView,
     AuthTokenVerifyView,
+    RegisterOTPVerifyView,
+    OTPLoginSendView,
+    OTPLoginVerifyView,
+    OTPResendView,
 )
 
 
@@ -35,6 +39,31 @@ urlpatterns = [
         "token/verify/",
         AuthTokenVerifyView.as_view(),
         name="token-verify",
+    ),
+
+
+    path(
+    "register/verify-otp/",
+    RegisterOTPVerifyView.as_view(),
+    name="register-verify-otp",
+    ),
+    
+    path(
+        "login/otp/send/",
+        OTPLoginSendView.as_view(),
+        name="login-otp-send",
+    ),
+    
+    path(
+        "login/otp/verify/",
+        OTPLoginVerifyView.as_view(),
+        name="login-otp-verify",
+    ),
+    
+    path(
+        "otp/resend/",
+        OTPResendView.as_view(),
+        name="otp-resend",
     ),
 
 ]

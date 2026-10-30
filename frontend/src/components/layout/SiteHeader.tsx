@@ -113,8 +113,14 @@ export default function SiteHeader() {
       <span className={styles.decorDot} aria-hidden="true" />
       <div className={styles.shell}>
         <Link href="/" className={styles.brand} aria-label="واکا، صفحه اصلی">
-          <Image src="/images/main logo.png" alt="" width={58} height={52}
-            className={styles.brandSymbol} priority />
+          <Image
+            src="/images/main logo.png"
+            alt=""
+            width={104}
+            height={94}
+            className={styles.brandSymbol}
+            priority
+          />
           <span className={styles.brandWords}>
             <span className={styles.brandFa}>واکا</span>
             <span className={styles.brandEn} lang="en">VaKa</span>

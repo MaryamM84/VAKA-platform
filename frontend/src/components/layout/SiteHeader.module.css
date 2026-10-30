@@ -63,32 +63,45 @@
 .brand {
   z-index: 1;
   display: inline-flex;
-  flex: 0 0 129px;
+  flex: 0 0 200px;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   color: #21665d;
   text-decoration: none;
   white-space: nowrap;
 }
+
 .brandSymbol {
   display: block;
-  flex: 0 0 52px;
-  width: 52px;
-  height: 48px;
+  flex: 0 0 104px;
+  width: 104px;
+  height: 94px;
   object-fit: contain;
 }
+
 .brandWords {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: 2px;
+  line-height: 1;
+}
+
+.brandFa {
+  font-weight: 850;
+  font-size: 29px;
+  letter-spacing: -0.5px;
+}
+
+.brandEn {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 750;
+  font-size: 38px;
   line-height: 1.05;
 }
-.brandFa { font-weight: 850; font-size: 24px; letter-spacing: -0.5px; }
-.brandEn { font-family: Arial, Helvetica, sans-serif; font-weight: 750; font-size: 28px; line-height: 1.25; }
 
 .illustration {
   display: block;
@@ -380,10 +393,10 @@
     padding: 0 17px;
     gap: 6px;
   }
-  .brand { flex-basis: 120px; }
-  .brandSymbol { flex-basis: 42px; width: 42px; height: 40px; }
-  .brandFa { font-size: 20px; }
-  .brandEn { font-size: 24px; }
+  .brand { flex-basis: 156px; }
+  .brandSymbol { flex-basis: 62px; width: 62px; height: 57px; }
+  .brandFa { font-size: 23px; }
+  .brandEn { font-size: 30px; }
   .searchContainer { display: none; }
   .mobileSearchContainer {
     position: absolute;
@@ -400,10 +413,10 @@
 }
 @media (max-width: 480px) {
   .shell { padding: 0 11px; }
-  .brand { flex-basis: 98px; gap: 1px; }
-  .brandSymbol { flex-basis: 35px; width: 35px; height: 36px; }
-  .brandFa { font-size: 17px; }
-  .brandEn { font-size: 21px; }
+  .brand { flex-basis: 128px; gap: 4px; }
+  .brandSymbol { flex-basis: 48px; width: 48px; height: 44px; }
+  .brandFa { font-size: 19px; }
+  .brandEn { font-size: 24px; }
   .actions { gap: 5px; }
   .createLink { padding: 7px 9px; font-size: 12px; }
   .createLabel { display: none; }
@@ -416,9 +429,9 @@
 }
 @media (max-width: 360px) {
   .notificationWrap { display: none; }
-  .brand { flex-basis: 85px; }
-  .brandFa { font-size: 16px; }
-  .brandEn { font-size: 19px; }
+  .brand { flex-basis: 108px; }
+  .brandFa { font-size: 17px; }
+  .brandEn { font-size: 21px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .header *, .header *::before, .header *::after { transition: none !important; }

@@ -215,3 +215,45 @@ select:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+:root {
+  --vaka-auth-page: #eff8f5;
+  --vaka-auth-surface: #ffffff;
+  --vaka-auth-text: #17283b;
+  --vaka-auth-heading: #263746;
+  --vaka-auth-muted: #77899d;
+  --vaka-auth-subtle: #718198;
+  --vaka-auth-primary: #08715f;
+  --vaka-auth-primary-dark: #075749;
+  --vaka-auth-primary-hover: #087763;
+  --vaka-auth-primary-soft: #e7f1ef;
+  --vaka-auth-primary-border: #d3e5df;
+  --vaka-auth-panel: #e8f1ef;
+  --vaka-auth-panel-alt: #dfeae7;
+  --vaka-auth-panel-glow: #d9e9e4;
+  --vaka-auth-input-border: #cfdad6;
+  --vaka-auth-placeholder: #9aa8b6;
+  --vaka-auth-icon: #8498ac;
+  --vaka-auth-label: #34485a;
+  --vaka-auth-copy: #50657a;
+  --vaka-auth-tab-bg: #f0f4f8;
+  --vaka-auth-error: #c8404b;
+  --vaka-auth-error-border: #e5707a;
+  --vaka-auth-error-bg: #fff6f6;
+  --vaka-auth-error-placeholder: #d98a90;
+  --vaka-auth-error-icon: #e0545c;
+  --vaka-auth-error-soft-bg: #fdeeee;
+  --vaka-auth-error-soft-text: #d64550;
+  --vaka-auth-success: #0f7f6b;
+  --vaka-auth-on-primary: #ffffff;
+  --vaka-auth-on-error: #ffffff;
+  --vaka-auth-orange: #f47752;
+  --vaka-auth-divider: #e2eaf0;
+  --vaka-auth-footer: #98a9b9;
+  --vaka-auth-link-hover-bg: #f4faf8;
+  --vaka-auth-link-border: #cfd9e2;
+  --vaka-auth-code-bg: #eef3f6;
+  --vaka-auth-tab-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+  --vaka-auth-card-shadow: 0 12px 30px rgb(42 75 68 / 9%);
+  --vaka-auth-button-shadow: 0 5px 10px rgb(0 90 73 / 15%);
+}

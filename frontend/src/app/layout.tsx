@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
+import SiteHeaderGate from "@/components/layout/SiteHeaderGate";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic", "latin"],
@@ -19,7 +20,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl">
-      <body className={`${vazirmatn.className} antialiased`}>{children}</body>
+      <body className={`${vazirmatn.className} antialiased`}>
+        <SiteHeaderGate />
+        {children}
+      </body>
     </html>
   );
 }

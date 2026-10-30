@@ -7,16 +7,18 @@ from django.db.models import Q
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone, full_name, password=None, **extra_fields):
+    def create_user(self, phone, full_name="", password=None, **extra_fields):
         if not phone:
             raise ValueError("Phone number is required.")
 
-        if not full_name:
-            raise ValueError("Full name is required.")
+        phone = phone.strip()
+
+        if not phone:
+            raise ValueError("Phone number is required.")
 
         user = self.model(
             phone=phone,
-            full_name=full_name,
+            full_name=full_name or "",  
             **extra_fields,
         )
 
@@ -58,7 +60,7 @@ class User(AbstractBaseUser):
         db_column="password_hash",
     )
 
-    full_name = models.CharField(max_length=160)
+    full_name = models.CharField(max_length=160, blank=True,default="")
 
     avatar_key = models.TextField(
         null=True,
@@ -87,7 +89,10 @@ class User(AbstractBaseUser):
 
     @property
     def is_active(self):
-        return self.account_status == self.AccountStatus.ACTIVE
+        return (
+        self.account_status == self.AccountStatus.ACTIVE
+        and self.phone_verified_at is not None
+    )
 
     class Meta:
         db_table = "users"
@@ -168,3 +173,38 @@ class UserRole(models.Model):
 
     def __str__(self):
         return f"{self.user_id} - {self.role.code}"
+
+
+class OTPChallenge(models.Model):
+
+    class Purpose(models.TextChoices):
+        REGISTER = "REGISTER", "Register"
+        LOGIN = "LOGIN", "Login"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="otp_challenges",
+    )
+
+    purpose = models.CharField(
+        max_length=10,
+        choices=Purpose.choices,
+    )
+
+    code_hash = models.CharField(max_length=64)
+
+    expires_at = models.DateTimeField()
+
+    last_sent_at = models.DateTimeField()
+
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = "otp_challenges"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "purpose"],
+                name="unique_user_otp_purpose",
+            ),
+        ]

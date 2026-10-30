@@ -2,11 +2,17 @@
 "use client";
 
 import { useState } from "react";
+import Step1Details from "./steps/Step1Details";
+import Step2Schedule from "./steps/Step2Schedule";
+import {
+  initialTaskFormData,
+  type TaskFormData,
+} from "./types";
 
 const steps = [
   {
     title: "عنوان و مشخصات",
-    description: "معرفی و توضیح تسک",
+    description: "معرفی و توضیح کار",
     icon: "/icons/step1-clipboard-pen.svg",
   },
   {
@@ -21,7 +27,7 @@ const steps = [
   },
   {
     title: "بودجه و هزینه‌ها",
-    description: "هزینه انجام تسک",
+    description: "هزینه انجام کار",
     icon: "/icons/step4-wallet-cards.svg",
   },
   {
@@ -34,12 +40,26 @@ const steps = [
 export default function TaskCreationWizard() {
   const [currentStep, setCurrentStep] = useState(0);
 
+  const [formData, setFormData] =
+    useState<TaskFormData>(initialTaskFormData);
+
+  function handleFieldChange(
+    field: keyof TaskFormData,
+    value: string
+  ) {
+    setFormData((previousData) => ({
+      ...previousData,
+      [field]: value,
+    }));
+  }
+
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === steps.length - 1;
-  const progress = ((currentStep + 1) / steps.length) * 100;
 
   function goNext() {
-    setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+    setCurrentStep((step) =>
+      Math.min(step + 1, steps.length - 1)
+    );
   }
 
   function goBack() {
@@ -50,10 +70,10 @@ export default function TaskCreationWizard() {
     <main className="task-creation-page" dir="rtl">
       <div className="mx-auto w-full max-w-6xl">
         <nav
-          aria-label="مراحل ایجاد تسک"
+          aria-label="مراحل ایجاد کار"
           className="task-stepper mb-6"
         >
-          <ol className="flex min-w-[680px] items-center">
+          <ol className="flex min-w-[600px] items-center lg:min-w-0">
             {steps.map((step, index) => {
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
@@ -62,10 +82,9 @@ export default function TaskCreationWizard() {
                 ? "/icons/check.svg"
                 : step.icon;
 
-              const iconColor = isActive
-                ? "#ffffff"
-                : isCompleted
-                  ? "var(--vaka-primary)"
+              const iconColor =
+                isActive || isCompleted
+                  ? "#ffffff"
                   : "var(--vaka-text-muted)";
 
               return (
@@ -82,11 +101,9 @@ export default function TaskCreationWizard() {
                   >
                     <span
                       className={`flex size-10 shrink-0 items-center justify-center rounded-full transition-colors ${
-                        isActive
+                        isActive || isCompleted
                           ? "bg-[#006557] text-white shadow-sm"
-                          : isCompleted
-                            ? "bg-[#e3f0eb]"
-                            : "bg-[#edf2ef]"
+                          : "bg-[#edf2ef]"
                       }`}
                     >
                       <span
@@ -116,6 +133,7 @@ export default function TaskCreationWizard() {
                       >
                         گام {index + 1}
                       </span>
+
                       <span
                         className={`mt-1 block whitespace-nowrap text-xs sm:text-sm ${
                           isActive
@@ -149,7 +167,7 @@ export default function TaskCreationWizard() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <span className="inline-flex rounded-full bg-[#e7f1ec] px-3 py-1.5 text-xs font-medium text-[#006557]">
-                  ایجاد تسک جدید
+                  ایجاد کار جدید
                 </span>
 
                 <h1 className="mt-4 text-xl font-bold text-[#182522] sm:text-2xl">
@@ -157,46 +175,49 @@ export default function TaskCreationWizard() {
                   {steps[currentStep].title}
                 </h1>
 
-                <p className="mt-2 text-sm leading-7 text-[#65716b]">
-                  اطلاعات درخواستت را در چند مرحله وارد کن.
-                </p>
               </div>
-
-              <span className="shrink-0 rounded-full bg-[#e7f1ec] px-4 py-2 text-xs font-semibold text-[#006557]">
-                {Math.round(progress)}٪ تکمیل شده
-              </span>
             </div>
 
             <div
               className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf2ef]"
               role="progressbar"
-              aria-label="میزان پیشرفت فرم"
+              aria-label="میزان پیشرفت مراحل فرم"
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-valuenow={Math.round(progress)}
+              aria-valuenow={Math.round(
+                ((currentStep + 1) / steps.length) * 100
+              )}
             >
               <div
                 className="h-full rounded-full bg-[#006557] transition-all duration-300"
-                style={{ width: `${progress}%` }}
+                style={{
+                  width: `${
+                    ((currentStep + 1) / steps.length) * 100
+                  }%`,
+                }}
               />
             </div>
           </header>
 
           <div className="min-h-80 px-5 py-8 sm:px-8 sm:py-10">
-            <div className="mb-6">
-              <h2 className="text-lg font-bold text-[#182522]">
-                {steps[currentStep].title}
-              </h2>
-              <p className="mt-2 text-sm text-[#65716b]">
-                {steps[currentStep].description}
-              </p>
-            </div>
 
-            <div className="flex min-h-52 items-center justify-center rounded-2xl border border-dashed border-[#dce7e1] bg-[#f7faf8]/90 p-6 text-center">
-              <p className="text-sm leading-7 text-[#65716b]">
-                محتوای این مرحله در قدم بعدی پیاده‌سازی می‌شود.
-              </p>
-            </div>
+            {currentStep === 0 ? (
+              <Step1Details
+                data={formData}
+                onChange={handleFieldChange}
+              />
+            ) : currentStep === 1 ? (
+              <Step2Schedule
+                data={formData}
+                onChange={handleFieldChange}
+              />
+            ) : (
+              <div className="flex min-h-52 items-center justify-center rounded-2xl border border-dashed border-[#dce7e1] bg-[#f7faf8]/90 p-6 text-center">
+                <p className="text-sm leading-7 text-[#65716b]">
+                  این مرحله در حال آماده‌سازی است.
+                </p>
+              </div>
+            )}
           </div>
 
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1ee] px-5 py-5 sm:px-8">
@@ -206,7 +227,7 @@ export default function TaskCreationWizard() {
               disabled={isFirstStep}
               className="rounded-full border border-[#dce5df] px-5 py-3 text-sm font-semibold text-[#35433d] transition hover:bg-[#f5f8f6] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              ← مرحله قبل
+              مرحله قبل
             </button>
 
             <button
@@ -217,7 +238,7 @@ export default function TaskCreationWizard() {
             >
               {isLastStep
                 ? "تأیید و ثبت"
-                : `مرحله بعد: ${steps[currentStep + 1].title} ←`}
+                : `مرحله بعد: ${steps[currentStep + 1].title}`}
             </button>
           </footer>
         </section>

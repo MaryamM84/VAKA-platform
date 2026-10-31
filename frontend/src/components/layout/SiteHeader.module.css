@@ -203,7 +203,7 @@
 }
 
 .searchContainer {
-  margin-right: -15px;
+  margin-right: -10px;
   margin-left: -2px;
 }
 .searchForm {
@@ -1002,3 +1002,14 @@
   }
 }
 
+/* Desktop navigation positioning */
+@media (min-width: 1281px) {
+  .desktopNav {
+    margin-left: 0px;
+    transform: translateX(12px);
+  }
+
+  .searchContainer {
+    margin-right: 0;
+  }
+}

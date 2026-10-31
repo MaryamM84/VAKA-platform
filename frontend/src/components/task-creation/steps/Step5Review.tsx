@@ -9,12 +9,32 @@ type Props = {
   onBack: () => void;
 };
 
-function formatNumber(value: string | number | undefined): string {
-  const number = Number(value || 0);
+// تبدیل اعداد فارسی و عربی به انگلیسی برای پردازش
+function normalizeDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
 
-  return new Intl.NumberFormat("fa-IR").format(
-    Number.isFinite(number) ? number : 0,
-  );
+// تبدیل اعداد انگلیسی به فارسی برای نمایش
+function toPersianDigits(value: string | number): string {
+  return String(value).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+}
+
+// نمایش متن با اعداد فارسی، بدون تغییر مقدار اصلی
+function formatText(value: string | undefined): string {
+  if (!value) return "";
+
+  return toPersianDigits(value);
+}
+
+function formatNumber(value: string | number | undefined): string {
+  const normalized = normalizeDigits(String(value ?? "0"));
+  const number = Number(normalized.replace(/[,\s٬،]/g, ""));
+
+  return new Intl.NumberFormat("fa-IR", {
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(number) ? number : 0);
 }
 
 function formatDate(value: string | undefined): string {
@@ -22,7 +42,9 @@ function formatDate(value: string | undefined): string {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) {
+    return formatText(value);
+  }
 
   return new Intl.DateTimeFormat("fa-IR", {
     dateStyle: "medium",
@@ -108,8 +130,8 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-sm font-bold text-[#176254]">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-[#e4f2ec] text-[#087d6c]">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--vaka-primary)]">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-[var(--vaka-primary-soft)] text-[var(--vaka-primary)]">
           <Icon name={icon} />
         </span>
         {title}
@@ -118,7 +140,7 @@ function SectionHeader({
       <button
         type="button"
         onClick={onEdit}
-        className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-[#087d6c] hover:text-[#00594e]"
+        className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-[var(--vaka-primary)] hover:text-[var(--vaka-primary-hover)]"
       >
         <Icon name="edit" />
         ویرایش
@@ -129,10 +151,11 @@ function SectionHeader({
 
 function SummaryValue({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-xl border border-[#e8f0eb] bg-white px-3 py-3">
-      <p className="text-[10px] text-[#84918b]">{label}</p>
-      <p className="mt-1 break-words text-xs font-bold leading-6 text-[#263b34]">
-        {value || "ثبت نشده"}
+    <div className="min-w-0 rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] px-3 py-3">
+      <p className="text-[10px] text-[var(--vaka-text-muted)]">{label}</p>
+
+      <p className="mt-1 break-words text-xs font-bold leading-6 text-[var(--vaka-text)]">
+        {formatText(value) || "ثبت نشده"}
       </p>
     </div>
   );
@@ -212,7 +235,7 @@ function ReviewMap({ data }: { data: TaskFormData }) {
             radius: 8,
             color: "#ffffff",
             weight: 3,
-            fillColor: "#087d6c",
+            fillColor: "#006557",
             fillOpacity: 1,
           }).addTo(map);
         }
@@ -222,7 +245,7 @@ function ReviewMap({ data }: { data: TaskFormData }) {
             radius: 8,
             color: "#ffffff",
             weight: 3,
-            fillColor: "#087d6c",
+            fillColor: "#006557",
             fillOpacity: 1,
           }).addTo(map);
 
@@ -230,12 +253,12 @@ function ReviewMap({ data }: { data: TaskFormData }) {
             radius: 8,
             color: "#ffffff",
             weight: 3,
-            fillColor: "#d58a31",
+            fillColor: "#c87925",
             fillOpacity: 1,
           }).addTo(map);
 
           L.polyline(points, {
-            color: "#087d6c",
+            color: "#006557",
             weight: 3,
             opacity: 0.85,
             dashArray: "6 6",
@@ -272,7 +295,7 @@ function ReviewMap({ data }: { data: TaskFormData }) {
   ]);
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-[#dce9e2] bg-[#eaf2ed]">
+    <div className="relative overflow-hidden rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-primary-pale)]">
       <div
         ref={elementRef}
         className="h-[190px] w-full sm:h-[220px]"
@@ -280,13 +303,13 @@ function ReviewMap({ data }: { data: TaskFormData }) {
       />
 
       {mapError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#f0f6f2] p-4 text-center text-xs leading-6 text-[#60766c]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--vaka-primary-pale)] p-4 text-center text-xs leading-6 text-[var(--vaka-text-secondary)]">
           نقشه بارگذاری نشد. نشانی و مختصات ثبت‌شده در اطلاعات سفارش قابل مشاهده
           است.
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-2 right-2 rounded-lg bg-white/95 px-3 py-2 text-[10px] font-medium text-[#31584b] shadow-sm">
+      <div className="pointer-events-none absolute bottom-2 right-2 rounded-lg bg-[var(--vaka-surface)]/95 px-3 py-2 text-[10px] font-medium text-[var(--vaka-primary)] shadow-sm">
         {data.locationMode === "route"
           ? "نمایش مسیر مبدأ تا مقصد"
           : "موقعیت محل انجام کار"}
@@ -302,9 +325,13 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
   const isRoute = data.locationMode === "route";
   const needsGoods = data.goodsPurchaseRequired === "true";
 
-  const wage = Math.max(0, Number(data.wageBudgetAmount) || 0);
+  const wage = Math.max(
+    0,
+    Number(normalizeDigits(data.wageBudgetAmount || "0")) || 0,
+  );
+
   const itemBudget = needsGoods
-    ? Math.max(0, Number(data.itemCostCapAmount) || 0)
+    ? Math.max(0, Number(normalizeDigits(data.itemCostCapAmount || "0")) || 0)
     : 0;
 
   const total = wage + itemBudget;
@@ -323,72 +350,76 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
       <section className="pb-1">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <span className="inline-flex rounded-full bg-[#e7f3ed] px-3 py-1 text-[10px] font-semibold text-[#087d6c]">
+            <span className="inline-flex rounded-full bg-[var(--vaka-primary-soft)] px-3 py-1 text-[10px] font-semibold text-[var(--vaka-primary)]">
               گام نهایی ایجاد سفارش
             </span>
 
-            <h2 className="mt-3 text-lg font-extrabold text-[#182522] sm:text-xl">
+            <h2 className="mt-3 text-lg font-extrabold text-[var(--vaka-text)] sm:text-xl">
               بازبینی نهایی و انتشار کار در شبکه واکا
             </h2>
           </div>
 
-          <span className="rounded-full bg-[#e6f4ec] px-3 py-1.5 text-[10px] font-semibold text-[#087d6c]">
+          <span className="rounded-full bg-[var(--vaka-primary-soft)] px-3 py-1.5 text-[10px] font-semibold text-[var(--vaka-primary)]">
             آماده بررسی نهایی
           </span>
         </div>
 
-        <p className="mt-2 text-xs leading-6 text-[#73827b]">
+        <p className="mt-2 text-xs leading-6 text-[var(--vaka-text-secondary)]">
           اطلاعات واردشده را بررسی کنید. پس از انتشار، اعلان سفارش برای متخصصان
           واجد شرایط ارسال می‌شود.
         </p>
       </section>
 
-      {/* 1. مشخصات و عنوان کار */}
-      <section className="rounded-2xl border border-[#e4eee8] bg-[#f0f8f4] p-3 sm:p-4">
+      {/* ۱. مشخصات و عنوان کار */}
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-3 sm:p-4">
         <SectionHeader
           title="مشخصات و عنوان کار"
           icon="edit"
           onEdit={() => onEditStep(0)}
         />
 
-        <div className="rounded-xl border border-[#e5eee8] bg-white p-3 sm:p-4">
-          <p className="text-[10px] text-[#84918b]">عنوان درخواست</p>
+        <div className="rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] p-3 sm:p-4">
+          <p className="text-[10px] text-[var(--vaka-text-muted)]">
+            عنوان درخواست
+          </p>
 
-          <h3 className="mt-1 text-sm font-extrabold leading-7 text-[#233a32]">
-            {data.title || "عنوان کار ثبت نشده است"}
+          <h3 className="mt-1 text-sm font-extrabold leading-7 text-[var(--vaka-text)]">
+            {formatText(data.title) || "عنوان کار ثبت نشده است"}
           </h3>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[#e8f4ee] px-3 py-1.5 text-[10px] font-semibold text-[#087d6c]">
-              {data.categoryName || "دسته‌بندی مشخص نشده"}
+            <span className="rounded-full bg-[var(--vaka-primary-soft)] px-3 py-1.5 text-[10px] font-semibold text-[var(--vaka-primary)]">
+              {formatText(data.categoryName) || "دسته‌بندی مشخص نشده"}
             </span>
           </div>
 
-          <div className="mt-3 border-t border-[#edf2ee] pt-3">
-            <p className="text-[11px] font-bold text-[#31584b]">
+          <div className="mt-3 border-t border-[var(--vaka-border-soft)] pt-3">
+            <p className="text-[11px] font-bold text-[var(--vaka-primary)]">
               شرح دقیق مأموریت:
             </p>
 
-            <p className="mt-1 whitespace-pre-wrap text-xs leading-7 text-[#65756d]">
-              {data.description || "توضیحی برای این کار ثبت نشده است."}
+            <p className="mt-1 whitespace-pre-wrap text-xs leading-7 text-[var(--vaka-text-secondary)]">
+              {formatText(data.description) ||
+                "توضیحی برای این کار ثبت نشده است."}
             </p>
           </div>
 
           {data.deliveryCriteria && (
-            <div className="mt-3 rounded-xl bg-[#f5f9f6] p-3">
-              <p className="text-[11px] font-bold text-[#31584b]">
+            <div className="mt-3 rounded-xl bg-[var(--vaka-primary-pale)] p-3">
+              <p className="text-[11px] font-bold text-[var(--vaka-primary)]">
                 معیار تحویل و تأیید:
               </p>
-              <p className="mt-1 whitespace-pre-wrap text-xs leading-6 text-[#65756d]">
-                {data.deliveryCriteria}
+
+              <p className="mt-1 whitespace-pre-wrap text-xs leading-6 text-[var(--vaka-text-secondary)]">
+                {formatText(data.deliveryCriteria)}
               </p>
             </div>
           )}
         </div>
       </section>
 
-      {/* 2. زمان‌بندی و فوریت */}
-      <section className="rounded-2xl border border-[#e4eee8] bg-[#f0f8f4] p-3 sm:p-4">
+      {/* ۲. زمان‌بندی و فوریت */}
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-3 sm:p-4">
         <SectionHeader
           title="زمان‌بندی و فوریت"
           icon="clock"
@@ -398,7 +429,9 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <SummaryValue
             label="فوریت کار"
-            value={urgencyLabels[data.urgency] || data.urgency || "عادی"}
+            value={
+              urgencyLabels[data.urgency] || formatText(data.urgency) || "عادی"
+            }
           />
 
           <SummaryValue
@@ -429,8 +462,8 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         </div>
       </section>
 
-      {/* 3. محدوده جغرافیایی */}
-      <section className="rounded-2xl border border-[#e4eee8] bg-[#f0f8f4] p-3 sm:p-4">
+      {/* ۳. محدوده جغرافیایی */}
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-3 sm:p-4">
         <SectionHeader
           title="محدوده جغرافیایی و حریم خصوصی"
           icon="pin"
@@ -460,29 +493,29 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
 
         <ReviewMap data={data} />
 
-        <div className="mt-3 flex items-start gap-2 rounded-xl bg-white p-3">
-          <span className="mt-0.5 text-[#087d6c]">
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-[var(--vaka-surface)] p-3">
+          <span className="mt-0.5 text-[var(--vaka-primary)]">
             <Icon name="lock" />
           </span>
 
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-[#31584b]">
+            <p className="text-xs font-bold text-[var(--vaka-primary)]">
               اطلاعات محرمانه محل
             </p>
 
-            <p className="mt-1 text-[11px] leading-6 text-[#73827b]">
-              پلاک: {data.locationBuilding || "ثبت نشده"}{" "}
+            <p className="mt-1 text-[11px] leading-6 text-[var(--vaka-text-secondary)]">
+              پلاک: {formatText(data.locationBuilding) || "ثبت نشده"}{" "}
               <span className="mx-1">|</span>
-              طبقه / واحد: {data.locationUnit || "ثبت نشده"}
+              طبقه / واحد: {formatText(data.locationUnit) || "ثبت نشده"}
             </p>
 
             {data.locationDeliveryNotes && (
-              <p className="mt-1 text-[11px] leading-6 text-[#73827b]">
-                توضیح تحویل: {data.locationDeliveryNotes}
+              <p className="mt-1 text-[11px] leading-6 text-[var(--vaka-text-secondary)]">
+                توضیح تحویل: {formatText(data.locationDeliveryNotes)}
               </p>
             )}
 
-            <p className="mt-1 text-[10px] leading-5 text-[#84918b]">
+            <p className="mt-1 text-[10px] leading-5 text-[var(--vaka-text-muted)]">
               اطلاعات اختصاصی باید در زمان مناسب و فقط در اختیار افراد مجاز قرار
               گیرد.
             </p>
@@ -490,8 +523,8 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         </div>
       </section>
 
-      {/* 4. بودجه و صندوق امانت */}
-      <section className="rounded-2xl border border-[#e4eee8] bg-[#f0f8f4] p-3 sm:p-4">
+      {/* ۴. بودجه و صندوق امانت */}
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-3 sm:p-4">
         <SectionHeader
           title="بودجه مالی و صندوق امانت واکا"
           icon="wallet"
@@ -499,32 +532,38 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         />
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e6eee9] bg-white px-3 py-3">
-            <span className="text-xs text-[#65756d]">دستمزد خالص مجری</span>
-            <strong className="text-xs text-[#233a32]">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] px-3 py-3">
+            <span className="text-xs text-[var(--vaka-text-secondary)]">
+              دستمزد خالص مجری
+            </span>
+
+            <strong className="text-xs text-[var(--vaka-text)]">
               {formatNumber(wage)} تومان
             </strong>
           </div>
 
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e6eee9] bg-white px-3 py-3">
-            <span className="text-xs text-[#65756d]">سقف هزینه خرید اقلام</span>
-            <strong className="text-xs text-[#233a32]">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] px-3 py-3">
+            <span className="text-xs text-[var(--vaka-text-secondary)]">
+              سقف هزینه خرید اقلام
+            </span>
+
+            <strong className="text-xs text-[var(--vaka-text)]">
               {formatNumber(itemBudget)} تومان
             </strong>
           </div>
 
-          <div className="rounded-xl border border-[#cce5d8] bg-[#dff1e7] p-3">
+          <div className="rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-primary-soft)] p-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-[#176254]">
+              <span className="text-xs font-bold text-[var(--vaka-primary)]">
                 مجموع سپرده اولیه سفارش
               </span>
 
-              <span className="text-lg font-extrabold text-[#087d6c]">
+              <span className="text-lg font-extrabold text-[var(--vaka-primary)]">
                 {formatNumber(total)} تومان
               </span>
             </div>
 
-            <p className="mt-2 text-[10px] leading-5 text-[#57766a]">
+            <p className="mt-2 text-[10px] leading-5 text-[var(--vaka-text-secondary)]">
               مبلغ بر اساس دستمزد و بودجه خرید انتخاب‌شده محاسبه شده است. مبلغ
               واقعی قابل پرداخت باید در مرحله ثبت سفارش و با توجه به شرایط مالی
               سامانه تأیید شود.
@@ -533,8 +572,8 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         </div>
       </section>
 
-      {/* 5. تأیید شرایط */}
-      <section className="rounded-xl border border-[#e4eee8] bg-[#f7faf8] p-3 sm:p-4">
+      {/* ۵. تأیید شرایط */}
+      <section className="rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-3 sm:p-4">
         <label
           htmlFor="review-accept-terms"
           className="flex cursor-pointer items-start gap-3"
@@ -547,15 +586,15 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
               setAcceptedTerms(event.target.checked);
               setFeedback("");
             }}
-            className="mt-1 size-4 shrink-0 accent-[#087d6c]"
+            className="mt-1 size-4 shrink-0 accent-[var(--vaka-primary)]"
           />
 
           <span className="min-w-0">
-            <span className="block text-xs font-bold leading-6 text-[#263b34]">
+            <span className="block text-xs font-bold leading-6 text-[var(--vaka-text)]">
               قوانین و شرایط شبکه واکا را مطالعه کرده‌ام و می‌پذیرم.
             </span>
 
-            <span className="mt-1 block text-[10px] leading-5 text-[#84918b]">
+            <span className="mt-1 block text-[10px] leading-5 text-[var(--vaka-text-muted)]">
               با انتشار کار، اطلاعات ثبت‌شده برای ارائه پیشنهاد در اختیار
               متخصصان واجد شرایط قرار می‌گیرد. اطلاعات محرمانه باید مطابق
               سیاست‌های دسترسی سامانه محافظت شود.
@@ -566,19 +605,19 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         {feedback && (
           <p
             role="status"
-            className="mt-3 rounded-lg bg-[#e7f3ed] px-3 py-2 text-xs leading-6 text-[#176254]"
+            className="mt-3 rounded-lg bg-[var(--vaka-primary-soft)] px-3 py-2 text-xs leading-6 text-[var(--vaka-primary)]"
           >
-            {feedback}
+            {formatText(feedback)}
           </p>
         )}
       </section>
 
       {/* دکمه‌های نهایی */}
-      <footer className="flex flex-col gap-3 border-t border-[#e5eee8] pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="flex flex-col gap-3 border-t border-[var(--vaka-border-soft)] pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="order-3 inline-flex items-center justify-center gap-2 rounded-full border border-[#dce7e1] bg-white px-5 py-3 text-xs font-semibold text-[#43574d] transition hover:bg-[#f4f8f5] sm:order-1"
+          className="order-3 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-5 py-3 text-xs font-semibold text-[var(--vaka-text)] transition hover:bg-[var(--vaka-primary-pale)] sm:order-1"
         >
           بازگشت به بودجه و دستمزد
         </button>
@@ -590,7 +629,7 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
               "پیش‌نویس در این نسخه نمایشی آماده است؛ ذخیره دائمی به API نیاز دارد.",
             )
           }
-          className="order-2 inline-flex items-center justify-center gap-2 rounded-full border border-[#dce7e1] bg-white px-5 py-3 text-xs font-semibold text-[#43574d] transition hover:bg-[#f4f8f5] sm:order-2"
+          className="order-2 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-5 py-3 text-xs font-semibold text-[var(--vaka-text)] transition hover:bg-[var(--vaka-primary-pale)] sm:order-2"
         >
           <Icon name="file" />
           ذخیره به عنوان پیش‌نویس
@@ -606,7 +645,7 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
               "تأیید اولیه انجام شد. برای انتشار واقعی، اتصال API ثبت سفارش لازم است.",
             );
           }}
-          className="order-1 inline-flex items-center justify-center gap-2 rounded-full bg-[#087d6c] px-5 py-3 text-xs font-bold text-white shadow-md shadow-[#087d6c]/15 transition hover:bg-[#066456] disabled:cursor-not-allowed disabled:opacity-40 sm:order-3"
+          className="order-1 inline-flex items-center justify-center gap-2 rounded-full bg-[var(--vaka-primary)] px-5 py-3 text-xs font-bold text-[var(--vaka-surface)] shadow-md shadow-[var(--vaka-primary)]/15 transition hover:bg-[var(--vaka-primary-hover)] disabled:cursor-not-allowed disabled:opacity-40 sm:order-3"
         >
           <Icon name="check" />
           انتشار عمومی کار و دریافت پیشنهاد مجریان

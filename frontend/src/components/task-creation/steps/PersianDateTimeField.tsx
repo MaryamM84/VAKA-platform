@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -20,7 +19,9 @@ function getCurrentDateTime() {
   const pad = (value: number) => String(value).padStart(2, "0");
 
   return {
-    date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+      now.getDate(),
+    )}`,
     time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
   };
 }
@@ -34,8 +35,14 @@ export default function PersianDateTimeField({
   optional = false,
 }: PersianDateTimeFieldProps) {
   const initial = getCurrentDateTime();
-  const [dateValue, setDateValue] = useState(value.split("T")[0] || initial.date);
-  const [timeValue, setTimeValue] = useState(value.split("T")[1] || initial.time);
+
+  const [dateValue, setDateValue] = useState(
+    value.split("T")[0] || initial.date,
+  );
+
+  const [timeValue, setTimeValue] = useState(
+    value.split("T")[1] || initial.time,
+  );
 
   function updateDate(date: string) {
     setDateValue(date);
@@ -48,19 +55,24 @@ export default function PersianDateTimeField({
   }
 
   return (
-    <section className={`rounded-2xl p-4 sm:p-5 ${
-      optional
-        ? "border border-[#dce7e1] bg-white"
-        : "bg-[#f0f8f4]"
-    }`}>
-      <label className="mb-3 flex items-center gap-2 text-sm font-bold text-[#174f46]">
-        <span className="text-[#006557]" aria-hidden="true">
+    <section
+      className={`rounded-2xl p-4 sm:p-5 ${
+        optional
+          ? "border border-[var(--vaka-border)] bg-[var(--vaka-surface)]"
+          : "bg-[var(--vaka-primary-pale)]"
+      }`}
+    >
+      <label className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--vaka-primary)]">
+        <span className="text-[var(--vaka-primary)]" aria-hidden="true">
           {optional ? "○" : "●"}
         </span>
+
         {label}
-        {required && <span className="text-red-500">*</span>}
+
+        {required && <span className="text-[var(--vaka-danger)]">*</span>}
+
         {optional && (
-          <span className="text-xs font-normal text-[#84918b]">
+          <span className="text-xs font-normal text-[var(--vaka-text-muted)]">
             (اختیاری)
           </span>
         )}
@@ -75,19 +87,21 @@ export default function PersianDateTimeField({
             value={dateValue}
             onChange={(date) => {
               if (date) {
-                const gregorianDate = date.convert(
-                  undefined,
-                  undefined
-                ).toDate();
+                const gregorianDate = date
+                  .convert(undefined, undefined)
+                  .toDate();
 
                 const pad = (n: number) => String(n).padStart(2, "0");
+
                 updateDate(
-                  `${gregorianDate.getFullYear()}-${pad(gregorianDate.getMonth() + 1)}-${pad(gregorianDate.getDate())}`
+                  `${gregorianDate.getFullYear()}-${pad(
+                    gregorianDate.getMonth() + 1,
+                  )}-${pad(gregorianDate.getDate())}`,
                 );
               }
             }}
             format="YYYY/MM/DD"
-            inputClass="w-full rounded-xl border border-[#dce7e1] bg-white px-4 py-3 text-sm text-[#182522] outline-none focus:border-[#006557] focus:ring-2 focus:ring-[#006557]/10"
+            inputClass="w-full rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-4 py-3 text-sm text-[var(--vaka-text)] outline-none focus:border-[var(--vaka-primary)] focus:ring-2 focus:ring-[var(--vaka-primary)]/10"
             containerClassName="w-full"
           />
         </div>
@@ -95,17 +109,18 @@ export default function PersianDateTimeField({
         <div>
           <label
             htmlFor={`${id}-time`}
-            className="mb-1 block text-xs text-[#84918b]"
+            className="mb-1 block text-xs text-[var(--vaka-text-muted)]"
           >
             ساعت
           </label>
+
           <input
             id={`${id}-time`}
             type="time"
             value={timeValue}
             onChange={(event) => updateTime(event.target.value)}
             required={required}
-            className="w-full rounded-xl border border-[#dce7e1] bg-white px-3 py-3 text-sm text-[#182522] outline-none focus:border-[#006557] focus:ring-2 focus:ring-[#006557]/10"
+            className="w-full rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-3 py-3 text-sm text-[var(--vaka-text)] outline-none focus:border-[var(--vaka-primary)] focus:ring-2 focus:ring-[var(--vaka-primary)]/10"
           />
         </div>
       </div>

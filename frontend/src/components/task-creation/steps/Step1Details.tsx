@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { TaskFormData } from "../types";
@@ -42,28 +41,24 @@ const categories = [
 ];
 
 const inputClassName =
-  "w-full rounded-xl border border-[#e0eae5] bg-white px-4 py-3 text-sm text-[#182522] outline-none transition placeholder:text-[#a0aaa5] focus:border-[#006557] focus:ring-2 focus:ring-[#006557]/10";
+  "w-full rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-4 py-3 text-sm text-[var(--vaka-text)] outline-none transition placeholder:text-[var(--vaka-text-muted)] focus:border-[var(--vaka-primary)] focus:ring-2 focus:ring-[var(--vaka-primary)]/10";
 
-const labelClassName =
-  "block text-sm font-bold text-[#174f46]";
+const labelClassName = "block text-sm font-bold text-[var(--vaka-primary)]";
 
-export default function Step1Details({
-  data,
-  onChange,
-}: Step1DetailsProps) {
+export default function Step1Details({ data, onChange }: Step1DetailsProps) {
   return (
     <div className="space-y-7">
       {/* عنوان کار */}
-      <section className="rounded-2xl bg-[#f0f8f4] p-4 sm:p-5">
+      <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <label htmlFor="task-title" className={labelClassName}>
-            <span className="ml-2 text-[#006557]">●</span>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             عنوان دقیق کار چیست؟
-            <span className="mr-1 text-red-500">*</span>
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
           </label>
 
-          <span className="rounded-full bg-white px-3 py-1 text-[11px] text-[#84948c]">
-            {data.title.length} / 180 حرف
+          <span className="rounded-full bg-[var(--vaka-surface)] px-3 py-1 text-[11px] text-[var(--vaka-text-muted)]">
+            {new Intl.NumberFormat("fa-IR").format(data.title.length)} / ۱۸۰ حرف
           </span>
         </div>
 
@@ -78,9 +73,9 @@ export default function Step1Details({
           className={inputClassName}
         />
 
-        <p className="mt-3 text-xs leading-6 text-[#84918b]">
-          یک عنوان مختصر و صریح بنویسید تا متخصصان متوجه شوند
-          دقیقاً چه کاری باید انجام شود.
+        <p className="mt-3 text-xs leading-6 text-[var(--vaka-text-muted)]">
+          یک عنوان مختصر و صریح بنویسید تا متخصصان متوجه شوند دقیقاً چه کاری
+          باید انجام شود.
         </p>
       </section>
 
@@ -88,12 +83,12 @@ export default function Step1Details({
       <section>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className={labelClassName}>
-            <span className="ml-2 text-[#006557]">♧</span>
+            <span className="ml-2 text-[var(--vaka-primary)]">♧</span>
             دسته‌بندی مرتبط با کار را انتخاب کنید:
-            <span className="mr-1 text-red-500">*</span>
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
           </h3>
 
-          <span className="text-xs text-[#8b9690]">
+          <span className="text-xs text-[var(--vaka-text-muted)]">
             انتخاب یکی از ۶ دسته
           </span>
         </div>
@@ -110,16 +105,16 @@ export default function Step1Details({
                 aria-pressed={isSelected}
                 className={`relative flex min-h-28 flex-col rounded-2xl border p-4 text-right transition ${
                   isSelected
-                    ? "border-[#80b7a8] bg-[#e9f4ef] shadow-sm ring-1 ring-[#80b7a8]/40"
-                    : "border-[#edf1ee] bg-white hover:border-[#b9d5ca] hover:bg-[#f8fbf9]"
+                    ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)] shadow-sm ring-1 ring-[var(--vaka-primary)]/20"
+                    : "border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] hover:border-[var(--vaka-primary)] hover:bg-[var(--vaka-primary-pale)]"
                 }`}
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <span
                     className={`flex size-10 items-center justify-center rounded-xl text-xl ${
                       isSelected
-                        ? "bg-[#006557] text-white"
-                        : "bg-[#e4ede8]"
+                        ? "bg-[var(--vaka-primary)] text-white"
+                        : "bg-[var(--vaka-primary-soft)]"
                     }`}
                     aria-hidden="true"
                   >
@@ -129,22 +124,20 @@ export default function Step1Details({
                   <span
                     className={`flex size-5 items-center justify-center rounded-full border ${
                       isSelected
-                        ? "border-[#006557] bg-[#006557] text-white"
-                        : "border-[#cbd7d0] bg-white"
+                        ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary)] text-white"
+                        : "border-[var(--vaka-border)] bg-[var(--vaka-surface)]"
                     }`}
                     aria-hidden="true"
                   >
-                    {isSelected && (
-                      <span className="text-xs">✓</span>
-                    )}
+                    {isSelected && <span className="text-xs">✓</span>}
                   </span>
                 </div>
 
-                <span className="text-sm font-bold leading-6 text-[#263b34]">
+                <span className="text-sm font-bold leading-6 text-[var(--vaka-text)]">
                   {category.name}
                 </span>
 
-                <span className="mt-1 text-xs leading-5 text-[#78867f]">
+                <span className="mt-1 text-xs leading-5 text-[var(--vaka-text-secondary)]">
                   {category.description}
                 </span>
               </button>
@@ -152,27 +145,25 @@ export default function Step1Details({
           })}
         </div>
 
-        <p className="mt-3 text-xs leading-6 text-[#84918b]">
+        <p className="mt-3 text-xs leading-6 text-[var(--vaka-text-muted)]">
           دسته‌بندی مناسب به پیدا کردن مجری مرتبط با کار شما کمک می‌کند.
         </p>
       </section>
 
       {/* شرح کامل کار */}
-      <section className="rounded-2xl bg-[#f0f8f4] p-4 sm:p-5">
+      <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <label htmlFor="task-description" className={labelClassName}>
-            <span className="ml-2 text-[#006557]">●</span>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             شرح کامل کار و انتظارات دقیق
-            <span className="mr-1 text-red-500">*</span>
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
           </label>
         </div>
 
         <textarea
           id="task-description"
           value={data.description}
-          onChange={(event) =>
-            onChange("description", event.target.value)
-          }
+          onChange={(event) => onChange("description", event.target.value)}
           rows={6}
           required
           placeholder="لطفاً شرح دهید چه کاری باید انجام شود، چه جزئیاتی اهمیت دارند و چه نتیجه‌ای انتظار دارید..."
@@ -180,46 +171,38 @@ export default function Step1Details({
         />
 
         <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
-          <p className="flex-1 text-xs leading-6 text-[#84918b]">
-            <span className="ml-1 text-[#006557]">ⓘ</span>
-            ذکر جزئیات ابزار مورد نیاز و حساسیت کالا به قیمت‌گذاری
-            بهتر کمک می‌کند.
+          <p className="flex-1 text-xs leading-6 text-[var(--vaka-text-muted)]">
+            <span className="ml-1 text-[var(--vaka-primary)]">ⓘ</span>
+            ذکر جزئیات ابزار مورد نیاز و حساسیت کالا به قیمت‌گذاری بهتر کمک
+            می‌کند.
           </p>
-
         </div>
       </section>
 
-      
       {/* معیارهای تحویل کار */}
-      <section className="rounded-2xl bg-[#f0f8f4] p-4 sm:p-5">
+      <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <label
-            htmlFor="delivery-criteria"
-            className={labelClassName}
-          >
-            <span className="ml-2 text-[#006557]">●</span>
+          <label htmlFor="delivery-criteria" className={labelClassName}>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             معیارهای تحویل کار
-            <span className="mr-1 text-red-500">*</span>
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
           </label>
         </div>
-          
+
         <textarea
           id="delivery-criteria"
           value={data.deliveryCriteria}
-          onChange={(event) =>
-            onChange("deliveryCriteria", event.target.value)
-          }
+          onChange={(event) => onChange("deliveryCriteria", event.target.value)}
           rows={3}
           required
           placeholder="مثلاً تحویل کالا به آدرس مشخص‌شده و ارائه رسید خرید"
           className={`${inputClassName} resize-none leading-7`}
         />
-      
-        <p className="mt-3 text-xs leading-6 text-[#84918b]">
+
+        <p className="mt-3 text-xs leading-6 text-[var(--vaka-text-muted)]">
           مشخص کنید پس از انجام چه مواردی، کار کامل و قابل تأیید محسوب می‌شود.
         </p>
       </section>
-
     </div>
   );
 }

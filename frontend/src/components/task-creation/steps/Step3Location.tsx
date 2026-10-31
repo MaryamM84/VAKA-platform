@@ -31,6 +31,21 @@ const radiusOptions = [
   { value: "10000", label: "۱۰ کیلومتر" },
 ];
 
+const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+
+function toPersianDigits(value: string | number): string {
+  return String(value)
+    .replace(/\d/g, (digit) => PERSIAN_DIGITS[Number(digit)])
+    .replace(/[٠-٩]/g, (digit) => PERSIAN_DIGITS[ARABIC_DIGITS.indexOf(digit)]);
+}
+
+function toEnglishDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)));
+}
+
 function isValidCoordinates(lat: string, lng: string) {
   const latNumber = Number(lat);
   const lngNumber = Number(lng);
@@ -51,8 +66,9 @@ function buildMarkerHtml(color: string) {
       height:18px;
       border-radius:9999px;
       background:${color};
-      border:4px solid #ffffff;
-      box-shadow:0 3px 12px rgba(0,0,0,.18);
+      border:4px solid var(--vaka-surface);
+      box-shadow: 0 3px 12px
+      color-mix(in srgb, var(--vaka-text) 18%, transparent);
     "></span>
   `;
 }
@@ -110,11 +126,7 @@ function LocationIcon({
         <path d="M8 10V7a4 4 0 0 1 8 0v3" />
       </>
     ),
-    check: (
-      <>
-        <path d="m5 12 4 4L19 6" />
-      </>
-    ),
+    check: <path d="m5 12 4 4L19 6" />,
     map: (
       <>
         <path d="M9 18 3 20V6l6-2 6 2 6-2v14l-6 2-6-2Z" />
@@ -168,6 +180,10 @@ function LocationIcon({
 
 export default function Step3Location({ data, onChange }: Props) {
   const mapElement = useRef<HTMLDivElement | null>(null);
+
+  // مرجع بخش نقشه برای اسکرول دکمه Map Picker
+  const mapSectionRef = useRef<HTMLElement | null>(null);
+
   const mapInstance = useRef<import("leaflet").Map | null>(null);
   const leafletRef = useRef<LeafletModule | null>(null);
 
@@ -203,10 +219,12 @@ export default function Step3Location({ data, onChange }: Props) {
     data.locationLatitude,
     data.locationLongitude,
   );
+
   const originSelected = isValidCoordinates(
     data.originLatitude,
     data.originLongitude,
   );
+
   const destinationSelected = isValidCoordinates(
     data.destinationLatitude,
     data.destinationLongitude,
@@ -226,9 +244,9 @@ export default function Step3Location({ data, onChange }: Props) {
       if (!L) return null;
 
       const colorMap = {
-        fixed: "#007563",
-        origin: "#007563",
-        destination: "#d88520",
+        fixed: "var(--vaka-primary)",
+        origin: "var(--vaka-primary)",
+        destination: "var(--vaka-warning)",
       };
 
       return L.divIcon({
@@ -309,6 +327,18 @@ export default function Step3Location({ data, onChange }: Props) {
     },
     [activeRoutePoint, flyToLocation, setFixedLocation, setRouteLocation],
   );
+
+  // انتقال نرم به نقشه و تنظیم مجدد ابعاد Leaflet
+  const scrollToMap = useCallback(() => {
+    mapSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    window.setTimeout(() => {
+      mapInstance.current?.invalidateSize();
+    }, 400);
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -436,8 +466,8 @@ export default function Step3Location({ data, onChange }: Props) {
         } else {
           radiusCircleRef.current = L.circle(position, {
             radius,
-            color: "#007563",
-            fillColor: "#43a890",
+            color: "var(--vaka-primary)",
+            fillColor: "var(--vaka-primary-soft)",
             fillOpacity: 0.1,
             weight: 2,
           }).addTo(map);
@@ -529,7 +559,7 @@ export default function Step3Location({ data, onChange }: Props) {
         routeLineRef.current.setLatLngs(linePoints);
       } else {
         routeLineRef.current = L.polyline(linePoints, {
-          color: "#007563",
+          color: "var(--vaka-primary)",
           weight: 3,
           opacity: 0.7,
           dashArray: "7 6",
@@ -589,6 +619,7 @@ export default function Step3Location({ data, onChange }: Props) {
       }
 
       const result = results[0];
+
       await applySelectedLocation(
         Number(result.lat),
         Number(result.lon),
@@ -640,24 +671,24 @@ export default function Step3Location({ data, onChange }: Props) {
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
-      <section className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#7f8c86]">
+      <section className="flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--vaka-text-muted)]">
         <span>۶۰٪ تکمیل شده</span>
         <span>گام ۳: تنظیم مختصات مأموریت</span>
       </section>
 
       <section>
-        <h2 className="text-base font-bold text-[#182522]">
+        <h2 className="text-base font-bold text-[var(--vaka-text)]">
           گام ۳: محدوده مکانی و مسیر خدمت
         </h2>
-        <p className="mt-2 text-sm leading-7 text-[#66736d]">
+        <p className="mt-2 text-sm leading-7 text-[var(--vaka-text-secondary)]">
           مشخص کنید این خدمت به صورت سیار و مقصدی یا در یک آدرس ثابت انجام
           می‌شود.
         </p>
       </section>
 
       {/* ساختار جغرافیایی */}
-      <section className="rounded-2xl border border-[#e3ece7] bg-[#f7fbf9] p-4 sm:p-5">
-        <h3 className="mb-4 text-sm font-bold text-[#174f46]">
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
+        <h3 className="mb-4 text-sm font-bold text-[var(--vaka-primary)]">
           ساختار جغرافیایی کار را انتخاب کنید:
         </h3>
 
@@ -667,16 +698,16 @@ export default function Step3Location({ data, onChange }: Props) {
             onClick={() => onChange("locationMode", "fixed")}
             className={`rounded-2xl border p-4 text-right transition ${
               locationMode === "fixed"
-                ? "border-[#0b7c6d] bg-[#eaf5f1] shadow-sm"
-                : "border-[#e1ebe5] bg-white hover:border-[#8bb5aa]"
+                ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)] shadow-sm"
+                : "border-[var(--vaka-border-soft)] bg-white hover:border-[var(--vaka-border)]"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-bold text-[#1c3c34]">
+                <div className="text-sm font-bold text-[var(--vaka-text)]">
                   انجام در محل ثابت
                 </div>
-                <div className="mt-1 text-xs leading-6 text-[#6b7c75]">
+                <div className="mt-1 text-xs leading-6 text-[var(--vaka-text-secondary)]">
                   نشانی منزل، دفتر، تعمیرات ثابت یا نمایندگی
                 </div>
               </div>
@@ -684,8 +715,8 @@ export default function Step3Location({ data, onChange }: Props) {
               <span
                 className={`inline-flex size-9 items-center justify-center rounded-xl ${
                   locationMode === "fixed"
-                    ? "bg-[#0b7c6d] text-white"
-                    : "bg-[#eff5f1] text-[#73837c]"
+                    ? "bg-[var(--vaka-primary)] text-white"
+                    : "bg-[var(--vaka-primary-soft)] text-[var(--vaka-text-muted)]"
                 }`}
               >
                 {locationMode === "fixed" ? (
@@ -702,16 +733,16 @@ export default function Step3Location({ data, onChange }: Props) {
             onClick={() => onChange("locationMode", "route")}
             className={`rounded-2xl border p-4 text-right transition ${
               locationMode === "route"
-                ? "border-[#0b7c6d] bg-[#eaf5f1] shadow-sm"
-                : "border-[#e1ebe5] bg-white hover:border-[#8bb5aa]"
+                ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)] shadow-sm"
+                : "border-[var(--vaka-border-soft)] bg-white hover:border-[var(--vaka-border)]"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-bold text-[#1c3c34]">
+                <div className="text-sm font-bold text-[var(--vaka-text)]">
                   دارای مبدا و مقصد
                 </div>
-                <div className="mt-1 text-xs leading-6 text-[#6b7c75]">
+                <div className="mt-1 text-xs leading-6 text-[var(--vaka-text-secondary)]">
                   پیک اختصاصی، اسنپ‌باکس، خرید حضوری و تحویل کالا
                 </div>
               </div>
@@ -719,8 +750,8 @@ export default function Step3Location({ data, onChange }: Props) {
               <span
                 className={`inline-flex size-9 items-center justify-center rounded-xl ${
                   locationMode === "route"
-                    ? "bg-[#0b7c6d] text-white"
-                    : "bg-[#eff5f1] text-[#73837c]"
+                    ? "bg-[var(--vaka-primary)] text-white"
+                    : "bg-[var(--vaka-primary-soft)] text-[var(--vaka-text-muted)]"
                 }`}
               >
                 {locationMode === "route" ? (
@@ -737,31 +768,38 @@ export default function Step3Location({ data, onChange }: Props) {
           <button
             type="button"
             onClick={() => setShowSearch((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-full bg-[#007563] px-4 py-2.5 text-xs font-semibold text-white"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--vaka-primary)] px-4 py-2.5 text-xs font-semibold text-white"
           >
             <LocationIcon name="search" />
             جست‌وجو و درج دستی آدرس
           </button>
 
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#007563] px-4 py-2.5 text-xs font-semibold text-white">
+          {/* دکمه فعال انتخاب روی نقشه */}
+          <button
+            type="button"
+            onClick={scrollToMap}
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--vaka-primary)] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[var(--vaka-primary-hover)]"
+          >
             <LocationIcon name="map" />
             انتخاب دقیق روی نقشه (Map Picker)
-          </div>
+          </button>
         </div>
 
         {showSearch && (
           <form onSubmit={searchAddress} className="mt-4 flex flex-wrap gap-2">
             <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={toPersianDigits(query)}
+              onChange={(event) =>
+                setQuery(toEnglishDigits(event.target.value))
+              }
               placeholder="تهران، خیابان سهروردی شمالی، نبش کوچه ..."
-              className="min-w-0 flex-1 rounded-xl border border-[#dce7e1] bg-white px-4 py-3 text-sm outline-none focus:border-[#007563]"
+              className="min-w-0 flex-1 rounded-xl border border-[var(--vaka-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
             />
 
             <button
               type="submit"
               disabled={busy}
-              className="rounded-xl bg-[#007563] px-4 py-3 text-xs font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-[var(--vaka-primary)] px-4 py-3 text-xs font-semibold text-white disabled:opacity-50"
             >
               جست‌وجو
             </button>
@@ -770,25 +808,33 @@ export default function Step3Location({ data, onChange }: Props) {
       </section>
 
       {/* پنل نقشه */}
-      <section className="rounded-2xl border border-[#e4ece8] bg-white p-4 sm:p-5">
+      <section
+        ref={mapSectionRef}
+        id="task-location-map"
+        className="scroll-mt-6 rounded-2xl border border-[var(--vaka-border-soft)] bg-white p-4 sm:p-5"
+      >
         {!isRouteMode ? (
           <div className="grid gap-3 text-center sm:grid-cols-3">
-            <div className="rounded-xl bg-[#f7faf8] px-3 py-3">
-              <p className="text-[11px] text-[#7b8a84]">موقعیت در حال تنظیم:</p>
-              <p className="mt-1 text-xs font-bold text-[#1e3f36]">
+            <div className="rounded-xl bg-[var(--vaka-primary-pale)] px-3 py-3">
+              <p className="text-[11px] text-[var(--vaka-text-muted)]">
+                موقعیت در حال تنظیم:
+              </p>
+              <p className="mt-1 text-xs font-bold text-[var(--vaka-text)]">
                 محل انجام کار
               </p>
             </div>
 
-            <div className="rounded-xl bg-[#f7faf8] px-3 py-3">
-              <p className="text-[11px] text-[#7b8a84]">مدل انتخاب فعال</p>
-              <p className="mt-1 text-xs font-bold text-[#1e3f36]">
+            <div className="rounded-xl bg-[var(--vaka-primary-pale)] px-3 py-3">
+              <p className="text-[11px] text-[var(--vaka-text-muted)]">
+                مدل انتخاب فعال
+              </p>
+              <p className="mt-1 text-xs font-bold text-[var(--vaka-text)]">
                 انجام در محل ثابت
               </p>
             </div>
 
-            <div className="rounded-xl bg-[#f7faf8] px-3 py-3">
-              <p className="text-[11px] text-[#7b8a84]">
+            <div className="rounded-xl bg-[var(--vaka-primary-pale)] px-3 py-3">
+              <p className="text-[11px] text-[var(--vaka-text-muted)]">
                 شعاع حضور متخصصان محلی
               </p>
               <div className="mt-2">
@@ -797,7 +843,7 @@ export default function Step3Location({ data, onChange }: Props) {
                   onChange={(event) =>
                     onChange("locationRadiusMeters", event.target.value)
                   }
-                  className="w-full rounded-xl border border-[#dce7e1] bg-white px-3 py-2 text-xs text-[#213a33] outline-none"
+                  className="w-full rounded-xl border border-[var(--vaka-border)] bg-white px-3 py-2 text-xs text-[var(--vaka-text)] outline-none"
                 >
                   {radiusOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -810,9 +856,11 @@ export default function Step3Location({ data, onChange }: Props) {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-[#f7faf8] px-3 py-3 text-center">
-              <p className="text-[11px] text-[#7b8a84]">موقعیت در حال تنظیم:</p>
-              <p className="mt-1 text-xs font-bold text-[#1e3f36]">
+            <div className="rounded-xl bg-[var(--vaka-primary-pale)] px-3 py-3 text-center">
+              <p className="text-[11px] text-[var(--vaka-text-muted)]">
+                موقعیت در حال تنظیم:
+              </p>
+              <p className="mt-1 text-xs font-bold text-[var(--vaka-text)]">
                 {activeTargetTitle}
               </p>
             </div>
@@ -822,12 +870,14 @@ export default function Step3Location({ data, onChange }: Props) {
               onClick={() => setActiveRoutePoint("origin")}
               className={`rounded-xl border px-3 py-3 text-center transition ${
                 activeRoutePoint === "origin"
-                  ? "border-[#007563] bg-[#eaf5f1]"
-                  : "border-[#e3ece7] bg-[#f7faf8]"
+                  ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)]"
+                  : "border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)]"
               }`}
             >
-              <p className="text-[11px] text-[#7b8a84]">۱- نقطه مبدا</p>
-              <p className="mt-1 text-xs font-bold text-[#1e3f36]">
+              <p className="text-[11px] text-[var(--vaka-text-muted)]">
+                ۱- نقطه مبدا
+              </p>
+              <p className="mt-1 text-xs font-bold text-[var(--vaka-text)]">
                 محل سرویس‌دهی
               </p>
             </button>
@@ -837,19 +887,21 @@ export default function Step3Location({ data, onChange }: Props) {
               onClick={() => setActiveRoutePoint("destination")}
               className={`rounded-xl border px-3 py-3 text-center transition ${
                 activeRoutePoint === "destination"
-                  ? "border-[#007563] bg-[#eaf5f1]"
-                  : "border-[#e3ece7] bg-[#f7faf8]"
+                  ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)]"
+                  : "border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)]"
               }`}
             >
-              <p className="text-[11px] text-[#7b8a84]">۲- نقطه مقصد</p>
-              <p className="mt-1 text-xs font-bold text-[#1e3f36]">
+              <p className="text-[11px] text-[var(--vaka-text-muted)]">
+                ۲- نقطه مقصد
+              </p>
+              <p className="mt-1 text-xs font-bold text-[var(--vaka-text)]">
                 تحویل‌گیرنده
               </p>
             </button>
           </div>
         )}
 
-        <div className="mt-4 overflow-hidden rounded-2xl border border-[#dbe7e1] bg-[#eef4f0]">
+        <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--vaka-border)] bg-[var(--vaka-primary-pale)]">
           <div
             ref={mapElement}
             className="h-[300px] w-full sm:h-[360px]"
@@ -857,7 +909,7 @@ export default function Step3Location({ data, onChange }: Props) {
           />
 
           {!mapLoaded && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-[#6d7c75]">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-[var(--vaka-text-secondary)]">
               در حال بارگذاری نقشه...
             </div>
           )}
@@ -868,7 +920,7 @@ export default function Step3Location({ data, onChange }: Props) {
             type="button"
             onClick={locateMe}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-full bg-[#007563] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--vaka-primary)] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
           >
             <LocationIcon name="target" />
             {isRouteMode
@@ -878,7 +930,7 @@ export default function Step3Location({ data, onChange }: Props) {
               : "تثبیت و ثبت موقعیت"}
           </button>
 
-          <p className="text-xs text-[#6b7c75]">
+          <p className="text-xs text-[var(--vaka-text-secondary)]">
             {message ||
               "برای ثبت دقیق‌تر، نقطه مورد نظر را روی نقشه انتخاب یا جابه‌جا کنید."}
           </p>
@@ -888,46 +940,48 @@ export default function Step3Location({ data, onChange }: Props) {
       {/* خلاصه آدرس‌ها */}
       {!isRouteMode ? (
         <div className="grid gap-4">
-          <section className="rounded-2xl bg-[#f7faf8] p-4 sm:p-5">
+          <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 text-[#007563]">
+              <span className="mt-0.5 text-[var(--vaka-primary)]">
                 <LocationIcon name="pin" />
               </span>
 
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-[#174f46]">
+                <h3 className="text-sm font-bold text-[var(--vaka-primary)]">
                   موقعیت انتخاب شده با پین:
                 </h3>
-                <p className="mt-2 text-sm leading-7 text-[#30423b]">
-                  {data.locationAddress || "هنوز موقعیتی ثبت نشده است."}
+                <p className="mt-2 text-sm leading-7 text-[var(--vaka-text)]">
+                  {data.locationAddress
+                    ? toPersianDigits(data.locationAddress)
+                    : "هنوز موقعیتی ثبت نشده است."}
                 </p>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl bg-[#f7faf8] p-4 sm:p-5">
+          <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
             <label
               htmlFor="location-address"
-              className="mb-2 block text-sm font-bold text-[#174f46]"
+              className="mb-2 block text-sm font-bold text-[var(--vaka-primary)]"
             >
               آدرس دقیق یا محدوده انجام کار (لوکیشن)
             </label>
 
             <input
               id="location-address"
-              value={data.locationAddress}
+              value={toPersianDigits(data.locationAddress)}
               onChange={(event) =>
-                onChange("locationAddress", event.target.value)
+                onChange("locationAddress", toEnglishDigits(event.target.value))
               }
               placeholder="تهران، خیابان سهروردی شمالی، نبش کوچه نسترن"
-              className="w-full rounded-xl border border-[#dce7e1] bg-white px-4 py-3 text-sm outline-none focus:border-[#007563]"
+              className="w-full rounded-xl border border-[var(--vaka-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
             />
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#7b8a84]">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--vaka-text-muted)]">
               <span>GPS</span>
               <span>
                 {fixedSelected
-                  ? `${data.locationLatitude} ، ${data.locationLongitude}`
+                  ? `${toPersianDigits(data.locationLatitude)} ، ${toPersianDigits(data.locationLongitude)}`
                   : "هنوز ثبت نشده"}
               </span>
             </div>
@@ -935,58 +989,64 @@ export default function Step3Location({ data, onChange }: Props) {
         </div>
       ) : (
         <section className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-[#f7faf8] p-4 sm:p-5">
+          <div className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 text-[#007563]">
+              <span className="mt-0.5 text-[var(--vaka-primary)]">
                 <LocationIcon name="pin" />
               </span>
 
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-[#174f46]">
+                <h3 className="text-sm font-bold text-[var(--vaka-primary)]">
                   آدرس مبدا (محل شروع / تحویل کالا)
                 </h3>
 
                 <input
-                  value={data.originAddress}
+                  value={toPersianDigits(data.originAddress)}
                   onChange={(event) =>
-                    onChange("originAddress", event.target.value)
+                    onChange(
+                      "originAddress",
+                      toEnglishDigits(event.target.value),
+                    )
                   }
                   placeholder="تهران، خیابان سهروردی شمالی، نبش کوچه نسترن"
-                  className="mt-3 w-full rounded-xl border border-[#dce7e1] bg-white px-4 py-3 text-sm outline-none focus:border-[#007563]"
+                  className="mt-3 w-full rounded-xl border border-[var(--vaka-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
                 />
 
-                <p className="mt-3 text-xs text-[#7b8a84]">
+                <p className="mt-3 text-xs text-[var(--vaka-text-muted)]">
                   {originSelected
-                    ? `${data.originLatitude} ، ${data.originLongitude}`
+                    ? `${toPersianDigits(data.originLatitude)} ، ${toPersianDigits(data.originLongitude)}`
                     : "هنوز ثبت نشده"}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#f7faf8] p-4 sm:p-5">
+          <div className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 text-[#d88520]">
+              <span className="mt-0.5 text-[var(--vaka-warning)]">
                 <LocationIcon name="flag" />
               </span>
 
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-[#174f46]">
+                <h3 className="text-sm font-bold text-[var(--vaka-primary)]">
                   آدرس مقصد (نقطه پایان / تحویل‌گیرنده)
                 </h3>
 
                 <input
-                  value={data.destinationAddress}
+                  value={toPersianDigits(data.destinationAddress)}
                   onChange={(event) =>
-                    onChange("destinationAddress", event.target.value)
+                    onChange(
+                      "destinationAddress",
+                      toEnglishDigits(event.target.value),
+                    )
                   }
                   placeholder="تهران، خیابان سهروردی شمالی، خیابان خواجه عبدالله انصاری"
-                  className="mt-3 w-full rounded-xl border border-[#dce7e1] bg-white px-4 py-3 text-sm outline-none focus:border-[#007563]"
+                  className="mt-3 w-full rounded-xl border border-[var(--vaka-border)] bg-white px-4 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
                 />
 
-                <p className="mt-3 text-xs text-[#7b8a84]">
+                <p className="mt-3 text-xs text-[var(--vaka-text-muted)]">
                   {destinationSelected
-                    ? `${data.destinationLatitude} ، ${data.destinationLongitude}`
+                    ? `${toPersianDigits(data.destinationLatitude)} ، ${toPersianDigits(data.destinationLongitude)}`
                     : "هنوز ثبت نشده"}
                 </p>
               </div>
@@ -996,49 +1056,57 @@ export default function Step3Location({ data, onChange }: Props) {
       )}
 
       {/* اطلاعات محرمانه */}
-      <section className="rounded-2xl bg-[#f7faf8] p-4 sm:p-5">
-        <h3 className="flex items-center gap-2 text-sm font-bold text-[#174f46]">
+      <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--vaka-primary)]">
           <LocationIcon name="lock" />
           پلاک، طبقه و واحد اختصاصی (کاملاً محرمانه)
         </h3>
 
-        <p className="mt-2 text-xs leading-6 text-[#84918b]">
+        <p className="mt-2 text-xs leading-6 text-[var(--vaka-text-muted)]">
           این اطلاعات فقط با پذیرش نهایی و برای هماهنگی با مجری استفاده می‌شود و
           به‌صورت عمومی نمایش داده نخواهد شد.
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <label className="block text-xs text-[#65766e]">
+          <label className="block text-xs text-[var(--vaka-text-secondary)]">
             پلاک محل کار / ساختمان
             <input
-              value={data.locationBuilding}
+              value={toPersianDigits(data.locationBuilding)}
               onChange={(event) =>
-                onChange("locationBuilding", event.target.value)
+                onChange(
+                  "locationBuilding",
+                  toEnglishDigits(event.target.value),
+                )
               }
               placeholder="مثلاً پلاک ۲۴"
-              className="mt-2 w-full rounded-xl border border-[#dce7e1] bg-white px-3 py-3 text-sm outline-none focus:border-[#007563]"
+              className="mt-2 w-full rounded-xl border border-[var(--vaka-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
             />
           </label>
 
-          <label className="block text-xs text-[#65766e]">
+          <label className="block text-xs text-[var(--vaka-text-secondary)]">
             واحد / طبقه
             <input
-              value={data.locationUnit}
-              onChange={(event) => onChange("locationUnit", event.target.value)}
+              value={toPersianDigits(data.locationUnit)}
+              onChange={(event) =>
+                onChange("locationUnit", toEnglishDigits(event.target.value))
+              }
               placeholder="مثلاً طبقه ۳، واحد ۸"
-              className="mt-2 w-full rounded-xl border border-[#dce7e1] bg-white px-3 py-3 text-sm outline-none focus:border-[#007563]"
+              className="mt-2 w-full rounded-xl border border-[var(--vaka-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
             />
           </label>
 
-          <label className="block text-xs text-[#65766e]">
+          <label className="block text-xs text-[var(--vaka-text-secondary)]">
             توضیح تحویل‌گیرنده
             <input
-              value={data.locationDeliveryNotes}
+              value={toPersianDigits(data.locationDeliveryNotes)}
               onChange={(event) =>
-                onChange("locationDeliveryNotes", event.target.value)
+                onChange(
+                  "locationDeliveryNotes",
+                  toEnglishDigits(event.target.value),
+                )
               }
               placeholder="مثلاً فقط پس از زنگ درب وارد شود"
-              className="mt-2 w-full rounded-xl border border-[#dce7e1] bg-white px-3 py-3 text-sm outline-none focus:border-[#007563]"
+              className="mt-2 w-full rounded-xl border border-[var(--vaka-border)] bg-white px-3 py-3 text-sm outline-none focus:border-[var(--vaka-primary)]"
             />
           </label>
         </div>

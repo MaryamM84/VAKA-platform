@@ -935,3 +935,70 @@
   }
 }
 
+/* Proportional VAKA branding and glass header: 791px–1400px */
+@media (min-width: 601px) and (max-width: 1400px) {
+  .shell {
+    /* 0.70 at 790px → 1 at 1400px */
+    --vaka-unit: clamp(
+      0.70px,
+      calc(0.3115px + 0.0492vw),
+      1px
+    );
+
+    height: calc(90 * var(--vaka-unit));
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* Brand layout */
+  .brand {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    gap: 0;
+  }
+
+  /* VAKA symbol */
+  .brandSymbol {
+    flex: 0 0 calc(100 * var(--vaka-unit));
+    width: calc(100 * var(--vaka-unit));
+    height: calc(65 * var(--vaka-unit));
+    object-fit: contain;
+  }
+
+  /* Brand lettering */
+  .brandWords {
+    flex-shrink: 0;
+    gap: calc(2 * var(--vaka-unit));
+    margin-inline-start: calc(-18 * var(--vaka-unit));
+  }
+
+  .brandFa {
+    font-size: calc(29 * var(--vaka-unit));
+  }
+
+  .brandEn {
+    font-size: calc(38 * var(--vaka-unit));
+  }
+
+  /* Illustration scales with the same unit */
+  .illustration {
+    display: block;
+
+    flex: 0 0 calc(149 * var(--vaka-unit));
+    width: calc(149 * var(--vaka-unit));
+    height: calc(119 * var(--vaka-unit));
+    max-height: none;
+
+    flex-shrink: 0;
+    align-self: center;
+    object-fit: contain;
+
+    margin-top: 0;
+    margin-bottom: 0;
+
+    transform: translateY(
+      calc(-12 * var(--vaka-unit))
+    );
+  }
+}
+

@@ -43,8 +43,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [termsTouched, setTermsTouched] = useState(false);
   const [touched, setTouched] = useState({ phone: false, password: false });
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,9 +53,6 @@ export default function LoginPage() {
   const phoneError = touched.phone ? validatePhone(phone) : "";
   const passwordError =
     method === "password" && touched.password ? validatePassword(password) : "";
-  const termsError = termsTouched && !acceptedTerms
-    ? "برای ادامه باید قوانین و شرایط استفاده را بپذیرید."
-    : "";
 
   const phoneStatus: FieldStatus = phoneError
     ? "error"
@@ -82,15 +77,11 @@ export default function LoginPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
-    setTermsTouched(true);
     setTouched({ phone: true, password: true });
 
     if (validatePhone(phone)) return;
     if (method === "password" && validatePassword(password)) return;
-    if (!acceptedTerms) {
-      setFormError("برای ادامه باید قوانین و شرایط استفاده را بپذیرید.");
-      return;
-    }
+    
 
     setIsSubmitting(true);
     try {
@@ -351,31 +342,11 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div>
-              <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--vaka-auth-copy)]">
-                <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(event) => setAcceptedTerms(event.target.checked)}
-                  aria-invalid={Boolean(termsError)}
-                  className="h-4 w-4 rounded accent-[var(--vaka-auth-primary)]"
-                />
-                <span>
-                  <Link href="/terms" className="font-semibold text-[var(--vaka-auth-primary)] hover:underline">
-                    قوانین و شرایط استفاده
-                  </Link>{" "}
-                  را می‌پذیرم.
-                </span>
-              </label>
-              <FieldError message={termsError} />
-              {!acceptedTerms && <p className="mt-1 text-[10px] text-[var(--vaka-auth-muted)]">برای فعال شدن دکمه، پذیرش قوانین را علامت بزنید.</p>}
-            </div>
-
             <FieldError message={formError} />
 
             <button
               type="submit"
-              disabled={isSubmitting || !acceptedTerms}
+              disabled={isSubmitting}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[var(--vaka-auth-primary-dark)] to-[var(--vaka-auth-primary-hover)] py-3 text-sm font-bold text-[var(--vaka-auth-on-primary)] shadow-[var(--vaka-auth-button-shadow)] transition hover:brightness-105 focus:outline-none focus:ring-2 focus:ring-[var(--vaka-auth-primary)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
             >
               {isSubmitting

@@ -83,6 +83,24 @@ function formatTime(value: Date | null): string {
   return toPersianDigits(`${hour}:${minute}`);
 }
 
+function getExecutionWindowError(
+  startValue: string,
+  endValue: string,
+): string {
+  if (!startValue || !endValue) return "";
+
+  const startTime = new Date(startValue).getTime();
+  const endTime = new Date(endValue).getTime();
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) return "";
+
+  if (endTime <= startTime) {
+    return "زمان پایان بازه اجرا باید بعد از زمان شروع باشد.";
+  }
+
+  return "";
+}
+
 function normalizeTimeInput(value: string): string {
   const digits = toEnglishDigits(value).replace(/[^\d:]/g, "");
 
@@ -107,7 +125,7 @@ export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
   const [timeDrafts, setTimeDrafts] = useState<
     Partial<
       Record<
-        "proposalDeadlineAt" | "executionWindowEndAt" | "deadlineAt",
+        "proposalDeadlineAt" | "executionStartTime" | "executionWindowEndAt" | "deadlineAt",
         string
       >
     >
@@ -116,16 +134,21 @@ export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
   const [timeErrors, setTimeErrors] = useState<
     Partial<
       Record<
-        "proposalDeadlineAt" | "executionWindowEndAt" | "deadlineAt",
+        "proposalDeadlineAt" | "executionStartTime" | "executionWindowEndAt" | "deadlineAt",
         string
       >
     >
   >({});
 
+  const executionWindowError = getExecutionWindowError(
+    data.executionStartTime,
+    data.executionWindowEndAt,
+  );
+
   function renderDateTimeField(
     title: string,
     description: string,
-    field: "proposalDeadlineAt" | "executionWindowEndAt" | "deadlineAt",
+    field: "proposalDeadlineAt" | "executionStartTime" | "executionWindowEndAt" | "deadlineAt",
     required = false,
   ) {
     const currentValue = toPickerValue(data[field]);
@@ -134,6 +157,10 @@ export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
       timeDrafts[field] !== undefined
         ? timeDrafts[field]!
         : formatTime(currentValue);
+
+    const fieldError =
+      timeErrors[field] ||
+      (field === "executionWindowEndAt" ? executionWindowError : "");
 
     return (
       <section
@@ -232,7 +259,7 @@ export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
               value={displayedTime}
               placeholder="۱۴:۳۰"
               aria-label="انتخاب ساعت"
-              aria-invalid={Boolean(timeErrors[field])}
+              aria-invalid={Boolean(fieldError)}
               onChange={(event) => {
                 const normalized = normalizeTimeInput(event.target.value);
 
@@ -282,9 +309,9 @@ export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
               className={`${inputClassName} text-left`}
             />
 
-            {timeErrors[field] ? (
+            {fieldError ? (
               <p className="mt-2 text-xs text-[var(--vaka-danger)]">
-                {timeErrors[field]}
+               {fieldError}
               </p>
             ) : (
               <p className={helperClassName}>ساعت را مانند ۱۴:۳۰ وارد کنید.</p>
@@ -509,6 +536,13 @@ export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
           })}
         </div>
       </section>
+
+      {renderDateTimeField(
+        "زمان شروع بازه اجرای کار",
+        "از چه تاریخ و ساعتی امکان شروع انجام کار وجود دارد؟",
+        "executionStartTime",
+        true,
+      )}
 
       {renderDateTimeField(
         "آخرین مهلت دریافت پیشنهادها",

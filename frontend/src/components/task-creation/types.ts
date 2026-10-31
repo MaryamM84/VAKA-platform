@@ -1,45 +1,53 @@
+
 export interface TaskFormData {
-  // مرحله اول: عنوان و مشخصات
+  // اطلاعات اصلی Task
   title: string;
   categoryId: string;
   categoryName: string;
   description: string;
   deliveryCriteria: string;
 
-  // مرحله دوم: زمان‌بندی
+  // زمان‌بندی
   estimatedDurationMinutes: string;
   proposalDeadlineAt: string;
-  executionWindowEndAt: string;
   executionStartTime: string;
+  executionWindowEndAt: string;
   deadlineAt: string;
   urgency: string;
 
-  // مکان ثابت
-  locationMode: string;
+  // نوع موقعیت؛ فقط برای مدیریت فرم
+  locationMode: "fixed" | "route";
+
+  // موقعیت ثابت
   locationLatitude: string;
   locationLongitude: string;
+  locationCity: string;
+  locationRegion: string;
   locationAddress: string;
-
-  // مبدأ و مقصد
-  originLatitude: string;
-  originLongitude: string;
-  originAddress: string;
-  destinationLatitude: string;
-  destinationLongitude: string;
-  destinationAddress: string;
-
-  // اطلاعات خصوصی
+  locationRadiusMeters: string;
   locationBuilding: string;
   locationUnit: string;
   locationDeliveryNotes: string;
-  locationRadiusMeters: string;
+
+  // مبدأ مسیر
+  originLatitude: string;
+  originLongitude: string;
+  originCity: string;
+  originRegion: string;
+  originAddress: string;
+
+  // مقصد مسیر
+  destinationLatitude: string;
+  destinationLongitude: string;
+  destinationCity: string;
+  destinationRegion: string;
+  destinationAddress: string;
 
   // بودجه
   wageBudgetAmount: string;
-  currencyCode: string;
   itemCostCapAmount: string;
-  goodsPurchaseRequired: string;
   invoiceRequired: string;
+  goodsPurchaseRequired: string;
 }
 
 function getLocalDateTime(offsetMinutes = 0): string {
@@ -55,45 +63,50 @@ function getLocalDateTime(offsetMinutes = 0): string {
 }
 
 export const initialTaskFormData: TaskFormData = {
-  // مرحله اول
+  // اطلاعات اصلی
   title: "",
   categoryId: "",
   categoryName: "",
   description: "",
   deliveryCriteria: "",
 
-  // مرحله دوم
+  // زمان‌بندی
   estimatedDurationMinutes: "",
   proposalDeadlineAt: getLocalDateTime(),
-  executionWindowEndAt: getLocalDateTime(),
   executionStartTime: getLocalDateTime(),
-  deadlineAt: getLocalDateTime(),
+  executionWindowEndAt: getLocalDateTime(),
+  deadlineAt: "",
   urgency: "normal",
 
-  // مرحله سوم
+  // موقعیت ثابت
   locationMode: "fixed",
-
   locationLatitude: "",
   locationLongitude: "",
-  locationRadiusMeters: "2000",
+  locationCity: "",
+  locationRegion: "",
   locationAddress: "",
-
-  originLatitude: "",
-  originLongitude: "",
-  originAddress: "",
-
-  destinationLatitude: "",
-  destinationLongitude: "",
-  destinationAddress: "",
-
+  locationRadiusMeters: "2000",
   locationBuilding: "",
   locationUnit: "",
   locationDeliveryNotes: "",
 
-  // مرحله چهارم
+  // مبدأ
+  originLatitude: "",
+  originLongitude: "",
+  originCity: "",
+  originRegion: "",
+  originAddress: "",
+
+  // مقصد
+  destinationLatitude: "",
+  destinationLongitude: "",
+  destinationCity: "",
+  destinationRegion: "",
+  destinationAddress: "",
+
+  // بودجه
   wageBudgetAmount: "250000",
-  currencyCode: "IRR",
-  itemCostCapAmount: "180000",
-  goodsPurchaseRequired: "true",
+  itemCostCapAmount: "",
   invoiceRequired: "true",
+  goodsPurchaseRequired: "true",
 };

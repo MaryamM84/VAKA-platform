@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -6,6 +7,8 @@ import Step2Schedule from "./steps/Step2Schedule";
 import Step3Location from "./steps/Step3Location";
 import Step4Budget from "./steps/Step4Budget";
 import Step5Review from "./steps/Step5Review";
+import { createTask } from "@/lib/task-api";
+import { buildTaskCreatePayload } from "@/lib/task-payload";
 import { initialTaskFormData, type TaskFormData } from "./types";
 
 const steps = [
@@ -89,7 +92,6 @@ function isValidAmount(value: string): boolean {
   if (!value.trim()) return false;
 
   const normalized = normalizeDigits(value).replace(/,/g, "").trim();
-
   const amount = Number(normalized);
 
   return Number.isFinite(amount) && amount >= 0;
@@ -105,7 +107,7 @@ function validateStep(step: number, data: TaskFormData): ValidationResult {
         errors.push("عنوان کار را وارد کنید.");
       }
 
-      if (!data.categoryId.trim() && !data.categoryName.trim()) {
+      if (!data.categoryId.trim()) {
         errors.push("دسته‌بندی کار را انتخاب کنید.");
       }
 
@@ -122,7 +124,9 @@ function validateStep(step: number, data: TaskFormData): ValidationResult {
 
     // گام دوم: زمان‌بندی
     case 1: {
-      const duration = Number(normalizeDigits(data.estimatedDurationMinutes));
+      const duration = Number(
+        normalizeDigits(data.estimatedDurationMinutes),
+      );
 
       if (
         !data.estimatedDurationMinutes.trim() ||
@@ -141,9 +145,27 @@ function validateStep(step: number, data: TaskFormData): ValidationResult {
         errors.push("تاریخ و ساعت مهلت دریافت پیشنهادها معتبر نیست.");
       }
 
+      if (!isValidDateTime(data.executionStartTime)) {
+        errors.push("تاریخ و ساعت شروع بازه اجرای کار معتبر نیست.");
+      }
+
       if (!isValidDateTime(data.executionWindowEndAt)) {
         errors.push("تاریخ و ساعت پایان بازه انجام کار را مشخص کنید.");
       }
+
+      if (
+          isValidDateTime(data.executionStartTime) &&
+          isValidDateTime(data.executionWindowEndAt)
+        ) {
+          const startTime = new Date(data.executionStartTime).getTime();
+          const endTime = new Date(data.executionWindowEndAt).getTime();
+        
+          if (endTime <= startTime) {
+            errors.push(
+              "زمان پایان بازه اجرای کار باید بعد از زمان شروع باشد.",
+            );
+          }
+        }
 
       // مهلت نهایی انجام کار اختیاری است.
       if (data.deadlineAt.trim() && !isValidDateTime(data.deadlineAt)) {
@@ -203,10 +225,6 @@ function validateStep(step: number, data: TaskFormData): ValidationResult {
         errors.push("مبلغ دستمزد را به‌درستی وارد کنید.");
       }
 
-      if (!data.currencyCode.trim()) {
-        errors.push("واحد پول را مشخص کنید.");
-      }
-
       if (
         data.goodsPurchaseRequired === "true" &&
         !isValidAmount(data.itemCostCapAmount)
@@ -243,6 +261,12 @@ export default function TaskCreationWizard() {
   const [formData, setFormData] = useState<TaskFormData>(initialTaskFormData);
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  const [submitError, setSubmitError] = useState("");
+
+  const [submitMessage, setSubmitMessage] = useState("");
 
   function handleFieldChange(field: keyof TaskFormData, value: string) {
     setFormData((previousData) => ({
@@ -309,6 +333,29 @@ export default function TaskCreationWizard() {
     setValidationErrors([]);
     setCurrentStep(index);
     scrollToTop();
+  }
+
+  async function handlePublishTask() {
+    setIsSavingDraft(true);
+    setSubmitError("");
+    setSubmitMessage("");
+
+    try {
+      const payload = buildTaskCreatePayload(formData);
+      const createdTask = await createTask(payload);
+
+      setSubmitMessage(
+        `تسک با موفقیت ثبت شد. شناسه: ${createdTask.task_id}`,
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "انتشار تسک انجام نشد.",
+      );
+    } finally {
+      setIsSavingDraft(false);
+    }
   }
 
   return (
@@ -480,6 +527,10 @@ export default function TaskCreationWizard() {
                 data={formData}
                 onEditStep={editStep}
                 onBack={() => editStep(3)}
+                onPublish={handlePublishTask}
+                isPublishing={isSavingDraft}
+                submitError={submitError}
+                submitMessage={submitMessage}
               />
             )}
           </div>

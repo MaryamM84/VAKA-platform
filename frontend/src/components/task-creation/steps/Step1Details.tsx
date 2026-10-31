@@ -1,51 +1,80 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { TaskFormData } from "../types";
+import {
+  getTaskCategories,
+  type TaskCategory,
+} from "@/lib/task-api";
 
 interface Step1DetailsProps {
   data: TaskFormData;
   onChange: (field: keyof TaskFormData, value: string) => void;
 }
 
-const categories = [
-  {
-    name: "خریدهای فوری و پیک",
-    description: "تهیه و خرید کالا، خرید روزمره و پیک اختصاصی",
-    icon: "🛵",
-  },
-  {
-    name: "نظافت و مرتب‌سازی",
-    description: "امور نظافتی، چیدمان و پاک‌سازی فضاهای مختلف",
-    icon: "🧹",
-  },
-  {
-    name: "ایستادن در صف و اداری",
-    description: "پیگیری کارهای اداری، صف‌های دولتی و بانکی",
-    icon: "⏳",
-  },
-  {
-    name: "تعمیرات و خدمات فنی",
-    description: "خرده‌کاری تأسیسات، برقی، نصب و تعمیرات",
-    icon: "🔧",
-  },
-  {
-    name: "اسباب‌کشی و جابه‌جایی",
-    description: "بسته‌بندی، جابه‌جایی وسایل سبک و کارهای حمل‌ونقل",
-    icon: "🚚",
-  },
-  {
-    name: "مراقبت و نگهداری",
-    description: "گردش حیوانات، نگهداری موقت و مراقبت ویژه",
-    icon: "🐾",
-  },
-];
+const categoryIcons: Record<string, string> = {
+  "خریدهای فوری و پیک": "🛵",
+  "نظافت و مرتب‌سازی": "🧹",
+  "ایستادن در صف و اداری": "⏳",
+  "تعمیرات و خدمات فنی": "🔧",
+  "اسباب‌کشی و جابه‌جایی": "🚚",
+  "مراقبت و نگهداری": "🐾",
+};
 
 const inputClassName =
   "w-full rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-4 py-3 text-sm text-[var(--vaka-text)] outline-none transition placeholder:text-[var(--vaka-text-muted)] focus:border-[var(--vaka-primary)] focus:ring-2 focus:ring-[var(--vaka-primary)]/10";
 
-const labelClassName = "block text-sm font-bold text-[var(--vaka-primary)]";
+const labelClassName =
+  "block text-sm font-bold text-[var(--vaka-primary)]";
 
-export default function Step1Details({ data, onChange }: Step1DetailsProps) {
+export default function Step1Details({
+  data,
+  onChange,
+}: Step1DetailsProps) {
+  const [categories, setCategories] = useState<TaskCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoryError, setCategoryError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCategories() {
+      try {
+        setLoadingCategories(true);
+        setCategoryError("");
+
+        const result = await getTaskCategories();
+
+        if (!cancelled) {
+          setCategories(result);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCategoryError(
+            error instanceof Error
+              ? error.message
+              : "دریافت دسته‌بندی‌ها با خطا مواجه شد.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingCategories(false);
+        }
+      }
+    }
+
+    loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function selectCategory(category: TaskCategory) {
+    onChange("categoryId", category.category_id);
+    onChange("categoryName", category.name);
+  }
+
   return (
     <div className="space-y-7">
       {/* عنوان کار */}
@@ -58,7 +87,8 @@ export default function Step1Details({ data, onChange }: Step1DetailsProps) {
           </label>
 
           <span className="rounded-full bg-[var(--vaka-surface)] px-3 py-1 text-[11px] text-[var(--vaka-text-muted)]">
-            {new Intl.NumberFormat("fa-IR").format(data.title.length)} / ۱۸۰ حرف
+            {new Intl.NumberFormat("fa-IR").format(data.title.length)} / ۱۸۰
+            حرف
           </span>
         </div>
 
@@ -89,61 +119,113 @@ export default function Step1Details({ data, onChange }: Step1DetailsProps) {
           </h3>
 
           <span className="text-xs text-[var(--vaka-text-muted)]">
-            انتخاب یکی از ۶ دسته
+            {loadingCategories
+              ? "در حال دریافت دسته‌بندی‌ها..."
+              : `تعداد دسته‌ها: ${categories.length}`}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {categories.map((category) => {
-            const isSelected = data.categoryName === category.name;
+        {loadingCategories && (
+          <p className="rounded-xl bg-[var(--vaka-primary-pale)] p-4 text-sm text-[var(--vaka-text-secondary)]">
+            در حال دریافت دسته‌بندی‌ها...
+          </p>
+        )}
 
-            return (
-              <button
-                key={category.name}
-                type="button"
-                onClick={() => onChange("categoryName", category.name)}
-                aria-pressed={isSelected}
-                className={`relative flex min-h-28 flex-col rounded-2xl border p-4 text-right transition ${
-                  isSelected
-                    ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)] shadow-sm ring-1 ring-[var(--vaka-primary)]/20"
-                    : "border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] hover:border-[var(--vaka-primary)] hover:bg-[var(--vaka-primary-pale)]"
-                }`}
-              >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span
-                    className={`flex size-10 items-center justify-center rounded-xl text-xl ${
-                      isSelected
-                        ? "bg-[var(--vaka-primary)] text-white"
-                        : "bg-[var(--vaka-primary-soft)]"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {category.icon}
+        {!loadingCategories && categoryError && (
+          <div
+            className="rounded-xl border border-[var(--vaka-danger)]/30 bg-[var(--vaka-danger)]/5 p-4"
+            role="alert"
+          >
+            <p className="text-sm text-[var(--vaka-danger)]">
+              {categoryError}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLoadingCategories(true);
+                setCategoryError("");
+
+                getTaskCategories()
+                  .then(setCategories)
+                  .catch((error) =>
+                    setCategoryError(
+                      error instanceof Error
+                        ? error.message
+                        : "دریافت دسته‌بندی‌ها با خطا مواجه شد.",
+                    ),
+                  )
+                  .finally(() => setLoadingCategories(false));
+              }}
+              className="mt-3 text-xs font-bold text-[var(--vaka-primary)] underline"
+            >
+              تلاش مجدد
+            </button>
+          </div>
+        )}
+
+        {!loadingCategories &&
+          !categoryError &&
+          categories.length === 0 && (
+            <p className="rounded-xl bg-[var(--vaka-primary-pale)] p-4 text-sm text-[var(--vaka-text-secondary)]">
+              دسته‌بندی فعالی برای انتخاب وجود ندارد.
+            </p>
+          )}
+
+        {!loadingCategories && !categoryError && categories.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {categories.map((category) => {
+              const isSelected =
+                data.categoryId === category.category_id;
+
+              return (
+                <button
+                  key={category.category_id}
+                  type="button"
+                  onClick={() => selectCategory(category)}
+                  aria-pressed={isSelected}
+                  className={`relative flex min-h-28 flex-col rounded-2xl border p-4 text-right transition ${
+                    isSelected
+                      ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)] shadow-sm ring-1 ring-[var(--vaka-primary)]/20"
+                      : "border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] hover:border-[var(--vaka-primary)] hover:bg-[var(--vaka-primary-pale)]"
+                  }`}
+                >
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span
+                      className={`flex size-10 items-center justify-center rounded-xl text-xl ${
+                        isSelected
+                          ? "bg-[var(--vaka-primary)] text-white"
+                          : "bg-[var(--vaka-primary-soft)]"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      {categoryIcons[category.name] ?? "🗂️"}
+                    </span>
+
+                    <span
+                      className={`flex size-5 items-center justify-center rounded-full border ${
+                        isSelected
+                          ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary)] text-white"
+                          : "border-[var(--vaka-border)] bg-[var(--vaka-surface)]"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      {isSelected && <span className="text-xs">✓</span>}
+                    </span>
+                  </div>
+
+                  <span className="text-sm font-bold leading-6 text-[var(--vaka-text)]">
+                    {category.name}
                   </span>
 
-                  <span
-                    className={`flex size-5 items-center justify-center rounded-full border ${
-                      isSelected
-                        ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary)] text-white"
-                        : "border-[var(--vaka-border)] bg-[var(--vaka-surface)]"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {isSelected && <span className="text-xs">✓</span>}
+                  <span className="mt-1 text-xs leading-5 text-[var(--vaka-text-secondary)]">
+                    {category.description || " "}
                   </span>
-                </div>
-
-                <span className="text-sm font-bold leading-6 text-[var(--vaka-text)]">
-                  {category.name}
-                </span>
-
-                <span className="mt-1 text-xs leading-5 text-[var(--vaka-text-secondary)]">
-                  {category.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <p className="mt-3 text-xs leading-6 text-[var(--vaka-text-muted)]">
           دسته‌بندی مناسب به پیدا کردن مجری مرتبط با کار شما کمک می‌کند.
@@ -192,7 +274,9 @@ export default function Step1Details({ data, onChange }: Step1DetailsProps) {
         <textarea
           id="delivery-criteria"
           value={data.deliveryCriteria}
-          onChange={(event) => onChange("deliveryCriteria", event.target.value)}
+          onChange={(event) =>
+            onChange("deliveryCriteria", event.target.value)
+          }
           rows={3}
           required
           placeholder="مثلاً تحویل کالا به آدرس مشخص‌شده و ارائه رسید خرید"

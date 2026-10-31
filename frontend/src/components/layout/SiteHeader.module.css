@@ -443,7 +443,7 @@
   .searchContainer { display: none; }
   .mobileSearchContainer {
     position: absolute;
-    top: 105px;
+    top: 90px;
     right: 20px;
     left: 20px;
     display: block;
@@ -728,5 +728,196 @@
   .shell {
     height: 60px;
     min-height: 0;
+  }
+}
+
+/* Hide header illustration on mobile */
+@media (max-width: 600px) {
+  .illustration {
+    display: none;
+  }
+
+  .shell {
+    gap: 4px;
+  }
+
+  .brand {
+    flex-shrink: 0;
+  }
+
+  .mobileToggle,
+  .actions {
+    flex-shrink: 0;
+  }
+}
+
+/* Extra compact mobile layout */
+@media (max-width: 360px) {
+  .shell {
+    padding-inline: 8px;
+    gap: 3px;
+  }
+
+  .brand {
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+
+  .brandSymbol {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 38px;
+  }
+
+  .brandFa {
+    font-size: 16px;
+  }
+
+  .brandEn {
+    font-size: 20px;
+  }
+
+  .actions {
+    gap: 3px;
+    margin-right: auto;
+  }
+
+  .mobileToggle {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 32px;
+  }
+
+  .loginLink {
+    padding-inline: 5px;
+    font-size: 11px;
+  }
+}
+
+/* Better mobile header spacing */
+@media (max-width: 600px) {
+  .shell {
+    gap: 6px;
+    padding-inline: 12px;
+  }
+
+  .brand {
+    flex: 0 0 112px;
+    min-width: 0;
+  }
+
+  .actions {
+    gap: 8px;
+    margin-right: auto;
+    flex-shrink: 0;
+  }
+
+  .createLink {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+  }
+
+  .roundButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .loginLink {
+    min-height: 36px;
+    padding-inline: 9px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .mobileToggle {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 600px) {
+  .mobileToggle {
+    margin-right: 8px;
+  }
+}
+
+/* Match compact mobile branding between 481px and 600px */
+@media (min-width: 481px) and (max-width: 600px) {
+  .brand {
+    flex: 0 0 112px;
+    gap: 3px;
+  }
+
+  .brandSymbol {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 44px;
+  }
+
+  .brandFa {
+    font-size: 19px;
+  }
+
+  .brandEn {
+    font-size: 24px;
+  }
+
+  .mobileToggle {
+    margin-right: 8px;
+  }
+}
+
+/* Balance spacing for mid mobile / small tablet widths */
+@media (min-width: 481px) and (max-width: 650px) {
+  .shell {
+    gap: 8px;
+  }
+
+  .searchContainer {
+    flex: 1 1 170px;
+    min-width: 150px;
+    margin-left: 12px;
+  }
+
+  .mobileToggle {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    margin-left: 12px;
+    border: 1px solid #dce8e2;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 80%);
+    color: #1f6f62;
+    box-shadow: 0 4px 12px rgb(31 78 67 / 8%);
+  }
+
+  .brand {
+    flex: 0 0 112px;
+    gap: 4px;
+  }
+
+  .brandSymbol {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 44px;
+  }
+
+  .brandFa {
+    font-size: 18px;
+  }
+
+  .brandEn {
+    font-size: 24px;
+  }
+
+  .illustration {
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    margin-top: -10px;
   }
 }

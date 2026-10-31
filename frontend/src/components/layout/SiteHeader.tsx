@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import styles from "./SiteHeader.module.css";
 
@@ -92,6 +93,8 @@ function SearchBox({ mobile = false }: { mobile?: boolean }) {
 }
 
 export default function SiteHeader() {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const user = useCurrentUser();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -131,7 +134,13 @@ export default function SiteHeader() {
           className={styles.illustration} priority aria-hidden="true" />
 
         <nav className={styles.desktopNav} aria-label="منوی اصلی">
-          <Link href="/" aria-current="page" className={styles.homeLink}>خانه</Link>
+          <Link
+            href="/"
+            aria-current={isHome ? "page" : undefined}
+            className={`${styles.homeLink} ${!isHome ? styles.homeLinkInactive : ""}`}
+          >
+           خانه
+          </Link>
           <details className={styles.navDetails}>
             <summary className={styles.navSummary}>
               خدمات و دسته‌بندی‌ها <Icon name="chevron" size={18} />

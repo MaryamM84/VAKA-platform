@@ -34,7 +34,7 @@
   opacity: 0.92;
 }
 .decorDot {
-  top: 123px;
+  top: 100px;
   right: max(13px, calc((100% - 1440px) / 2 + 13px));
   width: 18px;
   height: 18px;
@@ -124,6 +124,7 @@
   align-items: center;
   gap: 12px;
   white-space: nowrap;
+  transform: translateX(25px);
 }
 .homeLink,
 .navSummary {
@@ -147,6 +148,17 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
 }
 .homeLink:hover { background: rgb(31 111 98 / 17%); }
+.homeLinkInactive {
+  color: #334155;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.homeLinkInactive:hover {
+  color: #1f6f62;
+  background: rgb(31 111 98 / 6%);
+}
 .navDetails { position: relative; }
 .navSummary {
   padding: 6px 0;
@@ -184,7 +196,16 @@
 .dropdownNote { margin: 4px 0 0; font-size: 12px; line-height: 1.9; color: #64748b; }
 
 .searchContainer,
-.mobileSearchContainer { position: relative; flex: 1 1 300px; min-width: 165px; }
+.mobileSearchContainer {
+  position: relative;
+  flex: 1 1 300px;
+  min-width: 165px;
+}
+
+.searchContainer {
+  margin-right: -15px;
+  margin-left: -2px;
+}
 .searchForm {
   display: flex;
   align-items: center;
@@ -289,6 +310,10 @@
   backdrop-filter: blur(6px);
   color: #334155;
   cursor: pointer;
+}
+.roundButton,
+.loginLink {
+  border: 1px solid rgb(227 227 227 / 85%);
 }
 .roundButton { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; }
 .roundButton:hover,

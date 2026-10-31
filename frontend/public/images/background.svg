@@ -7,7 +7,4 @@
 <rect width="1440" height="900" fill="url(#wash)"/>
 <ellipse cx="1070" cy="140" rx="420" ry="260" fill="url(#mint)"/>
 <ellipse cx="360" cy="240" rx="390" ry="260" fill="url(#warm)"/>
-<circle cx="70" cy="70" r="38" fill="#9DD4C8" fill-opacity=".65"/>
-<circle cx="108" cy="45" r="22" fill="#FFC991" fill-opacity=".8"/>
-<circle cx="1392" cy="145" r="10" fill="#9DD4C8" fill-opacity=".7"/>
 </svg>

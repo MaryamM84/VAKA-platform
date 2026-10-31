@@ -722,3 +722,11 @@
     flex-shrink: 0;
   }
 }
+
+/* Responsive glass header height */
+@media (max-width: 790px) {
+  .shell {
+    height: 60px;
+    min-height: 0;
+  }
+}

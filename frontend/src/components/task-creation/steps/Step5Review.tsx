@@ -7,6 +7,10 @@ type Props = {
   data: TaskFormData;
   onEditStep: (step: number) => void;
   onBack: () => void;
+  onPublish: () => void;
+  isPublishing: boolean;
+  submitError: string;
+  submitMessage: string;
 };
 
 // تبدیل اعداد فارسی و عربی به انگلیسی برای پردازش
@@ -318,7 +322,15 @@ function ReviewMap({ data }: { data: TaskFormData }) {
   );
 }
 
-export default function Step5Review({ data, onEditStep, onBack }: Props) {
+export default function Step5Review({
+  data,
+  onEditStep,
+  onBack,
+  onPublish,
+  isPublishing,
+  submitError,
+  submitMessage,
+}: Props) {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [feedback, setFeedback] = useState("");
 
@@ -452,7 +464,7 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <SummaryValue
             label="زمان شروع یا بازه اجرای کار"
-            value={formatDate(data.executionStartTime || data.deadlineAt)}
+            value={formatDate(data.executionStartTime)}
           />
 
           <SummaryValue
@@ -612,6 +624,18 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
         )}
       </section>
 
+      {submitError && (
+        <p className="mt-4 text-sm text-red-600" role="alert">
+          {submitError}
+        </p>
+      )}
+      
+      {submitMessage && (
+        <p className="mt-4 text-sm text-green-600" role="status">
+          {submitMessage}
+        </p>
+      )}
+
       {/* دکمه‌های نهایی */}
       <footer className="flex flex-col gap-3 border-t border-[var(--vaka-border-soft)] pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
@@ -622,33 +646,25 @@ export default function Step5Review({ data, onEditStep, onBack }: Props) {
           بازگشت به بودجه و دستمزد
         </button>
 
-        <button
+        {/* <button
           type="button"
-          onClick={() =>
-            setFeedback(
-              "پیش‌نویس در این نسخه نمایشی آماده است؛ ذخیره دائمی به API نیاز دارد.",
-            )
-          }
-          className="order-2 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-5 py-3 text-xs font-semibold text-[var(--vaka-text)] transition hover:bg-[var(--vaka-primary-pale)] sm:order-2"
+          onClick={onSaveDraft}
+          disabled={isSavingDraft}
+          className="order-2 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-5 py-3 text-xs font-semibold text-[var(--vaka-text)] transition hover:bg-[var(--vaka-primary-pale)] disabled:cursor-not-allowed disabled:opacity-50 sm:order-2"
         >
           <Icon name="file" />
-          ذخیره به عنوان پیش‌نویس
-        </button>
+          {isSavingDraft ? "در حال ذخیره..." : "ذخیره به عنوان پیش‌نویس"}
+        </button> */}
 
         <button
           type="button"
-          disabled={!acceptedTerms}
-          onClick={() => {
-            if (!acceptedTerms) return;
-
-            setFeedback(
-              "تأیید اولیه انجام شد. برای انتشار واقعی، اتصال API ثبت سفارش لازم است.",
-            );
-          }}
-          className="order-1 inline-flex items-center justify-center gap-2 rounded-full bg-[var(--vaka-primary)] px-5 py-3 text-xs font-bold text-[var(--vaka-surface)] shadow-md shadow-[var(--vaka-primary)]/15 transition hover:bg-[var(--vaka-primary-hover)] disabled:cursor-not-allowed disabled:opacity-40 sm:order-3"
+          onClick={onPublish}
+          disabled={isPublishing}
+          className="..."
         >
-          <Icon name="check" />
-          انتشار عمومی کار و دریافت پیشنهاد مجریان
+          {isPublishing
+            ? "در حال انتشار..."
+            : "انتشار عمومی کار و دریافت پیشنهاد مجریان"}
         </button>
       </footer>
     </div>

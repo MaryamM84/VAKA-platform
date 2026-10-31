@@ -203,3 +203,30 @@ export function getAuthRedirectPath(): string {
   const configuredPath = process.env.NEXT_PUBLIC_AUTH_REDIRECT_PATH?.trim();
   return configuredPath?.startsWith("/") ? configuredPath : "/";
 }
+
+
+/**
+ * Returns the current user's access token.
+ * Checks persistent and session storage.
+ */
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const key = "vaka.auth";
+
+  try {
+    const storedAuth =
+      window.localStorage.getItem(key) ??
+      window.sessionStorage.getItem(key);
+
+    if (!storedAuth) return null;
+
+    const auth = JSON.parse(storedAuth) as Partial<AuthResponse>;
+
+    return typeof auth.access === "string" && auth.access.trim()
+      ? auth.access
+      : null;
+  } catch {
+    return null;
+  }
+}

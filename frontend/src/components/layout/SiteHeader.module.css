@@ -77,9 +77,9 @@
 
 .brandSymbol {
   display: block;
-  flex: 0 0 104px;
-  width: 104px;
-  height: 94px;
+  flex: 0 0 100px;
+  width: 100px;
+  height: 65px;
   object-fit: contain;
 }
 
@@ -107,16 +107,16 @@
 
 .illustration {
   display: block;
-  flex: 0 0 149px;
-  width: 149px;
-  height: 119px;
+  flex: 0 1 149px;
+  width: clamp(45px, 10vw, 149px);
+  height: auto;
+  max-height: 119px;
   object-fit: contain;
   align-self: center;
   margin-top: -24px;
   margin-bottom: -1px;
   pointer-events: none;
 }
-
 .desktopNav {
   display: flex;
   flex: 0 0 auto;
@@ -375,7 +375,23 @@
 .mobileNav { display: none; }
 
 @media (max-width: 1350px) {
-  .illustration { display: none; }
+  .illustration {
+    display: block;
+    flex: 0 1 90px;
+    width: 90px;
+    height: 90px;
+    margin-top: -12px;
+  }
+}
+
+@media (max-width: 790px) {
+  .illustration {
+    display: block;
+    flex: 0 1 55px;
+    width: 55px;
+    height: 65px;
+    margin-top: -6px;
+  }
 }
 @media (max-width: 1280px) {
   .desktopNav { display: none; }
@@ -661,5 +677,48 @@
   .actions {
     flex-shrink: 0;
     gap: 5px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .brand {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+  }
+
+  .brandSymbol {
+    flex-shrink: 0;
+  }
+
+  .brandWords {
+    flex-shrink: 0;
+  }
+
+  .illustration {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 790px) {
+  .shell {
+    justify-content: space-between;
+  }
+
+  .brand {
+    flex-shrink: 0;
+  }
+
+  .illustration {
+    flex: 0 0 90px;
+    width: 90px;
+    height: 90px;
+  }
+
+  .mobileToggle {
+    flex-shrink: 0;
+  }
+
+  .actions {
+    flex-shrink: 0;
   }
 }

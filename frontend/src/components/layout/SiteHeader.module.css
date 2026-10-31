@@ -921,3 +921,17 @@
     margin-top: -10px;
   }
 }
+
+/* Match hamburger and search spacing across tablet widths */
+@media (min-width: 1121px) and (max-width: 1280px) {
+  .mobileToggle {
+    margin-left: 10px;
+  }
+
+  .searchContainer {
+    margin-right: 0;
+    margin-left: 10px;
+    min-width: 0;
+  }
+}
+

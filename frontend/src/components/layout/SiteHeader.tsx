@@ -133,6 +133,17 @@ export default function SiteHeader() {
         <Image src="/images/header-illustration.png" alt="" width={220} height={176}
           className={styles.illustration} priority aria-hidden="true" />
 
+        <button
+          className={styles.mobileToggle}
+          type="button"
+          aria-label={mobileOpen ? "بستن منو" : "باز کردن منو"}
+          aria-controls="vaka-mobile-navigation"
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen((previous) => !previous)}
+        >
+          <Icon name={mobileOpen ? "close" : "menu"} size={24} />
+        </button>
+
         <nav className={styles.desktopNav} aria-label="منوی اصلی">
           <Link
             href="/"
@@ -203,23 +214,42 @@ export default function SiteHeader() {
             </Link>
           )}
 
-          <button className={styles.mobileToggle} type="button"
-            aria-label={mobileOpen ? "بستن منو" : "باز کردن منو"}
-            aria-controls="vaka-mobile-navigation" aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen(!mobileOpen)}>
-            <Icon name={mobileOpen ? "close" : "menu"} size={24} />
-          </button>
         </div>
       </div>
 
       <SearchBox mobile />
-      {mobileOpen && <nav className={styles.mobileNav} id="vaka-mobile-navigation" aria-label="منوی موبایل">
-        <Link href="/" onClick={() => setMobileOpen(false)}>خانه</Link>
-        <Link href="/employer/tasks/create" onClick={() => setMobileOpen(false)}>ثبت کار جدید</Link>
-        <p>خدمات و دسته‌بندی‌ها <small>به‌زودی</small></p>
-        <p>ارتباط و پشتیبانی <small>به‌زودی</small></p>
-        {!user && <Link href="/register" onClick={() => setMobileOpen(false)}>ثبت‌نام</Link>}
-      </nav>}
+          {mobileOpen && (
+            <nav
+              className={styles.mobileNav}
+              id="vaka-mobile-navigation"
+              aria-label="منوی موبایل"
+              dir="rtl"
+            >
+              <Link
+                href="/"
+                aria-current={isHome ? "page" : undefined}
+                onClick={() => setMobileOpen(false)}
+              >
+                خانه
+              </Link>
+
+              <details className={styles.mobileNavDetails}>
+                <summary>خدمات و دسته‌بندی‌ها</summary>
+                <Link
+                  href="/employer/tasks/create"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  ثبت یک کار جدید
+                </Link>
+                <p>مرور دسته‌بندی‌ها و کارها به‌زودی فعال می‌شود.</p>
+              </details>
+
+              <details className={styles.mobileNavDetails}>
+              <summary>ارتباط و پشتیبانی</summary>
+              <p>مرکز پشتیبانی در دست راه‌اندازی است.</p>
+              </details>
+          </nav>
+      )}
     </header>
   );
 }

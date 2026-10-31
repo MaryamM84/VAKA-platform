@@ -77,9 +77,9 @@
 
 .brandSymbol {
   display: block;
-  flex: 0 0 104px;
-  width: 104px;
-  height: 94px;
+  flex: 0 0 100px;
+  width: 100px;
+  height: 65px;
   object-fit: contain;
 }
 
@@ -107,16 +107,16 @@
 
 .illustration {
   display: block;
-  flex: 0 0 149px;
-  width: 149px;
-  height: 119px;
+  flex: 0 1 149px;
+  width: clamp(45px, 10vw, 149px);
+  height: auto;
+  max-height: 119px;
   object-fit: contain;
   align-self: center;
   margin-top: -24px;
   margin-bottom: -1px;
   pointer-events: none;
 }
-
 .desktopNav {
   display: flex;
   flex: 0 0 auto;
@@ -124,7 +124,7 @@
   align-items: center;
   gap: 12px;
   white-space: nowrap;
-  transform: translateX(25px);
+  transform: none;
 }
 .homeLink,
 .navSummary {
@@ -203,7 +203,7 @@
 }
 
 .searchContainer {
-  margin-right: -15px;
+  margin-right: -10px;
   margin-left: -2px;
 }
 .searchForm {
@@ -375,9 +375,25 @@
 .mobileNav { display: none; }
 
 @media (max-width: 1350px) {
-  .illustration { display: none; }
+  .illustration {
+    display: block;
+    flex: 0 1 90px;
+    width: 90px;
+    height: 90px;
+    margin-top: -12px;
+  }
 }
-@media (max-width: 1120px) {
+
+@media (max-width: 790px) {
+  .illustration {
+    display: block;
+    flex: 0 1 55px;
+    width: 55px;
+    height: 65px;
+    margin-top: -6px;
+  }
+}
+@media (max-width: 1280px) {
   .desktopNav { display: none; }
   .mobileToggle { display: inline-flex; width: 38px; height: 38px; padding: 0; border-radius: 999px; }
   .mobileNav {
@@ -427,7 +443,7 @@
   .searchContainer { display: none; }
   .mobileSearchContainer {
     position: absolute;
-    top: 105px;
+    top: 90px;
     right: 20px;
     left: 20px;
     display: block;
@@ -467,5 +483,533 @@
 @media (min-width: 791px) {
   .brandWords {
     margin-inline-start: -18px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .brand {
+    order: 1;
+    flex-shrink: 0;
+  }
+
+  .illustration {
+    order: 2;
+    flex: 0 1 65px;
+    width: 65px;
+    height: 70px;
+    margin-top: -8px;
+  }
+
+  .mobileToggle {
+    order: 3;
+    display: inline-flex;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .searchContainer {
+    order: 4;
+    flex: 1 1 140px;
+    min-width: 100px;
+  }
+
+  .actions {
+    order: 5;
+  }
+}
+
+@media (max-width: 790px) {
+  .illustration {
+    order: 2;
+    display: block;
+    flex: 0 0 90px;
+    width: 90px;
+    height: 90px;
+    margin-top: -12px;
+    }
+
+  .mobileToggle {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .mobileToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+
+    color: #1f6f62;
+    background: rgb(255 255 255 / 60%);
+
+    border: 1px solid rgb(227 227 227 / 85%);
+    border-radius: 50%;
+
+    cursor: pointer;
+  }
+
+  .mobileToggle:hover {
+    background: #e7f2ee;
+  }
+
+  .mobileToggle:focus-visible {
+    outline: 2px solid #1f6f62;
+    outline-offset: 3px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .mobileNav {
+    display: flex;
+    position: absolute;
+    z-index: 1100;
+
+    top: 110px;
+    right: 32px;
+
+    flex-direction: column;
+    gap: 6px;
+
+    width: min(310px, calc(100vw - 64px));
+    padding: 12px;
+
+    border: 1px solid #dce8e2;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 15px 35px rgb(31 78 67 / 14%);
+  }
+
+  .mobileNavDetails summary {
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mobileNavDetails summary:hover {
+    color: #1f6f62;
+    background: #f0f8f4;
+  }
+
+  .mobileNavDetails p {
+    font-size: 12px;
+    line-height: 1.8;
+    color: #64748b;
+  }
+
+  .mobileNavDetails a {
+    margin-inline-start: 12px;
+    color: #1f6f62;
+  }
+}
+
+@media (max-width: 790px) {
+  .mobileNav {
+    top: 95px;
+    right: 14px;
+  }
+}
+
+/* Responsive spacing between hamburger and search */
+@media (min-width: 791px) and (max-width: 1120px) {
+  .mobileToggle {
+    margin-left: 10px;
+  }
+
+  .searchContainer {
+    margin-right: 0;
+    margin-left: 10px;
+    min-width: 0;
+  }
+}
+
+/* Compact create-task button on tablets */
+@media (min-width: 481px) and (max-width: 1120px) {
+  .createLink {
+    min-height: 34px;
+    padding: 5px 10px;
+    gap: 5px;
+    font-size: 13px;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+}
+
+/* Circular create-task button on small screens */
+@media (max-width: 600px) {
+  .createLink {
+    display: inline-flex;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .createLabel,
+  .createMobileLabel {
+    display: none;
+  }
+
+  .createLink svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .actions {
+    flex-shrink: 0;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .brand {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+  }
+
+  .brandSymbol {
+    flex-shrink: 0;
+  }
+
+  .brandWords {
+    flex-shrink: 0;
+  }
+
+  .illustration {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 790px) {
+  .shell {
+    justify-content: space-between;
+  }
+
+  .brand {
+    flex-shrink: 0;
+  }
+
+  .illustration {
+    flex: 0 0 90px;
+    width: 90px;
+    height: 90px;
+  }
+
+  .mobileToggle {
+    flex-shrink: 0;
+  }
+
+  .actions {
+    flex-shrink: 0;
+  }
+}
+
+/* Responsive glass header height */
+@media (max-width: 790px) {
+  .shell {
+    height: 60px;
+    min-height: 0;
+  }
+}
+
+/* Hide header illustration on mobile */
+@media (max-width: 600px) {
+  .illustration {
+    display: none;
+  }
+
+  .shell {
+    gap: 4px;
+  }
+
+  .brand {
+    flex-shrink: 0;
+  }
+
+  .mobileToggle,
+  .actions {
+    flex-shrink: 0;
+  }
+}
+
+/* Extra compact mobile layout */
+@media (max-width: 360px) {
+  .shell {
+    padding-inline: 8px;
+    gap: 3px;
+  }
+
+  .brand {
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+
+  .brandSymbol {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 38px;
+  }
+
+  .brandFa {
+    font-size: 16px;
+  }
+
+  .brandEn {
+    font-size: 20px;
+  }
+
+  .actions {
+    gap: 3px;
+    margin-right: auto;
+  }
+
+  .mobileToggle {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 32px;
+  }
+
+  .loginLink {
+    padding-inline: 5px;
+    font-size: 11px;
+  }
+}
+
+/* Better mobile header spacing */
+@media (max-width: 600px) {
+  .shell {
+    gap: 6px;
+    padding-inline: 12px;
+  }
+
+  .brand {
+    flex: 0 0 112px;
+    min-width: 0;
+  }
+
+  .actions {
+    gap: 8px;
+    margin-right: auto;
+    flex-shrink: 0;
+  }
+
+  .createLink {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+  }
+
+  .roundButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .loginLink {
+    min-height: 36px;
+    padding-inline: 9px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .mobileToggle {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 600px) {
+  .mobileToggle {
+    margin-right: 8px;
+  }
+}
+
+/* Match compact mobile branding between 481px and 600px */
+@media (min-width: 481px) and (max-width: 600px) {
+  .brand {
+    flex: 0 0 112px;
+    gap: 3px;
+  }
+
+  .brandSymbol {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 44px;
+  }
+
+  .brandFa {
+    font-size: 19px;
+  }
+
+  .brandEn {
+    font-size: 24px;
+  }
+
+  .mobileToggle {
+    margin-right: 8px;
+  }
+}
+
+/* Balance spacing for mid mobile / small tablet widths */
+@media (min-width: 481px) and (max-width: 650px) {
+  .shell {
+    gap: 8px;
+  }
+
+  .searchContainer {
+    flex: 1 1 170px;
+    min-width: 150px;
+    margin-left: 12px;
+  }
+
+  .mobileToggle {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    margin-left: 12px;
+    border: 1px solid #dce8e2;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 80%);
+    color: #1f6f62;
+    box-shadow: 0 4px 12px rgb(31 78 67 / 8%);
+  }
+
+  .brand {
+    flex: 0 0 112px;
+    gap: 4px;
+  }
+
+  .brandSymbol {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 44px;
+  }
+
+  .brandFa {
+    font-size: 18px;
+  }
+
+  .brandEn {
+    font-size: 24px;
+  }
+
+  .illustration {
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    margin-top: -10px;
+  }
+}
+
+/* Match hamburger and search spacing across tablet widths */
+@media (min-width: 1121px) and (max-width: 1280px) {
+  .mobileToggle {
+    margin-left: 10px;
+  }
+
+  .searchContainer {
+    margin-right: 0;
+    margin-left: 10px;
+    min-width: 0;
+  }
+}
+
+/* Proportional VAKA branding and glass header: 791px–1400px */
+@media (min-width: 601px) and (max-width: 1400px) {
+  .shell {
+    /* 0.70 at 790px → 1 at 1400px */
+    --vaka-unit: clamp(
+      0.70px,
+      calc(0.3115px + 0.0492vw),
+      1px
+    );
+
+    height: calc(90 * var(--vaka-unit));
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* Brand layout */
+  .brand {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    gap: 0;
+  }
+
+  /* VAKA symbol */
+  .brandSymbol {
+    flex: 0 0 calc(100 * var(--vaka-unit));
+    width: calc(100 * var(--vaka-unit));
+    height: calc(65 * var(--vaka-unit));
+    object-fit: contain;
+  }
+
+  /* Brand lettering */
+  .brandWords {
+    flex-shrink: 0;
+    gap: calc(2 * var(--vaka-unit));
+    margin-inline-start: calc(-18 * var(--vaka-unit));
+  }
+
+  .brandFa {
+    font-size: calc(29 * var(--vaka-unit));
+  }
+
+  .brandEn {
+    font-size: calc(38 * var(--vaka-unit));
+  }
+
+  /* Illustration scales with the same unit */
+  .illustration {
+    display: block;
+
+    flex: 0 0 calc(149 * var(--vaka-unit));
+    width: calc(149 * var(--vaka-unit));
+    height: calc(119 * var(--vaka-unit));
+    max-height: none;
+
+    flex-shrink: 0;
+    align-self: center;
+    object-fit: contain;
+
+    margin-top: 0;
+    margin-bottom: 0;
+
+    transform: translateY(
+      calc(-12 * var(--vaka-unit))
+    );
+  }
+}
+
+/* Desktop navigation positioning */
+@media (min-width: 1281px) {
+  .desktopNav {
+    margin-left: 0px;
+    transform: translateX(12px);
+  }
+
+  .searchContainer {
+    margin-right: 0;
   }
 }

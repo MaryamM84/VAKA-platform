@@ -1,6 +1,7 @@
 export interface TaskFormData {
   // مرحله اول: عنوان و مشخصات
   title: string;
+  categoryId: string;
   categoryName: string;
   description: string;
   deliveryCriteria: string;
@@ -56,6 +57,7 @@ function getLocalDateTime(offsetMinutes = 0): string {
 export const initialTaskFormData: TaskFormData = {
   // مرحله اول
   title: "",
+  categoryId: "",
   categoryName: "",
   description: "",
   deliveryCriteria: "",

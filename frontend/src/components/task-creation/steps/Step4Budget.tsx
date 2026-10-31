@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { TaskFormData } from "../types";
 
 interface Step4BudgetProps {
@@ -8,9 +9,11 @@ interface Step4BudgetProps {
 }
 
 const inputClassName =
-  "w-full min-w-0 rounded-xl border border-[#e1ebe5] bg-white px-4 py-3 text-sm text-[#182522] outline-none transition placeholder:text-[#a0aaa5] focus:border-[#087d6c] focus:ring-2 focus:ring-[#087d6c]/10";
+  "w-full min-w-0 border-0 bg-transparent px-4 py-3 text-left text-lg font-bold tracking-wide text-[var(--vaka-text)] outline-none placeholder:text-[var(--vaka-text-muted)]";
 
-const labelClassName = "block text-sm font-bold text-[#174f46]";
+const labelClassName = "block text-sm font-bold text-[var(--vaka-primary)]";
+
+const MIN_WAGE = 50000;
 
 function normalizeDigits(value: string): string {
   return value
@@ -19,15 +22,32 @@ function normalizeDigits(value: string): string {
     .replace(/[^\d]/g, "");
 }
 
+function toPersianDigits(value: string | number): string {
+  return String(value).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+}
+
 function formatToman(value: string | number): string {
   const amount = Number(value);
 
-  return new Intl.NumberFormat("fa-IR").format(
-    Number.isFinite(amount) ? amount : 0,
-  );
+  return new Intl.NumberFormat("fa-IR", {
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
+
+function formatInputAmount(value: string): string {
+  const normalized = normalizeDigits(value);
+
+  if (!normalized) return "";
+
+  return formatToman(normalized);
 }
 
 export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
+  const [touched, setTouched] = useState({
+    wage: false,
+    itemBudget: false,
+  });
+
   const wage = Math.max(0, Number(normalizeDigits(data.wageBudgetAmount)) || 0);
 
   const itemBudget = Math.max(
@@ -39,114 +59,150 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
 
   const total = wage + (needsGoods ? itemBudget : 0);
 
+  const wageError =
+    touched.wage && wage < MIN_WAGE
+      ? "حداقل دستمزد مجاز ۵۰٬۰۰۰ تومان است."
+      : "";
+
+  const itemBudgetError =
+    touched.itemBudget && needsGoods && itemBudget <= 0
+      ? "لطفاً سقف هزینه خرید اقلام را وارد کنید."
+      : "";
+
   const handleAmountChange = (
     field: "wageBudgetAmount" | "itemCostCapAmount",
     value: string,
   ) => {
+    // مقدار داخلی همیشه با ارقام انگلیسی ذخیره می‌شود.
     onChange(field, normalizeDigits(value));
   };
 
   return (
     <div className="space-y-4" dir="rtl">
-      {/* 1. دستمزد خالص مجری */}
-      <section className="rounded-2xl border border-[#e8f0eb] bg-[#f0f8f4] p-4 sm:p-5">
+      {/* ۱. دستمزد خالص مجری */}
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={labelClassName}>
-            <span className="ml-2 text-[#087d6c]">●</span>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             دستمزد خالص مجری
-            <span className="mr-1 text-xs font-medium text-[#64857a]">
+            <span className="mr-1 text-xs font-medium text-[var(--vaka-text-secondary)]">
               (Service Compensation)
             </span>
           </h2>
 
-          <span className="text-[10px] text-[#81948b]">
+          <span className="text-[10px] text-[var(--vaka-text-muted)]">
             حداقل دستمزد مجاز: ۵۰٬۰۰۰ تومان
           </span>
         </div>
 
-        <div className="mt-3 flex items-center rounded-xl border border-[#edf2ee] bg-white px-4">
-          <span className="shrink-0 text-xs text-[#66766e]">تومان</span>
+        <div className="mt-3 flex items-center rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] px-4">
+          <span className="shrink-0 text-xs text-[var(--vaka-text-secondary)]">
+            تومان
+          </span>
 
           <input
             id="wage-budget"
             type="text"
             inputMode="numeric"
+            dir="ltr"
             autoComplete="off"
-            value={data.wageBudgetAmount}
+            value={formatInputAmount(data.wageBudgetAmount)}
             onChange={(event) =>
               handleAmountChange("wageBudgetAmount", event.target.value)
             }
+            onBlur={() =>
+              setTouched((previous) => ({
+                ...previous,
+                wage: true,
+              }))
+            }
             aria-label="دستمزد خالص مجری به تومان"
+            aria-invalid={Boolean(wageError)}
+            aria-describedby="wage-budget-help"
             placeholder="۲۵۰٬۰۰۰"
-            className="w-full min-w-0 border-0 bg-transparent px-4 py-3 text-center text-lg font-bold tracking-wide text-[#182522] outline-none"
+            className={inputClassName}
           />
 
-          <span className="text-lg text-[#087d6c]" aria-hidden="true">
+          <span
+            className="text-lg text-[var(--vaka-primary)]"
+            aria-hidden="true"
+          >
             ▣
           </span>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] leading-5 text-[#81948b]">
+        {wageError && (
+          <p className="mt-2 text-xs text-[var(--vaka-danger)]" role="alert">
+            {wageError}
+          </p>
+        )}
+
+        <div
+          id="wage-budget-help"
+          className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] leading-5 text-[var(--vaka-text-muted)]"
+        >
           <span>مبلغ خالص دریافتی مجری پس از پایان مأموریت</span>
 
-          <span className="font-medium text-[#287e6e]">
+          <span className="font-medium text-[var(--vaka-primary)]">
             معادل دستمزد و پاداش نرخ‌گذاری
           </span>
         </div>
       </section>
 
-      {/* 2. پیشنهاد هوشمند هوش مصنوعی */}
-      <section className="rounded-2xl border border-[#e4eee8] bg-[#edf8f4] p-3 sm:p-4">
+      {/* ۲. پیشنهاد هوشمند هوش مصنوعی */}
+      <section className="rounded-2xl border border-[var(--vaka-primary-soft)] bg-[var(--vaka-primary-pale)] p-3 sm:p-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#fff0df] text-xl text-[#a96328]">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--vaka-warning)]/10 text-xl text-[var(--vaka-warning)]">
             ✨
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-bold text-[#263b34]">
+              <h2 className="text-sm font-bold text-[var(--vaka-text)]">
                 برآورد هوشمند دستمزد
               </h2>
 
-              <span className="rounded-full bg-[#ffe4ca] px-2 py-1 text-[10px] font-bold text-[#a85f28]">
+              <span className="rounded-full bg-[var(--vaka-warning)]/15 px-2 py-1 text-[10px] font-bold text-[var(--vaka-warning)]">
                 دقت ۷۹٪
               </span>
             </div>
 
-            <p className="mt-1 text-xs leading-6 text-[#65766e]">
+            <p className="mt-1 text-xs leading-6 text-[var(--vaka-text-secondary)]">
               پیشنهاد دستمزد بر اساس زمان انجام کار، فوریت، خرید و ترافیک منطقه.
             </p>
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs text-[#65766e]">مبلغ پیشنهادی سیستم</span>
+          <span className="text-xs text-[var(--vaka-text-secondary)]">
+            مبلغ پیشنهادی سیستم
+          </span>
 
-          <span className="text-sm font-extrabold text-[#087d6c]">
+          <span className="text-sm font-extrabold text-[var(--vaka-primary)]">
             {formatToman(250000)} تومان
           </span>
         </div>
 
-        <p className="mt-2 text-[10px] leading-5 text-[#81948b]">
+        <p className="mt-2 text-[10px] leading-5 text-[var(--vaka-text-muted)]">
           این مبلغ فعلاً ثابت و نمایشی است و بعداً به سرویس هوش مصنوعی متصل
           خواهد شد.
         </p>
       </section>
 
-      {/* 3. بودجه خرید اقلام */}
-      <section className="rounded-2xl border border-[#e8f0eb] bg-[#f0f8f4] p-4 sm:p-5">
+      {/* ۳. بودجه خرید اقلام */}
+      <section className="rounded-2xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={labelClassName}>
-            <span className="ml-2 text-[#087d6c]">●</span>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             بودجه خرید اقلام
-            <span className="mr-1 text-xs font-medium text-[#64857a]">
+            <span className="mr-1 text-xs font-medium text-[var(--vaka-text-secondary)]">
               (Goods Purchase Budget)
             </span>
           </h2>
 
           <label
             htmlFor="goods-purchase-required"
-            className="flex cursor-pointer items-center gap-2 text-xs text-[#354b42]"
+            className="flex cursor-pointer items-center gap-2 text-xs text-[var(--vaka-text)]"
           >
             <span>نیاز به خرید کالا دارد</span>
 
@@ -154,23 +210,32 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
               id="goods-purchase-required"
               type="checkbox"
               checked={needsGoods}
-              onChange={(event) =>
+              onChange={(event) => {
                 onChange(
                   "goodsPurchaseRequired",
                   event.target.checked ? "true" : "false",
-                )
-              }
+                );
+
+                if (event.target.checked) {
+                  setTouched((previous) => ({
+                    ...previous,
+                    itemBudget: false,
+                  }));
+                }
+              }}
               className="peer sr-only"
             />
 
             <span
               aria-hidden="true"
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                needsGoods ? "bg-[#087d6c]" : "bg-[#cbd7d0]"
+                needsGoods
+                  ? "bg-[var(--vaka-primary)]"
+                  : "bg-[var(--vaka-border)]"
               }`}
             >
               <span
-                className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all ${
+                className={`absolute top-0.5 size-5 rounded-full bg-[var(--vaka-surface)] shadow-sm transition-all ${
                   needsGoods ? "right-0.5" : "right-[22px]"
                 }`}
               />
@@ -178,54 +243,77 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
           </label>
         </div>
 
-        <p className="mt-2 text-xs leading-6 text-[#819087]">
+        <p className="mt-2 text-xs leading-6 text-[var(--vaka-text-muted)]">
           هزینه اقلامی که مجری باید برای انجام مأموریت خریداری کند.
         </p>
 
         {needsGoods ? (
-          <div className="mt-4 rounded-xl bg-white p-3 sm:p-4">
+          <div className="mt-4 rounded-xl bg-[var(--vaka-surface)] p-3 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label
                 htmlFor="item-cost-cap"
-                className="text-sm font-bold text-[#263b34]"
+                className="text-sm font-bold text-[var(--vaka-text)]"
               >
                 سقف هزینه خرید اقلام توسط مجری
+                <span className="mr-1 text-[var(--vaka-danger)]">*</span>
               </label>
 
-              <span className="text-[10px] text-[#a66a3c]">
+              <span className="text-[10px] text-[var(--vaka-warning)]">
                 تسویه بر اساس فاکتور دقیق
               </span>
             </div>
 
-            <div className="mt-3 flex items-center rounded-xl border border-[#e3eee7] bg-[#edf7f2] px-3">
-              <span className="shrink-0 text-xs text-[#66766e]">تومان</span>
+            <div className="mt-3 flex items-center rounded-xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-primary-soft)] px-3">
+              <span className="shrink-0 text-xs text-[var(--vaka-text-secondary)]">
+                تومان
+              </span>
 
               <input
                 id="item-cost-cap"
                 type="text"
                 inputMode="numeric"
+                dir="ltr"
                 autoComplete="off"
-                value={data.itemCostCapAmount}
+                value={formatInputAmount(data.itemCostCapAmount)}
                 onChange={(event) =>
                   handleAmountChange("itemCostCapAmount", event.target.value)
                 }
+                onBlur={() =>
+                  setTouched((previous) => ({
+                    ...previous,
+                    itemBudget: true,
+                  }))
+                }
                 aria-label="سقف بودجه خرید اقلام به تومان"
+                aria-invalid={Boolean(itemBudgetError)}
                 placeholder="۱۸۰٬۰۰۰"
-                className="w-full min-w-0 bg-transparent px-4 py-3 text-center text-base font-bold text-[#182522] outline-none"
+                className="w-full min-w-0 bg-transparent px-4 py-3 text-left text-base font-bold text-[var(--vaka-text)] outline-none placeholder:text-[var(--vaka-text-muted)]"
               />
 
-              <span className="text-lg text-[#9a693d]" aria-hidden="true">
+              <span
+                className="text-lg text-[var(--vaka-warning)]"
+                aria-hidden="true"
+              >
                 ▤
               </span>
             </div>
 
-            <p className="mt-2 text-[10px] leading-5 text-[#819087]">
+            {itemBudgetError && (
+              <p
+                className="mt-2 text-xs text-[var(--vaka-danger)]"
+                role="alert"
+              >
+                {itemBudgetError}
+              </p>
+            )}
+
+            <p className="mt-2 text-[10px] leading-5 text-[var(--vaka-text-muted)]">
               مجری موظف است حداکثر تا سقف تعیین‌شده، هزینه اقلام را بدون هماهنگی
               قبلی تغییر ندهد.
             </p>
           </div>
         ) : (
-          <div className="mt-4 rounded-xl border border-dashed border-[#d5e5db] bg-white/70 p-4 text-xs leading-6 text-[#65766e]">
+          <div className="mt-4 rounded-xl border border-dashed border-[var(--vaka-border)] bg-[var(--vaka-surface)]/70 p-4 text-xs leading-6 text-[var(--vaka-text-secondary)]">
             برای این کار بودجه جداگانه‌ای جهت خرید کالا در نظر گرفته نشده است.
           </div>
         )}
@@ -233,7 +321,7 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
         {/* الزام ارائه فاکتور */}
         <label
           htmlFor="invoice-required"
-          className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#dcebe3] bg-white p-3 sm:p-4"
+          className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)] p-3 sm:p-4"
         >
           <input
             id="invoice-required"
@@ -245,49 +333,52 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
                 event.target.checked ? "true" : "false",
               )
             }
-            className="mt-1 size-4 shrink-0 accent-[#087d6c]"
+            className="mt-1 size-4 shrink-0 accent-[var(--vaka-primary)]"
           />
 
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-bold text-[#263b34]">
+            <span className="block text-xs font-bold text-[var(--vaka-text)]">
               الزام ارائه و بارگذاری فاکتور رسمی قبل از تسویه نهایی
             </span>
 
-            <span className="mt-1 block text-[10px] leading-5 text-[#819087]">
+            <span className="mt-1 block text-[10px] leading-5 text-[var(--vaka-text-muted)]">
               مجری باید فاکتور خرید اقلام را برای بررسی و تأیید هزینه‌ها ارائه
               کند.
             </span>
           </span>
 
-          <span className="text-base text-[#087d6c]" aria-hidden="true">
+          <span
+            className="text-base text-[var(--vaka-primary)]"
+            aria-hidden="true"
+          >
             ▣
           </span>
         </label>
       </section>
 
-      {/* 4. صندوق امانت */}
-      <section className="overflow-hidden rounded-2xl border border-[#0d8b79] bg-gradient-to-br from-[#087c6d] to-[#006454] p-4 text-white shadow-lg shadow-[#006557]/15 sm:p-5">
+      {/* ۴. صندوق امانت */}
+      <section className="overflow-hidden rounded-2xl border border-[var(--vaka-primary)] bg-gradient-to-br from-[var(--vaka-primary)] to-[var(--vaka-primary-hover)] p-4 text-[var(--vaka-surface)] shadow-lg shadow-[var(--vaka-primary)]/15 sm:p-5">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl text-[#d5c6a0]">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--vaka-surface)]/10 text-2xl text-[var(--vaka-warning)]">
             ♜
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] text-white/70">
+            <p className="text-[10px] text-[var(--vaka-surface)]/70">
               مبلغ نهایی مورد نیاز برای ثبت سفارش
             </p>
 
             <h2 className="mt-1 text-sm font-bold">
               صندوق امانت سپرده واکا
-              <span className="mr-1 text-[10px] font-medium text-white/75">
+              <span className="mr-1 text-[10px] font-medium text-[var(--vaka-surface)]/75">
                 (Escrow Commitment)
               </span>
             </h2>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/15 bg-white/5 p-4">
-          <p className="text-[10px] text-white/70">
+        <div className="mt-4 rounded-xl border border-[var(--vaka-surface)]/15 bg-[var(--vaka-surface)]/5 p-4">
+          <p className="text-[10px] text-[var(--vaka-surface)]/70">
             جمع کل سپرده مورد نیاز سفارش
           </p>
 
@@ -299,10 +390,10 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
               {formatToman(total)}
             </strong>
 
-            <span className="text-xs text-white/80">تومان</span>
+            <span className="text-xs text-[var(--vaka-surface)]/80">تومان</span>
           </div>
 
-          <div className="mt-3 border-t border-white/15 pt-3 text-[10px] leading-6 text-white/75">
+          <div className="mt-3 border-t border-[var(--vaka-surface)]/15 pt-3 text-[10px] leading-6 text-[var(--vaka-surface)]/75">
             <p>دستمزد مجری: {formatToman(wage)} تومان</p>
 
             <p>
@@ -311,7 +402,7 @@ export default function Step4Budget({ data, onChange }: Step4BudgetProps) {
           </div>
         </div>
 
-        <p className="mt-3 text-[10px] leading-5 text-white/75">
+        <p className="mt-3 text-[10px] leading-5 text-[var(--vaka-surface)]/75">
           مبلغ سپرده برای انجام سفارش در صندوق امانت نگهداری می‌شود. تسویه نهایی
           مطابق شرایط سفارش و پس از بررسی انجام خواهد شد.
         </p>

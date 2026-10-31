@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { TaskFormData } from "../types";
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
@@ -13,29 +14,45 @@ interface Step2ScheduleProps {
 const durationOptions = [15, 30, 45, 60, 120, 180];
 
 const inputClassName =
-  "w-full min-w-0 rounded-xl border border-[#dce7e1] bg-white px-4 py-3 text-sm text-[#182522] outline-none transition placeholder:text-[#a0aaa5] focus:border-[#006557] focus:ring-2 focus:ring-[#006557]/10";
+  "w-full min-w-0 rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)] px-4 py-3 text-sm text-[var(--vaka-text)] outline-none transition placeholder:text-[var(--vaka-text-muted)] focus:border-[var(--vaka-primary)] focus:ring-2 focus:ring-[var(--vaka-primary)]/10";
 
 const labelClassName =
-  "mb-2 block text-sm font-bold text-[#174f46]";
+  "mb-2 block text-sm font-bold text-[var(--vaka-primary)]";
 
-const helperClassName =
-  "mt-2 text-xs leading-6 text-[#84918b]";
+const helperClassName = "mt-2 text-xs leading-6 text-[var(--vaka-text-muted)]";
+
+function toPersianDigits(value: string | number): string {
+  return String(value).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+}
+
+function toEnglishDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
 
 function formatMinutes(minutes: number) {
-  if (minutes < 60) return `${minutes} دقیقه`;
+  if (minutes < 60) {
+    return `${toPersianDigits(minutes)} دقیقه`;
+  }
 
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
-  if (remainingMinutes === 0) return `${hours} ساعت`;
+  if (remainingMinutes === 0) {
+    return `${toPersianDigits(hours)} ساعت`;
+  }
 
-  return `${hours} ساعت و ${remainingMinutes} دقیقه`;
+  return `${toPersianDigits(hours)} ساعت و ${toPersianDigits(
+    remainingMinutes,
+  )} دقیقه`;
 }
 
 function toPickerValue(value: string) {
   if (!value) return null;
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return null;
 
   return date;
@@ -57,11 +74,53 @@ function toLocalDateTime(value: {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
-export default function Step2Schedule({
-  data,
-  onChange,
-}: Step2ScheduleProps) {
+function formatTime(value: Date | null): string {
+  if (!value) return "";
+
+  const hour = String(value.getHours()).padStart(2, "0");
+  const minute = String(value.getMinutes()).padStart(2, "0");
+
+  return toPersianDigits(`${hour}:${minute}`);
+}
+
+function normalizeTimeInput(value: string): string {
+  const digits = toEnglishDigits(value).replace(/[^\d:]/g, "");
+
+  if (digits.includes(":")) {
+    const [hour = "", minute = ""] = digits.split(":");
+
+    if (digits.split(":").length > 2) return "";
+
+    return `${hour.slice(0, 2)}:${minute.slice(0, 2)}`;
+  }
+
+  const limited = digits.slice(0, 4);
+
+  if (limited.length <= 2) return limited;
+
+  return `${limited.slice(0, 2)}:${limited.slice(2)}`;
+}
+
+export default function Step2Schedule({ data, onChange }: Step2ScheduleProps) {
   const selectedDuration = Number(data.estimatedDurationMinutes);
+
+  const [timeDrafts, setTimeDrafts] = useState<
+    Partial<
+      Record<
+        "proposalDeadlineAt" | "executionWindowEndAt" | "deadlineAt",
+        string
+      >
+    >
+  >({});
+
+  const [timeErrors, setTimeErrors] = useState<
+    Partial<
+      Record<
+        "proposalDeadlineAt" | "executionWindowEndAt" | "deadlineAt",
+        string
+      >
+    >
+  >({});
 
   function renderDateTimeField(
     title: string,
@@ -71,98 +130,166 @@ export default function Step2Schedule({
   ) {
     const currentValue = toPickerValue(data[field]);
 
+    const displayedTime =
+      timeDrafts[field] !== undefined
+        ? timeDrafts[field]!
+        : formatTime(currentValue);
+
     return (
       <section
         key={field}
-        className="rounded-2xl bg-[#f0f8f4] p-4 sm:p-5"
+        className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5"
       >
         <label className={labelClassName}>
-          <span className="ml-2 text-[#006557]">📅</span>
+          <span className="ml-2 text-[var(--vaka-primary)]">📅</span>
           {title}
-          {required && <span className="mr-1 text-red-500">*</span>}
+          {required && (
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
+          )}
         </label>
 
         <p className={helperClassName}>{description}</p>
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <span className="mb-2 block text-xs font-semibold text-[#65766e]">
+            <span className="mb-2 block text-xs font-semibold text-[var(--vaka-text-secondary)]">
               تاریخ شمسی
             </span>
 
-            <DatePicker
-              calendar={persian}
-              locale={persian_fa}
-              value={currentValue}
-              onChange={(date) => {
-                if (!date) {
-                  onChange(field, "");
-                  return;
-                }
+            <div className="relative">
+              <DatePicker
+                calendar={persian}
+                locale={persian_fa}
+                digits={["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]}
+                value={currentValue}
+                onChange={(date) => {
+                  if (!date) {
+                    onChange(field, "");
+                    setTimeDrafts((previous) => ({
+                      ...previous,
+                      [field]: "",
+                    }));
+                    setTimeErrors((previous) => ({
+                      ...previous,
+                      [field]: "",
+                    }));
+                    return;
+                  }
 
-                const hour = currentValue?.getHours() ?? 0;
-                const minute = currentValue?.getMinutes() ?? 0;
+                  const hour = currentValue?.getHours() ?? 0;
+                  const minute = currentValue?.getMinutes() ?? 0;
 
-                onChange(
-                  field,
-                  toLocalDateTime({
-                    year: date.year,
-                    month: date.month.number,
-                    day: date.day,
-                    hour,
-                    minute,
-                  }),
-                );
-              }}
-              format="YYYY/MM/DD"
-              calendarPosition="bottom-right"
-              inputClass={inputClassName}
-              containerClassName="w-full"
-              placeholder="انتخاب تاریخ"
-              required={required}
-            />
+                  onChange(
+                    field,
+                    toLocalDateTime({
+                      year: date.year,
+                      month: date.month.number,
+                      day: date.day,
+                      hour,
+                      minute,
+                    }),
+                  );
+                }}
+                format="YYYY/MM/DD"
+                calendarPosition="bottom-left"
+                inputClass={`${inputClassName} pl-11 text-left [direction:ltr]`}
+                containerClassName="w-full"
+                placeholder="انتخاب تاریخ"
+                required={required}
+              />
+
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--vaka-text-muted)]"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="5" width="18" height="16" rx="2" />
+                  <path d="M16 3v4M8 3v4M3 10h18" />
+                </svg>
+              </span>
+            </div>
           </div>
 
           <div>
-              <span className="mb-2 block text-xs font-semibold text-[#65766e]">
-                ساعت
-              </span>
+            <span className="mb-2 block text-xs font-semibold text-[var(--vaka-text-secondary)]">
+              ساعت
+            </span>
 
-              <input
-                type="time"
-                value={
-                  currentValue
-                    ? `${String(currentValue.getHours()).padStart(2, "0")}:${String(
-                        currentValue.getMinutes()
-                      ).padStart(2, "0")}`
-                    : ""
+            <input
+              type="text"
+              inputMode="numeric"
+              dir="ltr"
+              autoComplete="off"
+              maxLength={5}
+              value={displayedTime}
+              placeholder="۱۴:۳۰"
+              aria-label="انتخاب ساعت"
+              aria-invalid={Boolean(timeErrors[field])}
+              onChange={(event) => {
+                const normalized = normalizeTimeInput(event.target.value);
+
+                setTimeDrafts((previous) => ({
+                  ...previous,
+                  [field]: toPersianDigits(normalized),
+                }));
+
+                setTimeErrors((previous) => ({
+                  ...previous,
+                  [field]: "",
+                }));
+
+                if (!currentValue || normalized.length !== 5) return;
+
+                const match = /^(\d{2}):(\d{2})$/.exec(normalized);
+
+                if (!match) return;
+
+                const hour = Number(match[1]);
+                const minute = Number(match[2]);
+
+                if (hour > 23 || minute > 59) {
+                  setTimeErrors((previous) => ({
+                    ...previous,
+                    [field]: "ساعت یا دقیقه واردشده معتبر نیست.",
+                  }));
+                  return;
                 }
-                onChange={(event) => {
-                  if (!event.target.value || !currentValue) return;
-                
-                  const [hour, minute] = event.target.value
-                    .split(":")
-                    .map(Number);
-                
-                  const updated = new Date(currentValue);
-                  updated.setHours(hour, minute, 0, 0);
-                            
-                  const localValue =
-                    `${updated.getFullYear()}-${String(
-                      updated.getMonth() + 1
-                    ).padStart(2, "0")}-${String(
-                      updated.getDate()
-                    ).padStart(2, "0")}T${String(hour).padStart(
-                      2,
-                      "0"
-                    )}:${String(minute).padStart(2, "0")}`;
-                
-                  onChange(field, localValue);
-                }}
-                className={inputClassName}
-                aria-label="انتخاب ساعت"
-              />
-            </div>
+
+                const updated = new Date(currentValue);
+
+                updated.setHours(hour, minute, 0, 0);
+
+                const localValue = `${updated.getFullYear()}-${String(
+                  updated.getMonth() + 1,
+                ).padStart(2, "0")}-${String(updated.getDate()).padStart(
+                  2,
+                  "0",
+                )}T${String(hour).padStart(
+                  2,
+                  "0",
+                )}:${String(minute).padStart(2, "0")}`;
+
+                onChange(field, localValue);
+              }}
+              className={`${inputClassName} text-left`}
+            />
+
+            {timeErrors[field] ? (
+              <p className="mt-2 text-xs text-[var(--vaka-danger)]">
+                {timeErrors[field]}
+              </p>
+            ) : (
+              <p className={helperClassName}>ساعت را مانند ۱۴:۳۰ وارد کنید.</p>
+            )}
+          </div>
         </div>
       </section>
     );
@@ -171,52 +298,47 @@ export default function Step2Schedule({
   return (
     <div className="space-y-6">
       {/* مدت تخمینی انجام کار */}
-      <section className="rounded-2xl bg-[#f0f8f4] p-4 sm:p-5">
+      <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <label
-            htmlFor="estimated-duration"
-            className={labelClassName}
-          >
-            <span className="ml-2 text-[#006557]">●</span>
+          <label htmlFor="estimated-duration" className={labelClassName}>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             مدت زمان تخمینی انجام کار
-            <span className="mr-1 text-red-500">*</span>
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
           </label>
 
-          <span className="rounded-full bg-white px-3 py-1 text-xs text-[#84918b]">
+          <span className="rounded-full bg-[var(--vaka-surface)] px-3 py-1 text-xs text-[var(--vaka-text-muted)]">
             برحسب دقیقه
           </span>
         </div>
 
-        {/* قانون استاندارد */}
-        <div className="mb-5 flex items-start gap-3 rounded-xl border border-[#e0ece5] bg-white/80 p-3 sm:p-4">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#dcece5] text-xl">
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-[var(--vaka-border)] bg-[var(--vaka-surface)]/80 p-3 sm:p-4">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--vaka-primary-soft)] text-xl">
             ⏱️
           </span>
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold leading-6 text-[#174f46]">
+            <p className="text-sm font-bold leading-6 text-[var(--vaka-primary)]">
               قانون استانداردهای زمانی در شبکه واکا
             </p>
 
-            <p className="mt-1 text-xs leading-6 text-[#65766e]">
-              مدت زمان اجرای هر کار در پلتفرم واکا باید بین حداقل
-              ۱ دقیقه و حداکثر ۳۰۰ دقیقه (۵ ساعت خالص) تعریف شود.
-              برای پروژه‌های بزرگ‌تر، کار باید به چند کار مستقل
-              تقسیم شود.
+            <p className="mt-1 text-xs leading-6 text-[var(--vaka-text-secondary)]">
+              مدت زمان اجرای هر کار در پلتفرم واکا باید بین حداقل ۱ دقیقه و
+              حداکثر ۳۰۰ دقیقه (۵ ساعت خالص) تعریف شود. برای پروژه‌های بزرگ‌تر،
+              کار باید به چند کار مستقل تقسیم شود.
             </p>
           </div>
         </div>
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-[#35433d]">
+          <p className="text-sm font-semibold text-[var(--vaka-text)]">
             مدت زمان تقریبی مورد نیاز
           </p>
-          <span className="text-xs text-[#84918b]">
+
+          <span className="text-xs text-[var(--vaka-text-muted)]">
             حداکثر ۵ ساعت
           </span>
         </div>
 
-        {/* گزینه‌های آماده */}
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           {durationOptions.map((minutes) => {
             const isSelected = selectedDuration === minutes;
@@ -231,23 +353,25 @@ export default function Step2Schedule({
                 aria-pressed={isSelected}
                 className={`relative flex min-h-[68px] flex-col items-center justify-center rounded-xl border px-2 py-3 transition ${
                   isSelected
-                    ? "border-[#006557] bg-[#006557] text-white shadow-sm"
-                    : "border-transparent bg-white text-[#35433d] hover:border-[#b9d5ca] hover:bg-[#f9fcfa]"
+                    ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary)] text-[var(--vaka-surface)] shadow-sm"
+                    : "border-transparent bg-[var(--vaka-surface)] text-[var(--vaka-text)] hover:border-[var(--vaka-border)] hover:bg-[var(--vaka-primary-pale)]"
                 }`}
               >
                 {isSelected && (
-                  <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[#ffb77b] text-xs text-[#663b17]">
+                  <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[var(--vaka-warning)] text-xs text-[var(--vaka-surface)]">
                     ✓
                   </span>
                 )}
 
                 <span className="text-base font-bold">
-                  {minutes}
+                  {toPersianDigits(minutes)}
                 </span>
 
                 <span
                   className={`mt-1 text-xs ${
-                    isSelected ? "text-white/80" : "text-[#84918b]"
+                    isSelected
+                      ? "text-[var(--vaka-surface)]/80"
+                      : "text-[var(--vaka-text-muted)]"
                   }`}
                 >
                   دقیقه
@@ -257,11 +381,10 @@ export default function Step2Schedule({
           })}
         </div>
 
-        {/* ورود دستی مدت */}
-        <div className="mt-4 rounded-xl bg-white/80 p-3 sm:p-4">
+        <div className="mt-4 rounded-xl bg-[var(--vaka-surface)]/80 p-3 sm:p-4">
           <label
             htmlFor="estimated-duration"
-            className="mb-2 block text-sm font-semibold text-[#35433d]"
+            className="mb-2 block text-sm font-semibold text-[var(--vaka-text)]"
           >
             یا مدت دلخواه را وارد کنید
           </label>
@@ -270,25 +393,32 @@ export default function Step2Schedule({
             <div className="w-full sm:max-w-[220px]">
               <input
                 id="estimated-duration"
-                type="number"
-                min={1}
-                max={300}
-                step={1}
+                type="text"
+                inputMode="numeric"
+                dir="ltr"
+                autoComplete="off"
                 required
-                value={data.estimatedDurationMinutes}
-                onChange={(event) =>
-                  onChange(
-                    "estimatedDurationMinutes",
-                    event.target.value
-                  )
-                }
+                maxLength={3}
+                value={toPersianDigits(data.estimatedDurationMinutes)}
+                onChange={(event) => {
+                  const normalized = toEnglishDigits(event.target.value)
+                    .replace(/\D/g, "")
+                    .slice(0, 3);
+
+                  const safeValue =
+                    normalized !== "" && Number(normalized) > 300
+                      ? "300"
+                      : normalized;
+
+                  onChange("estimatedDurationMinutes", safeValue);
+                }}
                 placeholder="مثلاً ۴۵"
                 aria-describedby="duration-help"
-                className={inputClassName}
+                className={`${inputClassName} text-left`}
               />
             </div>
 
-            <span className="text-sm text-[#65766e]">
+            <span className="text-sm text-[var(--vaka-text-secondary)]">
               {selectedDuration > 0 && selectedDuration <= 300
                 ? `زمان انتخاب‌شده: ${formatMinutes(selectedDuration)}`
                 : "از ۱ تا ۳۰۰ دقیقه"}
@@ -296,24 +426,23 @@ export default function Step2Schedule({
           </div>
 
           <p id="duration-help" className={helperClassName}>
-            مدت تقریبی انجام خودِ کار را وارد کنید، نه زمان انتظار
-            برای انتخاب مجری.
+            مدت تقریبی انجام خودِ کار را وارد کنید، نه زمان انتظار برای انتخاب
+            مجری.
           </p>
         </div>
       </section>
 
       {/* فوریت کار */}
-      <section className="rounded-2xl bg-[#f0f8f4] p-4 sm:p-5">
+      <section className="rounded-2xl bg-[var(--vaka-primary-pale)] p-4 sm:p-5">
         <div className="mb-4">
           <h3 className={labelClassName}>
-            <span className="ml-2 text-[#006557]">●</span>
+            <span className="ml-2 text-[var(--vaka-primary)]">●</span>
             زمان شروع و فوریت کار
-            <span className="mr-1 text-red-500">*</span>
+            <span className="mr-1 text-[var(--vaka-danger)]">*</span>
           </h3>
 
           <p className={helperClassName}>
-            میزان فوریت را با توجه به زمان مورد نیاز برای شروع کار
-            انتخاب کنید.
+            میزان فوریت را با توجه به زمان مورد نیاز برای شروع کار انتخاب کنید.
           </p>
         </div>
 
@@ -341,8 +470,8 @@ export default function Step2Schedule({
                 key={option.value}
                 className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
                   isSelected
-                    ? "border-[#80b7a8] bg-[#e0ece5] shadow-sm"
-                    : "border-transparent bg-white hover:border-[#c9ddd3]"
+                    ? "border-[var(--vaka-primary)] bg-[var(--vaka-primary-soft)] shadow-sm"
+                    : "border-transparent bg-[var(--vaka-surface)] hover:border-[var(--vaka-border)]"
                 }`}
               >
                 <input
@@ -351,27 +480,27 @@ export default function Step2Schedule({
                   value={option.value}
                   checked={isSelected}
                   onChange={() => onChange("urgency", option.value)}
-                  className="mt-1 size-4 shrink-0 accent-[#006557]"
+                  className="mt-1 size-4 shrink-0 accent-[var(--vaka-primary)]"
                 />
 
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-bold text-[#263b34]">
+                    <span className="text-sm font-bold text-[var(--vaka-text)]">
                       {option.title}
                     </span>
 
                     <span
                       className={`rounded-full px-2 py-1 text-[11px] ${
                         option.value === "urgent"
-                          ? "bg-[#ffe1dc] text-[#a34435]"
-                          : "bg-[#dcece5] text-[#17695a]"
+                          ? "bg-[var(--vaka-danger)]/10 text-[var(--vaka-danger)]"
+                          : "bg-[var(--vaka-primary-soft)] text-[var(--vaka-primary)]"
                       }`}
                     >
                       {option.badge}
                     </span>
                   </span>
 
-                  <span className="mt-2 block text-xs leading-6 text-[#65766e]">
+                  <span className="mt-2 block text-xs leading-6 text-[var(--vaka-text-secondary)]">
                     {option.description}
                   </span>
                 </span>
@@ -379,7 +508,6 @@ export default function Step2Schedule({
             );
           })}
         </div>
-
       </section>
 
       {renderDateTimeField(

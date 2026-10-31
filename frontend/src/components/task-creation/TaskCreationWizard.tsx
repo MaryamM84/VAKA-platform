@@ -36,27 +36,279 @@ const steps = [
   },
 ];
 
+type ValidationResult = {
+  valid: boolean;
+  errors: string[];
+};
+
+function normalizeDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
+
+function isValidDateTime(value: string): boolean {
+  if (!value) return false;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+
+  if (!match) return false;
+
+  const [, year, month, day, hour, minute] = match;
+
+  return (
+    Number(year) > 0 &&
+    Number(month) >= 1 &&
+    Number(month) <= 12 &&
+    Number(day) >= 1 &&
+    Number(day) <= 31 &&
+    Number(hour) >= 0 &&
+    Number(hour) <= 23 &&
+    Number(minute) >= 0 &&
+    Number(minute) <= 59
+  );
+}
+
+function isValidCoordinates(latitude: string, longitude: string): boolean {
+  if (!latitude || !longitude) return false;
+
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+function isValidAmount(value: string): boolean {
+  if (!value.trim()) return false;
+
+  const normalized = normalizeDigits(value).replace(/,/g, "").trim();
+
+  const amount = Number(normalized);
+
+  return Number.isFinite(amount) && amount >= 0;
+}
+
+function validateStep(step: number, data: TaskFormData): ValidationResult {
+  const errors: string[] = [];
+
+  switch (step) {
+    // گام اول: عنوان و مشخصات
+    case 0: {
+      if (!data.title.trim()) {
+        errors.push("عنوان کار را وارد کنید.");
+      }
+
+      if (!data.categoryId.trim() && !data.categoryName.trim()) {
+        errors.push("دسته‌بندی کار را انتخاب کنید.");
+      }
+
+      if (!data.description.trim()) {
+        errors.push("شرح کامل کار را وارد کنید.");
+      }
+
+      if (!data.deliveryCriteria.trim()) {
+        errors.push("معیارهای تحویل کار را مشخص کنید.");
+      }
+
+      break;
+    }
+
+    // گام دوم: زمان‌بندی
+    case 1: {
+      const duration = Number(normalizeDigits(data.estimatedDurationMinutes));
+
+      if (
+        !data.estimatedDurationMinutes.trim() ||
+        !Number.isInteger(duration) ||
+        duration < 1 ||
+        duration > 300
+      ) {
+        errors.push("مدت انجام کار باید عددی بین ۱ تا ۳۰۰ دقیقه باشد.");
+      }
+
+      if (!["normal", "urgent"].includes(data.urgency)) {
+        errors.push("میزان فوریت انجام کار را مشخص کنید.");
+      }
+
+      if (!isValidDateTime(data.proposalDeadlineAt)) {
+        errors.push("تاریخ و ساعت مهلت دریافت پیشنهادها معتبر نیست.");
+      }
+
+      if (!isValidDateTime(data.executionWindowEndAt)) {
+        errors.push("تاریخ و ساعت پایان بازه انجام کار را مشخص کنید.");
+      }
+
+      // مهلت نهایی انجام کار اختیاری است.
+      if (data.deadlineAt.trim() && !isValidDateTime(data.deadlineAt)) {
+        errors.push("تاریخ و ساعت مهلت نهایی انجام کار معتبر نیست.");
+      }
+
+      break;
+    }
+
+    // گام سوم: محدوده مکانی
+    case 2: {
+      const mode = data.locationMode || "fixed";
+
+      if (mode === "fixed") {
+        if (
+          !isValidCoordinates(data.locationLatitude, data.locationLongitude)
+        ) {
+          errors.push(
+            "لطفاً محل انجام کار را با انتخاب نقطه روی نقشه ثبت کنید.",
+          );
+        }
+
+        if (!data.locationAddress.trim()) {
+          errors.push("آدرس محل انجام کار ثبت نشده است.");
+        }
+      } else if (mode === "route") {
+        if (!isValidCoordinates(data.originLatitude, data.originLongitude)) {
+          errors.push("موقعیت مبدأ را روی نقشه انتخاب کنید.");
+        }
+
+        if (!data.originAddress.trim()) {
+          errors.push("آدرس مبدأ را وارد کنید.");
+        }
+
+        if (
+          !isValidCoordinates(
+            data.destinationLatitude,
+            data.destinationLongitude,
+          )
+        ) {
+          errors.push("موقعیت مقصد را روی نقشه انتخاب کنید.");
+        }
+
+        if (!data.destinationAddress.trim()) {
+          errors.push("آدرس مقصد را وارد کنید.");
+        }
+      } else {
+        errors.push("نوع محدوده مکانی را به‌درستی انتخاب کنید.");
+      }
+
+      break;
+    }
+
+    // گام چهارم: بودجه
+    case 3: {
+      if (!isValidAmount(data.wageBudgetAmount)) {
+        errors.push("مبلغ دستمزد را به‌درستی وارد کنید.");
+      }
+
+      if (!data.currencyCode.trim()) {
+        errors.push("واحد پول را مشخص کنید.");
+      }
+
+      if (
+        data.goodsPurchaseRequired === "true" &&
+        !isValidAmount(data.itemCostCapAmount)
+      ) {
+        errors.push(
+          "با توجه به نیاز به خرید کالا، سقف هزینه خرید را مشخص کنید.",
+        );
+      }
+
+      if (!["true", "false"].includes(data.goodsPurchaseRequired)) {
+        errors.push("وضعیت نیاز به خرید کالا را مشخص کنید.");
+      }
+
+      if (!["true", "false"].includes(data.invoiceRequired)) {
+        errors.push("وضعیت نیاز به فاکتور را مشخص کنید.");
+      }
+
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
 export default function TaskCreationWizard() {
   const [currentStep, setCurrentStep] = useState(0);
 
   const [formData, setFormData] = useState<TaskFormData>(initialTaskFormData);
+
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   function handleFieldChange(field: keyof TaskFormData, value: string) {
     setFormData((previousData) => ({
       ...previousData,
       [field]: value,
     }));
+
+    setValidationErrors([]);
   }
 
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === steps.length - 1;
 
+  function scrollToTop() {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
   function goNext() {
+    const result = validateStep(currentStep, formData);
+
+    if (!result.valid) {
+      setValidationErrors(result.errors);
+
+      window.setTimeout(() => {
+        document.getElementById("task-validation-errors")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+
+      return;
+    }
+
+    setValidationErrors([]);
+
     setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+
+    scrollToTop();
   }
 
   function goBack() {
+    setValidationErrors([]);
+
     setCurrentStep((step) => Math.max(step - 1, 0));
+
+    scrollToTop();
+  }
+
+  function goToStep(index: number) {
+    // اجازه رفتن به مراحل تکمیل‌نشده وجود ندارد.
+    if (index > currentStep) return;
+
+    setValidationErrors([]);
+    setCurrentStep(index);
+    scrollToTop();
+  }
+
+  function editStep(index: number) {
+    if (index < 0 || index >= currentStep) return;
+
+    setValidationErrors([]);
+    setCurrentStep(index);
+    scrollToTop();
   }
 
   return (
@@ -67,11 +319,14 @@ export default function TaskCreationWizard() {
             {steps.map((step, index) => {
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
+              const isDisabled = index > currentStep;
 
               const iconPath = isCompleted ? "/icons/check.svg" : step.icon;
 
               const iconColor =
-                isActive || isCompleted ? "#ffffff" : "var(--vaka-text-muted)";
+                isActive || isCompleted
+                  ? "var(--vaka-surface)"
+                  : "var(--vaka-text-muted)";
 
               return (
                 <li
@@ -81,15 +336,21 @@ export default function TaskCreationWizard() {
                 >
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(index)}
+                    onClick={() => goToStep(index)}
+                    disabled={isDisabled}
                     aria-label={`رفتن به مرحله ${index + 1}: ${step.title}`}
-                    className="flex min-w-0 items-center gap-2 text-right"
+                    aria-disabled={isDisabled}
+                    className={`flex min-w-0 items-center gap-2 text-right ${
+                      isDisabled
+                        ? "cursor-not-allowed opacity-50"
+                        : "cursor-pointer"
+                    }`}
                   >
                     <span
                       className={`flex size-10 shrink-0 items-center justify-center rounded-full transition-colors ${
                         isActive || isCompleted
-                          ? "bg-[#006557] text-white shadow-sm"
-                          : "bg-[#edf2ef]"
+                          ? "bg-[var(--vaka-primary)] text-white shadow-sm"
+                          : "bg-[var(--vaka-primary-pale)]"
                       }`}
                     >
                       <span
@@ -113,8 +374,8 @@ export default function TaskCreationWizard() {
                       <span
                         className={`block whitespace-nowrap text-[10px] sm:text-xs ${
                           isActive
-                            ? "font-semibold text-[#006557]"
-                            : "text-[#89948f]"
+                            ? "font-semibold text-[var(--vaka-primary)]"
+                            : "text-[var(--vaka-text-muted)]"
                         }`}
                       >
                         گام {index + 1}
@@ -123,8 +384,8 @@ export default function TaskCreationWizard() {
                       <span
                         className={`mt-1 block whitespace-nowrap text-xs sm:text-sm ${
                           isActive
-                            ? "font-bold text-[#182522]"
-                            : "text-[#84908a]"
+                            ? "font-bold text-[var(--vaka-text)]"
+                            : "text-[var(--vaka-text-secondary)]"
                         }`}
                       >
                         {step.title}
@@ -136,7 +397,9 @@ export default function TaskCreationWizard() {
                     <div
                       aria-hidden="true"
                       className={`mx-3 h-0.5 min-w-3 flex-1 ${
-                        isCompleted ? "bg-[#7bb8a9]" : "bg-[#e5ece8]"
+                        isCompleted
+                          ? "bg-[var(--vaka-primary-soft)]"
+                          : "bg-[var(--vaka-border-soft)]"
                       }`}
                     />
                   )}
@@ -146,15 +409,15 @@ export default function TaskCreationWizard() {
           </ol>
         </nav>
 
-        <section className="overflow-hidden rounded-3xl border border-[#e5ece8] bg-white/95 shadow-sm">
-          <header className="border-b border-[#edf1ee] px-5 py-7 sm:px-8 sm:py-8">
+        <section className="overflow-hidden rounded-3xl border border-[var(--vaka-border-soft)] bg-[var(--vaka-surface)] shadow-sm">
+          <header className="border-b border-[var(--vaka-border-soft)] px-5 py-7 sm:px-8 sm:py-8">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <span className="inline-flex rounded-full bg-[#e7f1ec] px-3 py-1.5 text-xs font-medium text-[#006557]">
+                <span className="inline-flex rounded-full bg-[var(--vaka-primary-soft)] px-3 py-1.5 text-xs font-medium text-[var(--vaka-primary)]">
                   ایجاد کار جدید
                 </span>
 
-                <h1 className="mt-4 text-xl font-bold text-[#182522] sm:text-2xl">
+                <h1 className="mt-4 text-xl font-bold text-[var(--vaka-text)] sm:text-2xl">
                   گام {currentStep + 1} از {steps.length}:{" "}
                   {steps[currentStep].title}
                 </h1>
@@ -162,7 +425,7 @@ export default function TaskCreationWizard() {
             </div>
 
             <div
-              className="mt-6 h-2 overflow-hidden rounded-full bg-[#edf2ef]"
+              className="mt-6 h-2 overflow-hidden rounded-full bg-[var(--vaka-primary-pale)]"
               role="progressbar"
               aria-label="میزان پیشرفت مراحل فرم"
               aria-valuemin={0}
@@ -172,7 +435,7 @@ export default function TaskCreationWizard() {
               )}
             >
               <div
-                className="h-full rounded-full bg-[#006557] transition-all duration-300"
+                className="h-full rounded-full bg-[var(--vaka-primary)] transition-all duration-300"
                 style={{
                   width: `${((currentStep + 1) / steps.length) * 100}%`,
                 }}
@@ -181,6 +444,29 @@ export default function TaskCreationWizard() {
           </header>
 
           <div className="min-h-80 px-5 py-8 sm:px-8 sm:py-10">
+            {validationErrors.length > 0 && (
+              <div
+                id="task-validation-errors"
+                role="alert"
+                aria-live="assertive"
+                className="mb-6 rounded-2xl border border-[var(--vaka-danger)]/30 bg-[var(--vaka-danger)]/5 p-4"
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-lg text-[var(--vaka-danger)]">⚠</span>
+
+                  <h3 className="text-sm font-bold text-[var(--vaka-danger)]">
+                    لطفاً موارد زیر را اصلاح کنید:
+                  </h3>
+                </div>
+
+                <ul className="list-inside list-disc space-y-2 text-sm leading-7 text-[var(--vaka-text)]">
+                  {validationErrors.map((error, index) => (
+                    <li key={`${index}-${error}`}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {currentStep === 0 ? (
               <Step1Details data={formData} onChange={handleFieldChange} />
             ) : currentStep === 1 ? (
@@ -192,19 +478,19 @@ export default function TaskCreationWizard() {
             ) : (
               <Step5Review
                 data={formData}
-                onEditStep={setCurrentStep}
-                onBack={() => setCurrentStep(3)}
+                onEditStep={editStep}
+                onBack={() => editStep(3)}
               />
             )}
           </div>
 
-          {currentStep < 4 && (
-            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#edf1ee] px-5 py-5 sm:px-8">
+          {!isLastStep && (
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--vaka-border-soft)] px-5 py-5 sm:px-8">
               <button
                 type="button"
                 onClick={goBack}
                 disabled={isFirstStep}
-                className="rounded-full border border-[#dce5df] px-5 py-3 text-sm font-semibold text-[#35433d] transition hover:bg-[#f5f8f6] disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-full border border-[var(--vaka-border)] px-5 py-3 text-sm font-semibold text-[var(--vaka-text-secondary)] transition hover:bg-[var(--vaka-primary-pale)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 مرحله قبل
               </button>
@@ -212,7 +498,7 @@ export default function TaskCreationWizard() {
               <button
                 type="button"
                 onClick={goNext}
-                className="rounded-full bg-[#006557] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#005448]"
+                className="rounded-full bg-[var(--vaka-primary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--vaka-primary-hover)]"
               >
                 مرحله بعد: {steps[currentStep + 1].title}
               </button>

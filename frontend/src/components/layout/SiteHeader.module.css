@@ -605,3 +605,61 @@
     right: 14px;
   }
 }
+
+/* Responsive spacing between hamburger and search */
+@media (min-width: 791px) and (max-width: 1120px) {
+  .mobileToggle {
+    margin-left: 10px;
+  }
+
+  .searchContainer {
+    margin-right: 0;
+    margin-left: 10px;
+    min-width: 0;
+  }
+}
+
+/* Compact create-task button on tablets */
+@media (min-width: 481px) and (max-width: 1120px) {
+  .createLink {
+    min-height: 34px;
+    padding: 5px 10px;
+    gap: 5px;
+    font-size: 13px;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+}
+
+/* Circular create-task button on small screens */
+@media (max-width: 600px) {
+  .createLink {
+    display: inline-flex;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .createLabel,
+  .createMobileLabel {
+    display: none;
+  }
+
+  .createLink svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .actions {
+    flex-shrink: 0;
+    gap: 5px;
+  }
+}

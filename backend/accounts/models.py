@@ -175,7 +175,6 @@ class UserRole(models.Model):
         return f"{self.user_id} - {self.role.code}"
 
 
-
 class ExecutorProfile(models.Model):
 
     class VerificationStatus(models.TextChoices):
@@ -249,7 +248,6 @@ class ExecutorProfile(models.Model):
 
     def __str__(self):
         return f"ExecutorProfile: {self.user_id}"
-
 
 
 class OTPChallenge(models.Model):

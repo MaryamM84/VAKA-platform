@@ -45,8 +45,14 @@ SECRET_KEY = 'django-insecure-+%+#c)xq7c1so5h%d!%$hs!@#h3ti#ofadzb%ykj1i2pq*xt(c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+]
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
 
 # Application definition
 
@@ -59,7 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "rest_framework",
     # "django.contrib.gis",
-
+    "corsheaders",
     "drf_spectacular",
 
     # VAKA applications
@@ -96,6 +102,7 @@ SPECTACULAR_SETTINGS = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -103,7 +110,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [

@@ -3,7 +3,6 @@ from django.urls import path
 
 from .views import (
     BidSubmissionView,
-    MyBidsListView,
     MyBidDetailView,
     EmployerBidsListView,
     EmployerTaskBidsListView,
@@ -18,12 +17,6 @@ urlpatterns = [
         "bids/",
         BidSubmissionView.as_view(),
         name="bid-submit",
-    ),
-
-    path(
-        "my_bids/",
-        MyBidsListView.as_view(),
-        name="my-bids",
     ),
 
     path(

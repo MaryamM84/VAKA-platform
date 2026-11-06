@@ -90,36 +90,6 @@ class BidSubmissionView(APIView):
         )
 
 
-class MyBidsListView(APIView):
-
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        tags=["Bidding"],
-        operation_id="my_bids_list",
-        summary="Get my bids",
-        description=(
-            "Returns all bids submitted by the authenticated executor."
-        ),
-        responses={
-            200: BidReadSerializer(many=True),
-        },
-    )
-    def get(self, request):
-
-        bids = get_executor_bids(
-            user=request.user,
-        )
-
-        serializer = BidReadSerializer(
-            bids,
-            many=True,
-        )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK,
-        )
 
 class MyBidDetailView(APIView):
 

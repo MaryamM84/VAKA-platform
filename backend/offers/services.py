@@ -386,3 +386,101 @@ def update_executor_bid(*, user, bid_id, validated_data):
 
 
 
+
+def _require_employer_for_bids(user):
+    """Ensure that the authenticated user is an active employer."""
+
+    from accounts.models import UserRole
+
+    if not user or not user.is_authenticated:
+        raise PermissionDenied("Authentication is required.")
+
+    if not user.is_active:
+        raise PermissionDenied("Your account is not active.")
+
+    if not UserRole.objects.filter(
+        user_id=user.pk,
+        role__code="EMPLOYER",
+    ).exists():
+        raise PermissionDenied(
+            "Only employers can access received bids."
+        )
+
+
+def get_employer_bids(*, user):
+    """Get all bids received for the employer's tasks."""
+
+    from .models import Bid
+
+    _require_employer_for_bids(user)
+
+    return (
+        Bid.objects
+        .filter(task__employer_user_id=user.pk)
+        .select_related(
+            "task",
+            "executor_profile",
+            "executor_profile__user",
+        )
+        .order_by("-created_at")
+    )
+
+
+def get_employer_task_bids(*, user, task_id):
+    """Get bids for a specific task owned by the employer."""
+
+    from tasks.models import Task
+    from .models import Bid
+
+    _require_employer_for_bids(user)
+
+    task_exists = Task.objects.filter(
+        pk=task_id,
+        employer_user_id=user.pk,
+    ).exists()
+
+    if not task_exists:
+        raise NotFound("Task not found.")
+
+    return (
+        Bid.objects
+        .filter(
+            task_id=task_id,
+            task__employer_user_id=user.pk,
+        )
+        .select_related(
+            "task",
+            "executor_profile",
+            "executor_profile__user",
+        )
+        .order_by("-created_at")
+    )
+
+
+def get_employer_bid_detail(*, user, bid_id):
+    """Get bid details only if its task belongs to the employer."""
+
+    from .models import Bid
+
+    _require_employer_for_bids(user)
+
+    bid = (
+        Bid.objects
+        .filter(
+            bid_id=bid_id,
+            task__employer_user_id=user.pk,
+        )
+        .select_related(
+            "task",
+            "executor_profile",
+            "executor_profile__user",
+        )
+        .first()
+    )
+
+    if bid is None:
+        raise NotFound("Bid not found.")
+
+    return bid
+
+

@@ -10,6 +10,8 @@ from .serializers import (
     BidSubmissionSerializer,
     BidReadSerializer,
     BidUpdateSerializer,
+    EmployerBidListSerializer,
+    EmployerBidDetailSerializer,
 )
 
 from .services import (
@@ -17,8 +19,11 @@ from .services import (
     get_executor_bid_detail,
     update_executor_bid,
     submit_bid,
+    get_employer_bids,
+    get_employer_task_bids,
+    get_employer_bid_detail,    
 )
-
+from tasks.permissions import IsEmployer
 
 class BidSubmissionView(APIView):
 
@@ -69,16 +74,16 @@ class BidSubmissionView(APIView):
         },
     )
     def get(self, request):
-    
+
         bids = get_executor_bids(
             user=request.user,
         )
-    
+
         serializer = BidReadSerializer(
             bids,
             many=True,
         )
-    
+
         return Response(
             serializer.data,
             status=status.HTTP_200_OK,
@@ -178,3 +183,103 @@ class MyBidDetailView(APIView):
             response_serializer.data,
             status=status.HTTP_200_OK,
         )
+
+
+
+class EmployerBidsListView(APIView):
+
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Bidding"],
+        operation_id="employer_bids_list",
+        summary="List employer received bids",
+        description=(
+            "Returns all bids submitted to tasks owned "
+            "by the authenticated employer."
+        ),
+        responses={
+            200: EmployerBidListSerializer(many=True),
+        },
+    )
+    def get(self, request):
+
+        bids = get_employer_bids(
+            user=request.user,
+        )
+
+        serializer = EmployerBidListSerializer(
+            bids,
+            many=True,
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class EmployerTaskBidsListView(APIView):
+
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Bidding"],
+        operation_id="employer_task_bids_list",
+        summary="List bids for employer task",
+        description=(
+            "Returns all bids for a task owned "
+            "by the authenticated employer."
+        ),
+        responses={
+            200: EmployerBidListSerializer(many=True),
+        },
+    )
+    def get(self, request, task_id):
+
+        bids = get_employer_task_bids(
+            user=request.user,
+            task_id=task_id,
+        )
+
+        serializer = EmployerBidListSerializer(
+            bids,
+            many=True,
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class EmployerBidDetailView(APIView):
+
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Bidding"],
+        operation_id="employer_bid_detail",
+        summary="Get employer bid details",
+        description=(
+            "Returns bid details only if the related task "
+            "belongs to the authenticated employer."
+        ),
+        responses={
+            200: EmployerBidDetailSerializer,
+        },
+    )
+    def get(self, request, bid_id):
+
+        bid = get_employer_bid_detail(
+            user=request.user,
+            bid_id=bid_id,
+        )
+
+        serializer = EmployerBidDetailSerializer(bid)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+

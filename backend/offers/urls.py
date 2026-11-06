@@ -5,6 +5,9 @@ from .views import (
     BidSubmissionView,
     MyBidsListView,
     MyBidDetailView,
+    EmployerBidsListView,
+    EmployerTaskBidsListView,
+    EmployerBidDetailView,
 )
 
 
@@ -28,4 +31,24 @@ urlpatterns = [
         MyBidDetailView.as_view(),
         name="my-bid-detail",
     ),
+    
+
+    path(
+        "employer/bids/",
+        EmployerBidsListView.as_view(),
+        name="employer-bids-list",
+    ),
+
+    path(
+        "employer/tasks/<uuid:task_id>/bids/",
+        EmployerTaskBidsListView.as_view(),
+        name="employer-task-bids-list",
+    ),
+
+    path(
+        "employer/bids/<uuid:bid_id>/",
+        EmployerBidDetailView.as_view(),
+        name="employer-bid-detail",
+    ),
+
 ]

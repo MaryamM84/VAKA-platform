@@ -1193,3 +1193,276 @@ class BidTransactionAndConstraintTests(BidAPITestBase):
     def atomic_block():
         from django.db import transaction
         return transaction.atomic()
+
+EMPLOYER_BIDS_URL = "/api/offers/employer/bids/"
+
+EMPLOYER_TASK_BIDS_URL = (
+    "/api/offers/employer/tasks/{task_id}/bids/"
+)
+
+EMPLOYER_BID_DETAIL_URL = (
+    "/api/offers/employer/bids/{bid_id}/"
+)
+
+
+class EmployerBidReviewAPITests(BidAPITestBase):
+    """
+    Tests for employer bid review APIs.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        cls.employer_role, _ = Role.objects.get_or_create(
+            code="EMPLOYER",
+            defaults={
+                "name": "Employer",
+                "description": "Task employer role",
+            },
+        )
+
+    def create_employer(self, *, phone):
+        user = self.create_user(phone=phone)
+
+        UserRole.objects.create(
+            user=user,
+            role=self.employer_role,
+        )
+
+        return user
+
+    def setUp(self):
+
+        self.employer = self.create_employer(
+            phone="09121110001",
+        )
+
+        self.other_employer = self.create_employer(
+            phone="09121110002",
+        )
+
+        self.executor, self.executor_profile = self.create_executor(
+            phone="09121110003",
+        )
+
+        self.executor.full_name = "Test Executor"
+        self.executor.save(update_fields=["full_name"])
+
+        self.executor_profile.bio = "Experienced task executor"
+        self.executor_profile.save(update_fields=["bio"])
+
+        self.own_task = self.create_task(
+            employer=self.employer,
+            title="Employer own task",
+        )
+
+        self.second_own_task = self.create_task(
+            employer=self.employer,
+            title="Employer second task",
+        )
+
+        self.other_task = self.create_task(
+            employer=self.other_employer,
+            title="Another employer task",
+        )
+
+        self.own_bid = self.create_bid(
+            profile=self.executor_profile,
+            task=self.own_task,
+            amount=3_000_000,
+            duration=90,
+            message="I can complete this task.",
+        )
+
+        self.second_own_bid = self.create_bid(
+            profile=self.executor_profile,
+            task=self.second_own_task,
+            amount=3_500_000,
+            duration=100,
+            message="I can complete the second task.",
+        )
+
+        self.other_bid = self.create_bid(
+            profile=self.executor_profile,
+            task=self.other_task,
+            amount=4_000_000,
+            duration=120,
+            message="This belongs to another employer.",
+        )
+
+        self.authenticate_as(self.employer)
+
+    def test_employer_can_list_all_own_received_bids(self):
+
+        response = self.client.get(EMPLOYER_BIDS_URL)
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+
+        self.assertEqual(len(response.data), 2)
+
+        returned_ids = {
+            item["bid_id"]
+            for item in response.data
+        }
+
+        self.assertEqual(
+            returned_ids,
+            {
+                str(self.own_bid.pk),
+                str(self.second_own_bid.pk),
+            },
+        )
+
+    def test_employer_list_contains_executor_and_bid_information(self):
+
+        response = self.client.get(EMPLOYER_BIDS_URL)
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+
+        bid_data = next(
+            item
+            for item in response.data
+            if item["bid_id"] == str(self.own_bid.pk)
+        )
+
+        self.assertEqual(
+            bid_data["task_title"],
+            self.own_task.title,
+        )
+
+        self.assertEqual(
+            bid_data["executor_name"],
+            self.executor.full_name,
+        )
+
+        self.assertEqual(
+            bid_data["executor_bio"],
+            self.executor_profile.bio,
+        )
+
+        self.assertEqual(
+            bid_data["executor_verification_status"],
+            ExecutorProfile.VerificationStatus.APPROVED,
+        )
+
+        self.assertEqual(
+            bid_data["proposed_wage_amount"],
+            3_000_000,
+        )
+
+        self.assertEqual(
+            bid_data["proposed_duration_minutes"],
+            90,
+        )
+
+    def test_employer_cannot_see_other_employers_bids(self):
+
+        response = self.client.get(EMPLOYER_BIDS_URL)
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+
+        returned_ids = {
+            item["bid_id"]
+            for item in response.data
+        }
+
+        self.assertNotIn(
+            str(self.other_bid.pk),
+            returned_ids,
+        )
+
+    def test_employer_can_list_bids_for_one_owned_task(self):
+
+        url = EMPLOYER_TASK_BIDS_URL.format(
+            task_id=self.own_task.pk,
+        )
+
+        response = self.client.get(url)
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+
+        self.assertEqual(len(response.data), 1)
+
+        self.assertEqual(
+            response.data[0]["bid_id"],
+            str(self.own_bid.pk),
+        )
+
+    def test_employer_cannot_access_another_employers_task_bids(self):
+
+        url = EMPLOYER_TASK_BIDS_URL.format(
+            task_id=self.other_task.pk,
+        )
+
+        response = self.client.get(url)
+
+        self.assert_api_error(
+            response,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_employer_can_view_own_bid_details(self):
+
+        url = EMPLOYER_BID_DETAIL_URL.format(
+            bid_id=self.own_bid.pk,
+        )
+
+        response = self.client.get(url)
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+
+        self.assertEqual(
+            response.data["bid_id"],
+            str(self.own_bid.pk),
+        )
+
+        self.assertEqual(
+            response.data["task_description"],
+            self.own_task.description,
+        )
+
+        self.assertEqual(
+            response.data["task_wage_budget_amount"],
+            self.own_task.wage_budget_amount,
+        )
+
+        self.assertEqual(
+            response.data["executor_bio"],
+            self.executor_profile.bio,
+        )
+
+    def test_employer_cannot_view_other_employers_bid_details(self):
+
+        url = EMPLOYER_BID_DETAIL_URL.format(
+            bid_id=self.other_bid.pk,
+        )
+
+        response = self.client.get(url)
+
+        self.assert_api_error(
+            response,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_executor_cannot_access_employer_bid_apis(self):
+
+        self.authenticate_as(self.executor)
+
+        response = self.client.get(EMPLOYER_BIDS_URL)
+
+        self.assert_api_error(
+            response,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_employer_bid_apis_require_authentication(self):
+
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get(EMPLOYER_BIDS_URL)
+
+        self.assert_api_error(
+            response,
+            status.HTTP_401_UNAUTHORIZED,
+        )

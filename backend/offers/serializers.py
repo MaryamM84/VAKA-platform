@@ -160,16 +160,131 @@ class BidUpdateSerializer(serializers.ModelSerializer):
     
     def to_internal_value(self, data):
         allowed_fields = set(self.fields.keys())
-    
+
         if hasattr(data, "keys"):
             submitted_fields = set(data.keys())
             unexpected_fields = submitted_fields - allowed_fields
-    
+
             if unexpected_fields:
                 raise serializers.ValidationError({
                     field: ["This field is not allowed."]
                     for field in sorted(unexpected_fields)
                 })
-    
+
         return super().to_internal_value(data)
+
+
+class EmployerBidListSerializer(serializers.ModelSerializer):
+
+    task_id = serializers.UUIDField(read_only=True)
+    executor_profile_id = serializers.UUIDField(read_only=True)
+
+    task_title = serializers.CharField(
+        source="task.title",
+        read_only=True,
+    )
+
+    task_currency_code = serializers.CharField(
+        source="task.currency_code",
+        read_only=True,
+    )
+
+    executor_name = serializers.CharField(
+        source="executor_profile.user.full_name",
+        read_only=True,
+    )
+
+    executor_bio = serializers.CharField(
+        source="executor_profile.bio",
+        read_only=True,
+        allow_null=True,
+    )
+
+    executor_verification_status = serializers.CharField(
+        source="executor_profile.verification_status",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Bid
+
+        fields = [
+            "bid_id",
+            "task_id",
+            "task_title",
+            "task_currency_code",
+            "executor_profile_id",
+            "executor_name",
+            "executor_bio",
+            "executor_verification_status",
+            "proposed_wage_amount",
+            "proposed_duration_minutes",
+            "message",
+            "expires_at",
+            "status",
+            "created_at",
+        ]
+
+        read_only_fields = fields
+
+
+class EmployerBidDetailSerializer(EmployerBidListSerializer):
+
+    task_description = serializers.CharField(
+        source="task.description",
+        read_only=True,
+    )
+
+    task_status = serializers.CharField(
+        source="task.status",
+        read_only=True,
+    )
+
+    task_wage_budget_amount = serializers.IntegerField(
+        source="task.wage_budget_amount",
+        read_only=True,
+    )
+
+    task_estimated_duration_minutes = serializers.IntegerField(
+        source="task.estimated_duration_minutes",
+        read_only=True,
+    )
+
+    task_execution_window_start_at = serializers.DateTimeField(
+        source="task.execution_window_start_at",
+        read_only=True,
+    )
+
+    task_execution_window_end_at = serializers.DateTimeField(
+        source="task.execution_window_end_at",
+        read_only=True,
+    )
+
+    task_proposal_deadline_at = serializers.DateTimeField(
+        source="task.proposal_deadline_at",
+        read_only=True,
+    )
+
+    task_delivery_criteria = serializers.CharField(
+        source="task.delivery_criteria",
+        read_only=True,
+    )
+
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    class Meta(EmployerBidListSerializer.Meta):
+        fields = EmployerBidListSerializer.Meta.fields + [
+            "task_description",
+            "task_status",
+            "task_wage_budget_amount",
+            "task_estimated_duration_minutes",
+            "task_execution_window_start_at",
+            "task_execution_window_end_at",
+            "task_proposal_deadline_at",
+            "task_delivery_criteria",
+            "updated_at",
+        ]
+
+        read_only_fields = fields
+
 

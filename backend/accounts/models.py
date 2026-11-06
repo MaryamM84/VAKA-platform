@@ -175,6 +175,83 @@ class UserRole(models.Model):
         return f"{self.user_id} - {self.role.code}"
 
 
+
+class ExecutorProfile(models.Model):
+
+    class VerificationStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    executor_profile_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="executor_profile",
+    )
+
+    bio = models.TextField(
+        null=True,
+        blank=True,
+    )
+
+    verification_status = models.CharField(
+        max_length=16,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.PENDING,
+    )
+
+    profile_status = models.CharField(
+        max_length=16,
+        default="ACTIVE",
+    )
+
+    approved_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_executor_profiles",
+    )
+
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    rejection_reason = models.TextField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "executor_profiles"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    verification_status__in=[
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED",
+                    ]
+                ),
+                name="ck_executor_profile_verification_status",
+            ),
+        ]
+
+    def __str__(self):
+        return f"ExecutorProfile: {self.user_id}"
+
+
+
 class OTPChallenge(models.Model):
 
     class Purpose(models.TextChoices):

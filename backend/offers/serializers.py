@@ -157,3 +157,19 @@ class BidUpdateSerializer(serializers.ModelSerializer):
             )
 
         return value
+    
+    def to_internal_value(self, data):
+        allowed_fields = set(self.fields.keys())
+    
+        if hasattr(data, "keys"):
+            submitted_fields = set(data.keys())
+            unexpected_fields = submitted_fields - allowed_fields
+    
+            if unexpected_fields:
+                raise serializers.ValidationError({
+                    field: ["This field is not allowed."]
+                    for field in sorted(unexpected_fields)
+                })
+    
+        return super().to_internal_value(data)
+

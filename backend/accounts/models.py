@@ -3,7 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 
 
 class UserManager(BaseUserManager):
@@ -12,13 +12,12 @@ class UserManager(BaseUserManager):
             raise ValueError("Phone number is required.")
 
         phone = phone.strip()
-
         if not phone:
             raise ValueError("Phone number is required.")
 
         user = self.model(
             phone=phone,
-            full_name=full_name or "",  
+            full_name=full_name or "",
             **extra_fields,
         )
 
@@ -60,7 +59,11 @@ class User(AbstractBaseUser):
         db_column="password_hash",
     )
 
-    full_name = models.CharField(max_length=160, blank=True,default="")
+    full_name = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+    )
 
     avatar_key = models.TextField(
         null=True,
@@ -90,27 +93,12 @@ class User(AbstractBaseUser):
     @property
     def is_active(self):
         return (
-        self.account_status == self.AccountStatus.ACTIVE
-        and self.phone_verified_at is not None
-    )
+            self.account_status == self.AccountStatus.ACTIVE
+            and self.phone_verified_at is not None
+        )
 
     class Meta:
         db_table = "users"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["email"],
-                condition=Q(email__isnull=False),
-                name="users_email_not_null_unique",
-            ),
-            models.CheckConstraint(
-                condition=Q(account_status__in=[
-                    "ACTIVE",
-                    "SUSPENDED",
-                    "DELETED",
-                ]),
-                name="users_valid_account_status",
-            ),
-        ]
 
     def __str__(self):
         return self.phone
@@ -178,6 +166,7 @@ class UserRole(models.Model):
 class ExecutorProfile(models.Model):
 
     class VerificationStatus(models.TextChoices):
+        NOT_SUBMITTED = "NOT_SUBMITTED", "Not submitted"
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
@@ -199,10 +188,67 @@ class ExecutorProfile(models.Model):
         blank=True,
     )
 
+    work_interests = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    preferred_categories = models.ManyToManyField(
+        "tasks.TaskCategory",
+        blank=True,
+        related_name="preferred_by_executors",
+    )
+
+    service_area_city = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    service_area_region = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+    )
+
+    service_area_latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    service_area_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    service_area_radius_km = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    availability_timezone = models.CharField(
+        max_length=64,
+        default="UTC",
+    )
+
+    application_submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
     verification_status = models.CharField(
-        max_length=16,
+        max_length=20,
         choices=VerificationStatus.choices,
-        default=VerificationStatus.PENDING,
+        default=VerificationStatus.NOT_SUBMITTED,
     )
 
     profile_status = models.CharField(
@@ -235,8 +281,47 @@ class ExecutorProfile(models.Model):
         db_table = "executor_profiles"
         constraints = [
             models.CheckConstraint(
+                condition=(
+                    (
+                        Q(service_area_latitude__isnull=True)
+                        & Q(service_area_longitude__isnull=True)
+                        & Q(service_area_radius_km__isnull=True)
+                    )
+                    |
+                    (
+                        Q(service_area_latitude__isnull=False)
+                        & Q(service_area_longitude__isnull=False)
+                        & Q(service_area_radius_km__isnull=False)
+                    )
+                ),
+                name="ck_executor_area_complete",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(service_area_latitude__isnull=True)
+                    |
+                    Q(
+                        service_area_latitude__gte=-90,
+                        service_area_latitude__lte=90,
+                    )
+                ),
+                name="ck_executor_area_latitude",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(service_area_longitude__isnull=True)
+                    |
+                    Q(
+                        service_area_longitude__gte=-180,
+                        service_area_longitude__lte=180,
+                    )
+                ),
+                name="ck_executor_area_longitude",
+            ),
+            models.CheckConstraint(
                 condition=Q(
                     verification_status__in=[
+                        "NOT_SUBMITTED",
                         "PENDING",
                         "APPROVED",
                         "REJECTED",
@@ -248,6 +333,145 @@ class ExecutorProfile(models.Model):
 
     def __str__(self):
         return f"ExecutorProfile: {self.user_id}"
+
+
+class WorkerSkill(models.Model):
+    class ProficiencyLevel(models.TextChoices):
+        BEGINNER = "BEGINNER", "Beginner"
+        INTERMEDIATE = "INTERMEDIATE", "Intermediate"
+        ADVANCED = "ADVANCED", "Advanced"
+        EXPERT = "EXPERT", "Expert"
+
+    worker_skill_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    executor_profile = models.ForeignKey(
+        ExecutorProfile,
+        on_delete=models.CASCADE,
+        related_name="worker_skills",
+    )
+
+    skill = models.ForeignKey(
+        "tasks.Skill",
+        on_delete=models.PROTECT,
+        related_name="worker_profiles",
+    )
+
+    proficiency_level = models.CharField(
+        max_length=16,
+        choices=ProficiencyLevel.choices,
+        default=ProficiencyLevel.BEGINNER,
+    )
+
+    experience_years = models.PositiveSmallIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "worker_skills"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["executor_profile", "skill"],
+                name="uq_worker_profile_skill",
+            ),
+            models.CheckConstraint(
+                condition=Q(experience_years__lte=60),
+                name="ck_worker_skill_experience",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.executor_profile.user_id} - {self.skill.name}"
+
+
+class WorkerAvailability(models.Model):
+    class Weekday(models.IntegerChoices):
+        MONDAY = 0, "Monday"
+        TUESDAY = 1, "Tuesday"
+        WEDNESDAY = 2, "Wednesday"
+        THURSDAY = 3, "Thursday"
+        FRIDAY = 4, "Friday"
+        SATURDAY = 5, "Saturday"
+        SUNDAY = 6, "Sunday"
+
+    availability_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    executor_profile = models.ForeignKey(
+        ExecutorProfile,
+        on_delete=models.CASCADE,
+        related_name="availability_slots",
+    )
+
+    weekday = models.PositiveSmallIntegerField(
+        choices=Weekday.choices,
+    )
+
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "worker_availability"
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "executor_profile",
+                    "weekday",
+                    "start_time",
+                    "end_time",
+                ],
+                name="uq_worker_availability_slot",
+            ),
+            models.CheckConstraint(
+                condition=Q(start_time__lt=F("end_time")),
+                name="ck_worker_availability_time",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.executor_profile.user_id} - {self.weekday}"
+
+
+class WorkerVerificationDocument(models.Model):
+    document_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    executor_profile = models.ForeignKey(
+        ExecutorProfile,
+        on_delete=models.CASCADE,
+        related_name="verification_documents",
+    )
+
+    document_type = models.CharField(max_length=40)
+
+    file = models.FileField(
+        upload_to="private/worker-verification/%Y/%m/",
+    )
+
+    original_file_name = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=120)
+    size_bytes = models.PositiveBigIntegerField()
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "worker_verification_documents"
+
+    def __str__(self):
+        return f"{self.executor_profile.user_id} - {self.document_type}"
 
 
 class OTPChallenge(models.Model):

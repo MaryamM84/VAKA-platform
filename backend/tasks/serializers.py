@@ -105,8 +105,6 @@ class RequiredSkillInputSerializer(
         min_value=SMALLINT_MIN,
         max_value=SMALLINT_MAX,
     )
-    importance = serializers.IntegerField(min_value=-32768, max_value=32767)
-
 
 class LocationInputSerializer(RejectUnexpectedFieldsMixin, serializers.Serializer):
     location_type = serializers.CharField(max_length=20)

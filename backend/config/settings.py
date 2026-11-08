@@ -81,24 +81,6 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = "accounts.User"
 
-REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ],
-}
-
-SPECTACULAR_SETTINGS = {
-    "TITLE": "VAKA Platform API",
-    "DESCRIPTION": (
-        "API documentation for the VAKA platform. Task creation and listing "
-        "require an authenticated user with the EMPLOYER role."
-    ),
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
-    "COMPONENT_SPLIT_REQUEST": True,
-}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -226,11 +208,12 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "VAKA API",
+    "TITLE": "VAKA Platform API",
     "DESCRIPTION": (
-        "API documentation for the VAKA platform. "
-        "Authentication is handled using JWT."
+        "API documentation for the VAKA platform. Task creation and listing "
+        "require an authenticated user with the EMPLOYER role."
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }

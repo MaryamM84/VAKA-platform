@@ -135,16 +135,18 @@ def create_task_draft(*, employer, data):
 
     values = data.copy()
 
+    # Extract related data from the task payload.
     required_skills = values.pop("required_skills", [])
     locations = values.pop("locations", [])
 
-    # Ownership and initial status are controlled by the backend.
+    # Create the task with backend-controlled ownership and status.
     task = Task.objects.create(
         employer_user=employer,
         status=TaskStatus.DRAFT,
         **values,
     )
 
+    # Record the initial task status.
     TaskStatusHistory.objects.create(
         task=task,
         from_status=None,
@@ -153,6 +155,7 @@ def create_task_draft(*, employer, data):
         reason="Task draft created",
     )
 
+    # Save required skills associated with the task.
     TaskRequiredSkill.objects.bulk_create(
         [
             TaskRequiredSkill(
@@ -164,6 +167,13 @@ def create_task_draft(*, employer, data):
             for row in required_skills
         ]
     )
+
+    # Save all task locations using PostGIS.
+    for location in locations:
+        _store_location(
+            task=task,
+            item=location,
+        )
 
     return task
 

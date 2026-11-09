@@ -256,12 +256,12 @@ class ExecutorProfile(models.Model):
         default="ACTIVE",
     )
 
-    approved_by_user = models.ForeignKey(
+    reviewed_by_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="approved_executor_profiles",
+        related_name="reviewed_executor_profiles",
     )
 
     approved_at = models.DateTimeField(

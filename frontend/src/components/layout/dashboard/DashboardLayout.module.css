@@ -1,0 +1,130 @@
+.pageWrapper {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100vh;
+  padding: 38px 24px 100px;
+  direction: rtl;
+  background: #eaf5f2;
+  overflow: hidden;
+}
+
+.pageWrapper::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 0% 100%,
+      rgb(190 218 211 / 85%) 0,
+      rgb(190 218 211 / 85%) 115px,
+      transparent 116px
+    ),
+    radial-gradient(
+      circle at 28% 100%,
+      rgb(255 194 151 / 55%) 0,
+      rgb(255 194 151 / 55%) 190px,
+      transparent 191px
+    ),
+    radial-gradient(
+      circle at 100% 100%,
+      rgb(255 194 151 / 45%) 0,
+      rgb(255 194 151 / 45%) 230px,
+      transparent 231px
+    );
+}
+
+.pageHeader,
+.dashboardGrid {
+  width: min(1120px, 100%);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.heading h1 {
+  margin: 0;
+  color: #064f48;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.heading p {
+  margin: 5px 0 0;
+  color: #8296a9;
+  font-size: 12px;
+}
+
+.headerAction {
+  flex-shrink: 0;
+}
+
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 335px minmax(0, 1fr);
+  gap: 34px;
+  align-items: start;
+}
+
+.sidebarColumn,
+.mainContent {
+  min-width: 0;
+}
+
+.sidebarColumn {
+  position: relative;
+  z-index: 1;
+}
+
+.mainContent {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .pageWrapper {
+    padding: 28px 16px 70px;
+  }
+
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .sidebarColumn {
+    grid-row: 1;
+  }
+
+  .mainContent {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 600px) {
+  .pageWrapper {
+    padding: 22px 12px 60px;
+  }
+
+  .pageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  .heading h1 {
+    font-size: 22px;
+  }
+
+  .headerAction {
+    width: 100%;
+  }
+}

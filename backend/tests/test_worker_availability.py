@@ -520,3 +520,22 @@ class WorkerAvailabilityAPITests(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
+
+    def test_weekday_values_follow_iranian_week_order(self):
+        
+        expected_days = {
+            "SATURDAY": 0,
+            "SUNDAY": 1,
+            "MONDAY": 2,
+            "TUESDAY": 3,
+            "WEDNESDAY": 4,
+            "THURSDAY": 5,
+            "FRIDAY": 6,
+        }
+    
+        for day, expected_value in expected_days.items():
+        
+            self.assertEqual(
+                getattr(WorkerAvailability.Weekday, day),
+                expected_value,
+            )

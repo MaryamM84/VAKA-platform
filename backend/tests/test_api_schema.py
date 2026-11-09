@@ -18,6 +18,9 @@ class APISchemaTests(APITestCase):
         self.assertIn("/api/profile/me/skills/", schema["paths"])
         self.assertIn("/api/profile/me/skills/{worker_skill_id}/", schema["paths"])
         self.assertIn("/api/profile/me/preferences/", schema["paths"])
+        self.assertIn("/api/profile/me/service-area/", schema["paths"])
+        self.assertIn("/api/profile/me/availability/",schema["paths"],)
+        self.assertIn("/api/profile/me/availability/{availability_id}/",schema["paths"],)
 
     def test_swagger_ui_is_available(self):
         response = self.client.get(reverse("swagger-ui"))

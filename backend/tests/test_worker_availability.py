@@ -10,6 +10,15 @@ from accounts.models import (
     WorkerAvailability,
 )
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+
+from django.contrib.auth import get_user_model
+from django.db import close_old_connections, connection
+from django.test import TransactionTestCase
+
+from rest_framework.test import APIClient
+
 
 class WorkerAvailabilityAPITests(APITestCase):
 
@@ -539,3 +548,117 @@ class WorkerAvailabilityAPITests(APITestCase):
                 getattr(WorkerAvailability.Weekday, day),
                 expected_value,
             )
+
+
+class WorkerAvailabilityConcurrencyTests(TransactionTestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            phone="09120000991",
+            full_name="Concurrency Test User",
+            password="Strong-test-password-123!",
+            phone_verified_at=timezone.now(),
+        )
+
+        self.profile = ExecutorProfile.objects.create(
+            user=self.user,
+        )
+
+        self.user_id = self.user.pk
+
+        self.url = reverse(
+            "profile:my-worker-availability"
+        )
+
+        self.start_barrier = Barrier(2)
+
+    def create_availability_request(self):
+
+        close_old_connections()
+
+        try:
+            user = User.objects.get(
+                pk=self.user_id,
+            )
+
+            client = APIClient()
+
+            client.force_authenticate(
+                user=user,
+            )
+
+            self.start_barrier.wait(timeout=15)
+
+            response = client.post(
+                self.url,
+                {
+                    "weekday": 0,
+                    "start_time": "09:00",
+                    "end_time": "12:00",
+                },
+                format="json",
+            )
+
+            return response.status_code, response.data
+
+        finally:
+            close_old_connections()
+
+    def test_concurrent_overlapping_availability_requests(self):
+
+        if connection.vendor != "postgresql":
+            self.skipTest(
+                "This concurrency test must run on PostgreSQL."
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+
+            futures = [
+                executor.submit(
+                    self.create_availability_request
+                )
+                for _ in range(2)
+            ]
+
+            results = [
+                future.result(timeout=30)
+                for future in futures
+            ]
+
+        response_statuses = [
+            result[0]
+            for result in results
+        ]
+
+        self.assertCountEqual(
+            response_statuses,
+            [
+                status.HTTP_201_CREATED,
+                status.HTTP_400_BAD_REQUEST,
+            ],
+        )
+
+        rejected_response = next(
+            data
+            for code, data in results
+            if code == status.HTTP_400_BAD_REQUEST
+        )
+
+        self.assertIn(
+            "non_field_errors",
+            rejected_response,
+        )
+
+        self.assertIn(
+            "overlaps",
+            str(rejected_response).lower(),
+        )
+
+        saved_slots = WorkerAvailability.objects.filter(
+            executor_profile=self.profile,
+        ).count()
+
+        self.assertEqual(
+            saved_slots,
+            1,
+        )

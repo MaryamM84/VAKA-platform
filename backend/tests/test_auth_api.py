@@ -33,7 +33,7 @@ class AuthenticationAPITests(APITestCase):
         cls.employer_role = Role.objects.get_or_create(
             code="EMPLOYER",
             name="Employer",
-        )
+        )[0]
 
     def setUp(self):
         cache.clear()

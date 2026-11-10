@@ -11,6 +11,7 @@ from accounts.models import (
     ExecutorProfile,
     WorkerVerificationDocument,
 )
+import base64
 
 
 class WorkerVerificationUploadTests(APITestCase):
@@ -47,6 +48,36 @@ class WorkerVerificationUploadTests(APITestCase):
             name,
             content,
             content_type="application/pdf",
+        )
+    def make_jpeg(self, name="identity.jpg"):
+
+        content = base64.b64decode(
+            "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP"
+            "//////////////////////////////////////////////////////////////////////////////////////"
+            "2wBDAf//////////////////////////////////////////////////////////////////////////////////////"
+            "wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAP/"
+            "xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/"
+            "EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJgA/9k="
+        )
+
+        return SimpleUploadedFile(
+            name,
+            content,
+            content_type="image/jpeg",
+        )
+
+
+    def make_png(self, name="identity.png"):
+    
+        content = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1Pe"
+            "AAAADElEQVR42mNgYGAAAAAEAAHI6uv5AAAAAElFTkSuQmCC"
+        )
+    
+        return SimpleUploadedFile(
+            name,
+            content,
+            content_type="image/png",
         )
 
     def upload_document(self, file=None, document_type="NATIONAL_ID"):

@@ -1,0 +1,1450 @@
+.contentStack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-card);
+}
+
+.pageHeading {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 15px;
+  border-radius: var(--vaka-radius-pill);
+}
+
+.headingCopy,
+.sectionTitleWrap {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.headingIcon,
+.sectionIcon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+}
+
+.headingCopy h1 {
+  min-width: 0;
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: clamp(16px, 1.55vw, 19px);
+  font-weight: 850;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.headingActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.primaryButton,
+.secondaryButton,
+.addButton,
+.addAreaButton {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 15px;
+  border: 1px solid transparent;
+  border-radius: var(--vaka-radius-pill);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.primaryButton {
+  background: var(--vaka-primary);
+  color: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-floating);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--vaka-primary-hover);
+  transform: translateY(-1px);
+}
+
+.secondaryButton {
+  border-color: transparent;
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--vaka-border);
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.addButton:disabled,
+.addAreaButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  box-shadow: none;
+}
+
+.sectionHeader {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sectionTitleWrap h2 {
+  min-width: 0;
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.sectionTitleWrap .sectionIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.sectionSubtext {
+  margin: 2px 0 0;
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.countBadge,
+.cityBadge,
+.activeHoursBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-text-secondary);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.addButton {
+  min-height: 32px;
+  padding: 5px 12px;
+  background: var(--vaka-primary);
+  color: var(--vaka-surface);
+  font-size: 11px;
+}
+
+.addButton:hover {
+  background: var(--vaka-primary-hover);
+}
+
+.helperText {
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.7;
+  text-align: left;
+}
+
+/* Registered skills */
+.skillList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skillRow {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 78px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 82px;
+  padding: 9px 12px;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.skillRow:hover {
+  border-color: var(--vaka-primary-soft);
+  background: var(--vaka-primary-pale);
+}
+
+.skillIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+}
+
+.skillIconWarm {
+  background: color-mix(in srgb, var(--vaka-warning) 11%, var(--vaka-surface));
+  color: var(--vaka-warning);
+}
+
+.skillIconSoft {
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+}
+
+.skillInfo {
+  min-width: 0;
+}
+
+.skillTitleLine {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 9px;
+}
+
+.skillTitleLine h3 {
+  min-width: 0;
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.levelBadge {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.levelAdvanced {
+  border-color: color-mix(in srgb, var(--vaka-success) 34%, var(--vaka-border));
+  background: color-mix(in srgb, var(--vaka-success) 14%, var(--vaka-surface));
+  color: var(--vaka-primary);
+}
+
+.skillMeta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.skillMeta strong {
+  color: var(--vaka-text);
+  font-weight: 800;
+}
+
+.completedMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--vaka-primary);
+  white-space: nowrap;
+}
+
+.metaDot {
+  color: var(--vaka-border);
+}
+
+.rateMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-text-secondary);
+  white-space: nowrap;
+}
+
+.verifiedMeta {
+  padding: 2px 7px;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-success);
+  font-size: 9px;
+}
+
+.skillActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.iconButton {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-text-secondary);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.iconButton:hover {
+  border-color: var(--vaka-border);
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+}
+
+.emptyState {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 20px;
+  border: 1px dashed var(--vaka-border);
+  border-radius: var(--vaka-radius-lg);
+  color: var(--vaka-text-muted);
+  text-align: center;
+}
+
+.emptyState strong {
+  color: var(--vaka-text);
+  font-size: 12px;
+}
+
+.emptyState span {
+  font-size: 10px;
+}
+
+/* Work categories */
+.categoryCard .sectionHeader {
+  margin-bottom: 12px;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.categoryChip {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.categoryChip:hover {
+  border-color: var(--vaka-border);
+}
+
+.categoryChipActive {
+  background: color-mix(in srgb, var(--vaka-primary) 12%, var(--vaka-surface));
+  color: var(--vaka-text);
+}
+
+.categoryIcon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--vaka-text-secondary) 9%, var(--vaka-surface));
+  color: var(--vaka-text-secondary);
+}
+
+.categoryChipActive .categoryIcon {
+  background: var(--vaka-primary);
+  color: var(--vaka-surface);
+}
+
+.categoryLabel {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.categoryCheck {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--vaka-text-muted) 13%, var(--vaka-surface));
+  color: var(--vaka-text-muted);
+}
+
+.categoryChipActive .categoryCheck {
+  background: var(--vaka-primary);
+  color: var(--vaka-surface);
+}
+
+/* Coverage area and radius */
+.cityBadge {
+  gap: 5px;
+  padding: 5px 12px;
+  background: color-mix(in srgb, var(--vaka-primary) 14%, var(--vaka-surface));
+  color: var(--vaka-text);
+  font-size: 11px;
+}
+
+.areaSection {
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.areaHeading,
+.radiusHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--vaka-text);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.7;
+}
+
+.areaTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.areaTag {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-text);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.areaTag button {
+  display: inline-grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--vaka-text-secondary);
+  cursor: pointer;
+}
+
+.areaTag button:hover {
+  background: color-mix(in srgb, var(--vaka-danger) 12%, var(--vaka-surface));
+  color: var(--vaka-danger);
+}
+
+.addAreaButton {
+  min-height: 28px;
+  padding: 4px 11px;
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-primary);
+  font-size: 11px;
+}
+
+.addAreaButton:hover {
+  background: var(--vaka-primary-soft);
+}
+
+.addAreaForm {
+  display: inline-flex;
+  min-width: min(100%, 240px);
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px 3px 7px;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-surface);
+}
+
+.addAreaForm input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--vaka-text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.addAreaForm button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+  cursor: pointer;
+}
+
+.radiusSection {
+  margin-top: 3px;
+  margin-bottom: 15px;
+}
+
+.radiusHeading {
+  margin-bottom: 9px;
+}
+
+.radiusHeading label {
+  color: var(--vaka-text);
+}
+
+.radiusHeading strong {
+  color: var(--vaka-primary);
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.rangeInput {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  border: 0;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-border);
+  cursor: pointer;
+  direction: rtl;
+}
+
+.rangeInput::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--vaka-primary);
+  box-shadow: 0 0 0 2px var(--vaka-surface), 0 0 0 3px var(--vaka-primary);
+  opacity: 1;
+}
+
+.rangeInput::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--vaka-primary);
+  box-shadow: 0 0 0 2px var(--vaka-surface), 0 0 0 3px var(--vaka-primary);
+  opacity: 1;
+}
+
+.rangeInput:focus-visible {
+  outline: 2px solid var(--vaka-primary);
+  outline-offset: 5px;
+}
+
+.rangeLabels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--vaka-text-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.rangeLabels span:nth-child(1) {
+  text-align: right;
+}
+
+.rangeLabels span:nth-child(2) {
+  text-align: center;
+}
+
+.rangeLabels span:nth-child(3) {
+  text-align: left;
+}
+
+/* Leaflet map — only the map frame and centered radius label are visible. */
+.mapPanel {
+  min-width: 0;
+  width: 100%;
+}
+
+.mapFrame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 190px;
+  max-height: 420px;
+  overflow: hidden;
+  aspect-ratio: 3.27 / 1;
+  border-radius: 17px;
+  background: var(--vaka-primary-pale);
+  isolation: isolate;
+}
+
+.mapCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  background: var(--vaka-primary-pale);
+}
+
+.mapOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 450;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: color-mix(in srgb, var(--vaka-primary-pale) 90%, transparent);
+  color: var(--vaka-text-secondary);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.mapZoomControls {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 520;
+  display: grid;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.mapZoomButton {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--vaka-border);
+  border-radius: 10px;
+  background: var(--vaka-surface);
+  color: var(--vaka-primary);
+  box-shadow: var(--vaka-shadow-floating);
+  font: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.mapZoomButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mapZoomButton:focus-visible {
+  outline: 2px solid var(--vaka-primary);
+  outline-offset: 2px;
+}
+
+.mapRadiusBadge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 500;
+  padding: 7px 13px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--vaka-surface) 55%, transparent);
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary);
+  color: var(--vaka-surface);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.mapFrame :global(.leaflet-container) {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  font-family: var(--vaka-font);
+}
+
+.mapFrame :global(.leaflet-control-attribution) {
+  max-width: 100%;
+  white-space: normal;
+  background: color-mix(in srgb, var(--vaka-surface) 82%, transparent) !important;
+  color: var(--vaka-text-muted) !important;
+  font-size: 7px !important;
+}
+
+.citywideRow {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 9px 15px;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-pale);
+}
+
+.citywideIcon,
+.scheduleIcon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+}
+
+.citywideCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.citywideCopy strong {
+  color: var(--vaka-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
+.citywideCopy span {
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* Availability */
+.activeHoursBadge {
+  padding: 6px 12px;
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+  font-size: 11px;
+}
+
+.activeHoursBadge > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vaka-primary);
+}
+
+.card[aria-labelledby="availability-title"] .sectionHeader {
+  align-items: center;
+  margin-bottom: 19px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vaka-border-soft);
+}
+
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scheduleRow {
+  display: grid;
+  grid-template-columns: 34px minmax(130px, 0.62fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 58px;
+  padding: 9px 15px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: 19px;
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-text);
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.scheduleRow:hover {
+  border-color: var(--vaka-border);
+  background: var(--vaka-primary-soft);
+}
+
+.scheduleRowDisabled {
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-muted);
+}
+
+.scheduleIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--vaka-primary) 8%, var(--vaka-surface));
+}
+
+.dayName {
+  min-width: 0;
+  color: var(--vaka-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
+.scheduleTime {
+  min-width: 0;
+  color: var(--vaka-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.offDayText {
+  color: var(--vaka-text-muted);
+}
+
+.scheduleStatus {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border: 1px solid color-mix(in srgb, var(--vaka-success) 30%, var(--vaka-border));
+  border-radius: var(--vaka-radius-pill);
+  background: color-mix(in srgb, var(--vaka-primary) 10%, var(--vaka-surface));
+  color: var(--vaka-primary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.scheduleStatusRest {
+  border-color: transparent;
+  background: var(--vaka-border-soft);
+  color: var(--vaka-text-muted);
+}
+
+/* Feedback and dialogs are shown only after an interaction. */
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--vaka-border);
+  border-radius: 12px;
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-primary);
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+.toast > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.toast button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+}
+
+.toast button:hover {
+  background: var(--vaka-primary-soft);
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--vaka-text) 45%, transparent);
+  backdrop-filter: blur(5px);
+}
+
+.modal {
+  width: min(100%, 480px);
+  max-height: min(90vh, 680px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-card);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 17px;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.modalHeader p {
+  margin: 4px 0 0;
+  color: var(--vaka-text-muted);
+  font-size: 11px;
+}
+
+.skillForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skillForm label,
+.scheduleTimeField {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skillForm label > span,
+.scheduleTimeField > span {
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.skillForm input,
+.skillForm select,
+.scheduleTimeField input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid var(--vaka-border);
+  border-radius: 11px;
+  outline: none;
+  background: var(--vaka-surface);
+  color: var(--vaka-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.skillForm input:focus,
+.skillForm select:focus,
+.scheduleTimeField input:focus {
+  border-color: var(--vaka-primary);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scheduleEditorDays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.scheduleEditorDay {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+}
+
+.scheduleEditorDay input {
+  accent-color: var(--vaka-primary);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--vaka-border-soft);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 1080px) {
+  .pageHeading {
+    flex-wrap: wrap;
+  }
+
+  .headingActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .headingActions > button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .card {
+    padding: 12px;
+  }
+
+  .categoryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sectionHeader {
+    align-items: flex-start;
+  }
+
+  .helperText {
+    max-width: 45%;
+  }
+
+  .scheduleRow {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .scheduleIcon {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .dayName {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .scheduleTime {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .scheduleStatus {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+}
+
+@media (max-width: 520px) {
+  .contentStack {
+    gap: 9px;
+  }
+
+  .card {
+    padding: 10px;
+    border-radius: var(--vaka-radius-lg);
+  }
+
+  .pageHeading {
+    align-items: stretch;
+    gap: 9px;
+    padding: 11px;
+    border-radius: var(--vaka-radius-xl);
+  }
+
+  .headingCopy {
+    align-items: center;
+  }
+
+  .headingCopy h1 {
+    font-size: 14px;
+  }
+
+  .headingActions {
+    gap: 6px;
+  }
+
+  .headingActions > button {
+    min-height: 35px;
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+
+  .sectionHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sectionTitleWrap {
+    gap: 7px;
+  }
+
+  .sectionTitleWrap h2 {
+    font-size: 13px;
+  }
+
+  .sectionSubtext,
+  .helperText {
+    font-size: 9px;
+  }
+
+  .countBadge,
+  .cityBadge,
+  .activeHoursBadge {
+    font-size: 9px;
+  }
+
+  .skillRow {
+    grid-template-columns: 40px minmax(0, 1fr) 70px;
+    gap: 7px;
+    min-height: 72px;
+    padding: 8px;
+  }
+
+  .skillIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .skillTitleLine h3 {
+    font-size: 12px;
+  }
+
+  .levelBadge {
+    padding-inline: 7px;
+    font-size: 9px;
+  }
+
+  .skillMeta {
+    font-size: 9px;
+    gap: 3px 6px;
+  }
+
+  .skillActions {
+    gap: 4px;
+  }
+
+  .iconButton {
+    width: 31px;
+    height: 31px;
+  }
+
+  .categoryGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .categoryChip {
+    min-height: 43px;
+  }
+
+  .areaHeading,
+  .radiusHeading {
+    font-size: 11px;
+  }
+
+  .areaTag,
+  .addAreaButton {
+    min-height: 26px;
+    font-size: 10px;
+  }
+
+  .rangeLabels {
+    font-size: 8px;
+  }
+
+  .mapFrame {
+    min-height: 180px;
+  }
+
+  .citywideRow {
+    min-height: 54px;
+    padding: 8px 10px;
+  }
+
+  .citywideCopy strong {
+    font-size: 11px;
+  }
+
+  .citywideCopy span {
+    font-size: 9px;
+  }
+
+  .scheduleRow {
+    min-height: 54px;
+    padding: 8px 10px;
+  }
+
+  .dayName,
+  .scheduleTime {
+    font-size: 11px;
+  }
+
+  .scheduleStatus {
+    min-height: 27px;
+    padding-inline: 9px;
+    font-size: 9px;
+  }
+
+}
+
+@media (max-width: 360px) {
+  .pageHeading {
+    border-radius: var(--vaka-radius-lg);
+  }
+
+  .headingActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headingActions > button {
+    width: 100%;
+  }
+
+  .sectionTitleWrap h2 {
+    font-size: 12px;
+  }
+
+  .skillRow {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .skillIcon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .skillActions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .skillMeta {
+    align-items: flex-start;
+  }
+
+  .metaDot {
+    display: none;
+  }
+
+  .radiusHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rangeLabels {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .rangeLabels span,
+  .rangeLabels span:nth-child(1),
+  .rangeLabels span:nth-child(2),
+  .rangeLabels span:nth-child(3) {
+    text-align: right;
+  }
+
+  .citywideRow {
+    border-radius: var(--vaka-radius-lg);
+    flex-wrap: wrap;
+  }
+
+  .citywideCopy {
+    flex-basis: calc(100% - 90px);
+  }
+
+}
+
+@media (max-width: 220px) {
+  .pageHeading {
+    padding: 8px;
+  }
+
+  .headingIcon {
+    width: 25px;
+    height: 25px;
+  }
+
+  .headingCopy h1 {
+    font-size: 11px;
+  }
+
+  .headingActions > button {
+    white-space: normal;
+    font-size: 9px;
+  }
+
+  .sectionTitleWrap {
+    flex-wrap: wrap;
+  }
+
+  .sectionTitleWrap h2 {
+    font-size: 11px;
+  }
+
+  .skillRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .skillIcon {
+    display: none;
+  }
+
+  .skillActions {
+    grid-column: auto;
+  }
+
+  .categoryChip {
+    grid-template-columns: 25px minmax(0, 1fr) 20px;
+    gap: 5px;
+    padding-inline: 5px;
+  }
+
+  .categoryIcon {
+    width: 25px;
+    height: 25px;
+  }
+
+  .categoryLabel {
+    font-size: 10px;
+  }
+
+  .areaTag,
+  .addAreaButton {
+    white-space: normal;
+  }
+
+  .scheduleRow {
+    grid-template-columns: 25px minmax(0, 1fr);
+  }
+
+  .scheduleIcon {
+    width: 25px;
+    height: 25px;
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+
+  .dayName,
+  .scheduleTime,
+  .scheduleStatus {
+    grid-column: 2;
+  }
+
+  .dayName { grid-row: 1; }
+  .scheduleTime { grid-row: 2; }
+  .scheduleStatus {
+    grid-row: 3;
+    justify-self: start;
+  }
+
+}

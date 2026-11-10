@@ -2,6 +2,8 @@
 
 from django.urls import path
 
+from .category_management import CategoryManageListCreateView, CategoryManageDetailView
+
 from .views import (
     CategoryTaskListView,
     SkillListView,
@@ -52,5 +54,16 @@ urlpatterns = [
         "discovery/tasks/<uuid:task_id>/",
         TaskDiscoveryDetailView.as_view(),
         name="task-discovery-detail",
+    ),
+    # Restricted management; do not change public catalog behavior.
+    path(
+        "manage/task-categories/",
+        CategoryManageListCreateView.as_view(),
+        name="task-category-manage-list-create",
+    ),
+    path(
+        "manage/task-categories/<uuid:category_id>/",
+        CategoryManageDetailView.as_view(),
+        name="task-category-manage-detail",
     ),
 ]

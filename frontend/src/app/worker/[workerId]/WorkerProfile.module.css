@@ -1,0 +1,209 @@
+
+.profileContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.summaryCard,
+.infoCard {
+  padding: 25px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-card);
+}
+
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border: 3px solid var(--vaka-primary-soft);
+  border-radius: 50%;
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-primary);
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nameRow h2 {
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.identity p {
+  margin: 0;
+  color: var(--vaka-text-secondary);
+  font-size: 12px;
+}
+
+.verified {
+  padding: 4px 9px;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-success);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.location,
+.joinDate {
+  color: var(--vaka-text-muted);
+  font-size: 11px;
+}
+
+.summaryDivider {
+  height: 1px;
+  margin: 25px 0 20px;
+  background: var(--vaka-border-soft);
+}
+
+.statistics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+}
+
+.statItem + .statItem {
+  border-right: 1px solid var(--vaka-border-soft);
+}
+
+.statItem strong {
+  color: var(--vaka-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.statItem span {
+  color: var(--vaka-text-muted);
+  font-size: 11px;
+}
+
+.statItem .rating {
+  color: var(--vaka-warning);
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.infoCard h3 {
+  margin: 0 0 16px;
+  color: var(--vaka-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.aboutText {
+  margin: 0;
+  color: var(--vaka-text-secondary);
+  font-size: 12px;
+  line-height: 2.2;
+}
+
+.skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.skills span {
+  padding: 7px 12px;
+  border-radius: var(--vaka-radius-pill);
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.backLinkWrapper {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.backLinkWrapper a,
+.emptyState a {
+  color: var(--vaka-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  border: 1px dashed var(--vaka-border);
+  border-radius: var(--vaka-radius-xl);
+  color: var(--vaka-text-secondary);
+  text-align: center;
+}
+
+@media (max-width: 650px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryCard,
+  .infoCard {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .profileHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .nameRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .statItem strong {
+    font-size: 16px;
+  }
+
+  .statItem span {
+    font-size: 9px;
+    text-align: center;
+  }
+}

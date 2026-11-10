@@ -68,6 +68,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_spectacular",
 
+    'django.contrib.postgres',
+
     # VAKA applications
     "accounts.apps.AccountsConfig",
     "tasks.apps.TasksConfig",

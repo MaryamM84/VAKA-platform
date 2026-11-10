@@ -201,7 +201,7 @@ export function saveAuthSession(auth: AuthResponse, rememberMe: boolean): void {
 
 export function getAuthRedirectPath(): string {
   const configuredPath = process.env.NEXT_PUBLIC_AUTH_REDIRECT_PATH?.trim();
-  return configuredPath?.startsWith("/") ? configuredPath : "/welcome";
+  return configuredPath?.startsWith("/") ? configuredPath : "/";
 }
 
 

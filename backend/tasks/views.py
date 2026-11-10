@@ -1,8 +1,14 @@
 """API views for task creation, publication, and task catalog endpoints."""
 
 from uuid import UUID
+import math
 
-from django.db.models import Q
+from accounts.models import ExecutorProfile, UserRole
+
+from django.db.models import BooleanField, Exists, OuterRef, Prefetch, Q
+from django.db.models.expressions import RawSQL
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
@@ -10,8 +16,9 @@ from rest_framework.generics import (
     GenericAPIView,
     ListAPIView,
     ListCreateAPIView,
+    RetrieveAPIView,
 )
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from drf_spectacular.utils import (
@@ -21,13 +28,16 @@ from drf_spectacular.utils import (
     extend_schema_view,
 )
 
-from .models import Skill, Task, TaskCategory
+from .choices import TaskStatus
+from .models import Skill, Task, TaskCategory, TaskLocation
+from .pagination import TaskDiscoveryPagination
 from .permissions import IsEmployer
 
 from .serializers import (
     SkillSerializer,
     TaskCategorySerializer,
     TaskCreateSerializer,
+    TaskDiscoverySerializer,
     TaskReadSerializer,
 )
 
@@ -295,3 +305,346 @@ class SkillListView(ListAPIView):
             "category__name",
             "name",
         )
+
+
+# ============================================================
+# 5. DISCOVERY PERMISSIONS AND FILTERS
+# ============================================================
+
+class IsDiscoveryViewer(BasePermission):
+    """Allow active employers and approved, active executors."""
+
+    message = "An active employer or approved executor is required."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated or not user.is_active:
+            return False
+
+        role_codes = set(
+            UserRole.objects.filter(
+                user_id=user.pk,
+                role__code__in=("EMPLOYER", "EXECUTOR"),
+            ).values_list("role__code", flat=True)
+        )
+        if "EMPLOYER" in role_codes:
+            return True
+
+        if "EXECUTOR" not in role_codes:
+            return False
+
+        return ExecutorProfile.objects.filter(
+            user_id=user.pk,
+            verification_status=ExecutorProfile.VerificationStatus.APPROVED,
+            profile_status="ACTIVE",
+        ).exists()
+
+
+DISCOVERY_PARAMETERS = [
+    OpenApiParameter(
+        "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Search task title OR description (case-insensitive).",
+    ),
+    OpenApiParameter(
+        "title", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Search task title (case-insensitive).",
+    ),
+    OpenApiParameter(
+        "description", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Search task description (case-insensitive).",
+    ),
+    OpenApiParameter(
+        "category_id", OpenApiTypes.UUID, OpenApiParameter.QUERY,
+        description="Match tasks directly in this active category.",
+    ),
+    OpenApiParameter(
+        "min_budget", OpenApiTypes.INT, OpenApiParameter.QUERY,
+        description="Minimum executor wage in IRR.",
+    ),
+    OpenApiParameter(
+        "max_budget", OpenApiTypes.INT, OpenApiParameter.QUERY,
+        description="Maximum executor wage in IRR.",
+    ),
+    OpenApiParameter(
+        "city", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Filter by task location city.",
+    ),
+    OpenApiParameter(
+        "region", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description="Filter by task location region.",
+    ),
+    OpenApiParameter(
+        "latitude", OpenApiTypes.NUMBER, OpenApiParameter.QUERY,
+        description="Search center latitude; requires longitude and radius_meters.",
+    ),
+    OpenApiParameter(
+        "longitude", OpenApiTypes.NUMBER, OpenApiParameter.QUERY,
+        description="Search center longitude; requires latitude and radius_meters.",
+    ),
+    OpenApiParameter(
+        "radius_meters", OpenApiTypes.NUMBER, OpenApiParameter.QUERY,
+        description="Positive distance in meters; requires latitude and longitude.",
+    ),
+    OpenApiParameter(
+        "ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
+        description=(
+            "published_at, -published_at, wage_budget_amount, "
+            "-wage_budget_amount, estimated_duration_minutes, "
+            "-estimated_duration_minutes, proposal_deadline_at, "
+            "-proposal_deadline_at"
+        ),
+    ),
+]
+
+# The category is already fixed by the path on category-task endpoints.
+CATEGORY_TASK_PARAMETERS = [
+    param for param in DISCOVERY_PARAMETERS if param.name != "category_id"
+]
+
+
+class TaskDiscoveryQueryMixin:
+    """Restrict visible tasks, then apply validated discovery filters."""
+
+    ORDERING_FIELDS = {
+        "published_at", "-published_at",
+        "wage_budget_amount", "-wage_budget_amount",
+        "estimated_duration_minutes", "-estimated_duration_minutes",
+        "proposal_deadline_at", "-proposal_deadline_at",
+    }
+    BIGINT_MAX = 2**63 - 1
+
+    def discoverable_queryset(self):
+        now = timezone.now()
+        public_locations = TaskLocation.objects.only(
+            "task_location_id", "task_id", "location_type",
+            "stop_order", "city", "region",
+        ).order_by("stop_order", "task_location_id")
+
+        return (
+            Task.objects.filter(
+                status=TaskStatus.OPEN,
+                published_at__isnull=False,
+                proposal_deadline_at__gt=now,
+                execution_window_end_at__gt=now,
+                category__is_active=True,
+            )
+            # Employers discover other people's available tasks here.
+            .exclude(employer_user_id=self.request.user.pk)
+            .select_related("category")
+            .prefetch_related(
+                "required_skills__skill",
+                Prefetch("locations", queryset=public_locations),
+            )
+        )
+
+    def _nonnegative_int(self, name):
+        value = self.request.query_params.get(name)
+        if value is None:
+            return None
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            raise ValidationError({name: "A non-negative integer is required."})
+        if number < 0 or number > self.BIGINT_MAX:
+            raise ValidationError({name: "Amount is out of range."})
+        return number
+
+    def _float_param(self, name):
+        raw = self.request.query_params.get(name)
+        try:
+            number = float(raw)
+        except (TypeError, ValueError):
+            raise ValidationError({name: "A valid number is required."})
+        if not math.isfinite(number):
+            raise ValidationError({name: "A finite number is required."})
+        return number
+
+    def apply_discovery_filters(self, queryset, *, allow_category=True):
+        params = self.request.query_params
+
+        search = params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(description__icontains=search)
+            )
+
+        title = params.get("title", "").strip()
+        if title:
+            queryset = queryset.filter(title__icontains=title)
+
+        description = params.get("description", "").strip()
+        if description:
+            queryset = queryset.filter(description__icontains=description)
+
+        if allow_category and "category_id" in params:
+            try:
+                category_id = UUID(params["category_id"])
+            except (TypeError, ValueError, AttributeError):
+                raise ValidationError({"category_id": "A valid UUID is required."})
+            if not TaskCategory.objects.filter(
+                category_id=category_id, is_active=True
+            ).exists():
+                raise ValidationError({
+                    "category_id": "Category does not exist or is inactive."
+                })
+            queryset = queryset.filter(category_id=category_id)
+
+        min_budget = self._nonnegative_int("min_budget")
+        max_budget = self._nonnegative_int("max_budget")
+        if min_budget is not None and max_budget is not None:
+            if min_budget > max_budget:
+                raise ValidationError({
+                    "budget": "min_budget cannot exceed max_budget."
+                })
+        if min_budget is not None:
+            queryset = queryset.filter(wage_budget_amount__gte=min_budget)
+        if max_budget is not None:
+            queryset = queryset.filter(wage_budget_amount__lte=max_budget)
+
+        # Use one correlated location subquery, so city, region and radius
+        # must match the SAME stop (and cannot duplicate tasks).
+        location_filter_requested = any(
+            key in params for key in (
+                "city", "region", "latitude", "longitude", "radius_meters"
+            )
+        )
+        if location_filter_requested:
+            matching_locations = TaskLocation.objects.filter(
+                task_id=OuterRef("pk")
+            )
+            city = params.get("city", "").strip()
+            region = params.get("region", "").strip()
+            if city:
+                matching_locations = matching_locations.filter(city__icontains=city)
+            if region:
+                matching_locations = matching_locations.filter(region__icontains=region)
+
+            geo_keys = ("latitude", "longitude", "radius_meters")
+            if any(key in params for key in geo_keys):
+                if not all(key in params for key in geo_keys):
+                    raise ValidationError({
+                        "location": "latitude, longitude and radius_meters are required together."
+                    })
+
+                latitude = self._float_param("latitude")
+                longitude = self._float_param("longitude")
+                radius = self._float_param("radius_meters")
+                if not -90 <= latitude <= 90:
+                    raise ValidationError({"latitude": "Must be between -90 and 90."})
+                if not -180 <= longitude <= 180:
+                    raise ValidationError({"longitude": "Must be between -180 and 180."})
+                if not 0 < radius <= 20_000_000:
+                    raise ValidationError({
+                        "radius_meters": "Must be greater than 0 and at most 20000000."
+                    })
+
+                # PostGIS handles geography distances in METERS.
+                # Bound parameters prevent SQL injection.
+                matching_locations = matching_locations.annotate(
+                    is_nearby=RawSQL(
+                        "ST_DWithin(approximate_point, "
+                        "ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)",
+                        [longitude, latitude, radius],
+                        output_field=BooleanField(),
+                    )
+                ).filter(is_nearby=True)
+
+            queryset = queryset.filter(Exists(matching_locations))
+
+        ordering = params.get("ordering", "-published_at")
+        if ordering not in self.ORDERING_FIELDS:
+            raise ValidationError({"ordering": "Unsupported ordering field."})
+        return queryset.order_by(ordering, "task_id")
+
+
+# ============================================================
+# 6. SUBCATEGORIES
+# ============================================================
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="task_subcategories_list",
+        tags=["Task Catalog"],
+        summary="List direct active subcategories",
+        responses=TaskCategorySerializer(many=True),
+    ),
+)
+class TaskSubcategoryListView(ListAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = TaskCategorySerializer
+
+    def get_queryset(self):
+        parent = get_object_or_404(
+            TaskCategory,
+            category_id=self.kwargs["category_id"],
+            is_active=True,
+        )
+        return (
+            TaskCategory.objects.filter(parent_category=parent, is_active=True)
+            .select_related("parent_category")
+            .order_by("name", "category_id")
+        )
+
+
+# ============================================================
+# 7. TASK DISCOVERY LIST, DETAILS, AND CATEGORY TASKS
+# ============================================================
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="discoverable_tasks_list",
+        tags=["Task Discovery"],
+        summary="Browse open, non-expired tasks",
+        parameters=DISCOVERY_PARAMETERS,
+        responses=TaskDiscoverySerializer(many=True),
+    ),
+)
+class TaskDiscoveryListView(TaskDiscoveryQueryMixin, ListAPIView):
+    permission_classes = [IsAuthenticated, IsDiscoveryViewer]
+    serializer_class = TaskDiscoverySerializer
+    pagination_class = TaskDiscoveryPagination
+
+    def get_queryset(self):
+        return self.apply_discovery_filters(self.discoverable_queryset())
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="discoverable_task_detail",
+        tags=["Task Discovery"],
+        summary="Details of an available task",
+        responses=TaskDiscoverySerializer,
+    ),
+)
+class TaskDiscoveryDetailView(TaskDiscoveryQueryMixin, RetrieveAPIView):
+    permission_classes = [IsAuthenticated, IsDiscoveryViewer]
+    serializer_class = TaskDiscoverySerializer
+    lookup_field = "task_id"
+    lookup_url_kwarg = "task_id"
+
+    def get_queryset(self):
+        return self.discoverable_queryset()
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="category_available_tasks_list",
+        tags=["Task Discovery"],
+        summary="List available tasks directly in a category",
+        parameters=CATEGORY_TASK_PARAMETERS,
+        responses=TaskDiscoverySerializer(many=True),
+    ),
+)
+class CategoryTaskListView(TaskDiscoveryQueryMixin, ListAPIView):
+    permission_classes = [IsAuthenticated, IsDiscoveryViewer]
+    serializer_class = TaskDiscoverySerializer
+    pagination_class = TaskDiscoveryPagination
+
+    def get_queryset(self):
+        category = get_object_or_404(
+            TaskCategory,
+            category_id=self.kwargs["category_id"],
+            is_active=True,
+        )
+        queryset = self.discoverable_queryset().filter(category=category)
+        return self.apply_discovery_filters(queryset, allow_category=False)

@@ -1,6 +1,7 @@
 import uuid
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.indexes import GistIndex
 from django.db.models import F, Q
 
 from .choices import TaskSkillSource, TaskStatus
@@ -222,6 +223,9 @@ class TaskLocation(models.Model):
     class Meta:
         db_table = "task_locations"
         ordering = ["stop_order", "task_location_id"]
+        indexes = [
+            GistIndex(fields=["approximate_point"], name="taskloc_approx_gist"),
+        ]
 
 class PriceEstimate(models.Model):
     price_estimate_id = models.UUIDField(

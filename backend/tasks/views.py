@@ -428,6 +428,8 @@ class TaskDiscoveryQueryMixin:
                 execution_window_end_at__gt=now,
                 category__is_active=True,
             )
+            # An optional final deadline must not have passed either.
+            .filter(Q(deadline_at__isnull=True) | Q(deadline_at__gt=now))
             # Employers discover other people's available tasks here.
             .exclude(employer_user_id=self.request.user.pk)
             .select_related("category")

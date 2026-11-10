@@ -18,6 +18,12 @@ from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+
 
 load_dotenv(BASE_DIR / ".env")
 

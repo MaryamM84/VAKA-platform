@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 from django.db.models import F, Q
+from .storage import private_verification_storage
 
 
 class UserManager(BaseUserManager):
@@ -459,6 +460,7 @@ class WorkerVerificationDocument(models.Model):
 
     file = models.FileField(
         upload_to="private/worker-verification/%Y/%m/",
+        storage=private_verification_storage,
     )
 
     original_file_name = models.CharField(max_length=255)

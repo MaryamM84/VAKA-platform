@@ -8,8 +8,11 @@ from .worker_skill_views import (
 from .worker_preference_views import WorkerPreferencesView
 from .worker_service_area_views import WorkerServiceAreaView
 from .worker_availability_views import (
-    WorkerAvailabilityCollectionView,
+WorkerAvailabilityCollectionView,
     WorkerAvailabilityDetailView,
+)
+from .worker_verification_views import (
+    WorkerVerificationDocumentUploadView,
 )
 
 app_name = "profile"
@@ -22,4 +25,6 @@ urlpatterns = [
     path("me/service-area/",WorkerServiceAreaView.as_view(),name="my-service-area",),
     path("me/availability/",WorkerAvailabilityCollectionView.as_view(),name="my-worker-availability",),
     path("me/availability/<uuid:availability_id>/",WorkerAvailabilityDetailView.as_view(),name="my-worker-availability-detail",),
+    path("me/verification/documents/",WorkerVerificationDocumentUploadView.as_view(),name="worker-verification-document-upload",
+),
 ]

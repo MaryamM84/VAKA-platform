@@ -3,7 +3,7 @@ from pathlib import Path
 
 from rest_framework import serializers
 
-from .models import WorkerVerificationDocument
+from .models import (ExecutorProfile,WorkerVerificationDocument,)
 
 
 MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
@@ -107,3 +107,31 @@ class WorkerVerificationDocumentReadSerializer(
         ]
 
         read_only_fields = fields
+
+
+class WorkerVerificationStatusSerializer(serializers.Serializer):
+
+    verification_status = serializers.ChoiceField(
+        choices=ExecutorProfile.VerificationStatus.choices,
+    )
+
+    application_submitted_at = serializers.DateTimeField(
+        allow_null=True,
+    )
+
+    reviewed_at = serializers.DateTimeField(
+        allow_null=True,
+    )
+
+    approved_at = serializers.DateTimeField(
+        allow_null=True,
+    )
+
+    rejection_reason = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+    )
+
+    documents = WorkerVerificationDocumentReadSerializer(
+        many=True,
+    )

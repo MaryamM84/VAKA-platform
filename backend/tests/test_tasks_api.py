@@ -65,7 +65,7 @@ class APITestDataMixin:
 
 class TaskEndpointPermissionTests(APITestDataMixin, APITestCase):
     def setUp(self):
-        self.employer_role = Role.objects.create(code="EMPLOYER", name="Employer")
+        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", name="Employer")[0]
         self.category = self.make_category()
         self.url = reverse("task-list-create")
 
@@ -123,7 +123,7 @@ class TaskEndpointPermissionTests(APITestDataMixin, APITestCase):
 
 class TaskCreateAPITests(APITestDataMixin, APITestCase):
     def setUp(self):
-        self.employer_role = Role.objects.create(code="EMPLOYER", name="Employer")
+        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", name="Employer")[0]
         self.employer = self.make_employer()
         self.client.force_authenticate(user=self.employer)
         self.category = self.make_category()
@@ -411,7 +411,7 @@ class TaskCreateAPITests(APITestDataMixin, APITestCase):
 
 class TaskListAPITests(APITestDataMixin, APITestCase):
     def setUp(self):
-        self.employer_role = Role.objects.create(code="EMPLOYER", name="Employer")
+        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", name="Employer")[0]
         self.employer = self.make_employer("09120000011")
         self.other_employer = self.make_employer("09120000012")
         self.client.force_authenticate(user=self.employer)

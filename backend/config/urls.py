@@ -34,8 +34,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/health/", health_check, name="health-check"),
     path("api/auth/", include("accounts.urls")),
+    path("api/profile/", include("accounts.profile_urls")),
     path("api/", include("tasks.urls")),
     path("api/offers/", include("offers.urls")),
+
+    path("api/admin/worker-verifications/",include("accounts.worker_verification_admin_urls"),),
     
     path("api/schema/",SpectacularAPIView.as_view(),name="schema",),
     path("api/docs/",SpectacularSwaggerView.as_view(url_name="schema"),name="swagger-ui",),

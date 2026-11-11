@@ -30,10 +30,10 @@ class AuthenticationAPITests(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.employer_role = Role.objects.create(
+        cls.employer_role = Role.objects.get_or_create(
             code="EMPLOYER",
             name="Employer",
-        )
+        )[0]
 
     def setUp(self):
         cache.clear()
@@ -935,7 +935,7 @@ class AuthenticationThrottleTests(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        Role.objects.create(code="EMPLOYER", name="Employer")
+        Role.objects.get_or_create(code="EMPLOYER", name="Employer")
 
     def setUp(self):
         cache.clear()

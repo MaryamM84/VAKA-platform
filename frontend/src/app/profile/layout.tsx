@@ -13,17 +13,27 @@ export default function ProfileLayout({
 }) {
   const pathname = usePathname();
   const isEditPage = pathname === "/profile/edit";
+  const isVerificationPage = pathname === "/profile/verification";
 
   return (
     <div className={styles.pageWrapper}>
       <header className={styles.pageHeader}>
         <div>
-          <h1>{isEditPage ? "ویرایش پروفایل" : "پروفایل من"}</h1>
-          <p>
-            {isEditPage
-              ? "اطلاعات شخصی و مشخصات حساب کاربری خود را ویرایش کنید."
-              : "اطلاعات شخصی و وضعیت حساب کاربری شما"}
-          </p>
+        <h1>
+  {isEditPage
+    ? "ویرایش پروفایل"
+    : isVerificationPage
+      ? "احراز هویت"
+      : "پروفایل من"}
+</h1>
+
+<p>
+  {isEditPage
+    ? "اطلاعات شخصی و مشخصات حساب کاربری خود را ویرایش کنید."
+    : isVerificationPage
+      ? "اطلاعات هویتی خود را برای فعالیت به‌عنوان مجری تکمیل کنید."
+      : "اطلاعات شخصی و وضعیت حساب کاربری شما"}
+</p>
         </div>
 
         {!isEditPage && (

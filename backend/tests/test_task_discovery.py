@@ -16,8 +16,14 @@ from tests.test_tasks_api import APITestDataMixin
 
 class TaskDiscoveryTests(APITestDataMixin, APITestCase):
     def setUp(self):
-        self.employer_role = Role.objects.create(code="EMPLOYER", name="Employer")
-        self.executor_role = Role.objects.create(code="EXECUTOR", name="Executor")
+        self.employer_role, _ = Role.objects.get_or_create(
+            code="EMPLOYER",
+            defaults={"name": "Employer"},
+        )
+        self.executor_role, _ = Role.objects.get_or_create(
+            code="EXECUTOR",
+            defaults={"name": "Executor"},
+        )       
         self.owner = self.make_employer("09128880001")
         self.viewer = self.make_employer("09128880002")
         self.category = self.make_category("Housework")

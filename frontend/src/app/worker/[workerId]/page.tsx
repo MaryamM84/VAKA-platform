@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
 import styles from "./WorkerProfile.module.css";
+import { Suspense } from "react";
 
 type WorkerProfileData = {
   name: string;
@@ -65,7 +66,7 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("fa-IR").format(value);
 }
 
-export default function WorkerProfilePage() {
+function WorkerProfileContent() {
   const params = useParams<{ workerId: string }>();
   const workerId = Number(params.workerId);
   const worker = workers[workerId];
@@ -156,5 +157,14 @@ export default function WorkerProfilePage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+
+export default function WorkerProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <WorkerProfileContent />
+    </Suspense>
   );
 }

@@ -159,9 +159,9 @@ class RegisterOTPVerifyView(APIView):
         )
 
 class PasswordLoginView(APIView):
-
     authentication_classes = []
     permission_classes = [AllowAny]
+    throttle_scope = "login_password"
 
     @extend_schema(
         tags=["Authentication"],

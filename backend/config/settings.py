@@ -190,11 +190,13 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
     ],
+    
     "DEFAULT_THROTTLE_RATES": {
-        "register": "10/hour",
-        "otp_send": "12/hour",
-        "otp_verify": "30/hour",
-    },
+    "register": "10/hour",
+    "otp_send": "12/hour",
+    "otp_verify": "30/hour",
+    "login_password": "10/hour",
+},
 }
 
 SIMPLE_JWT = {
@@ -225,3 +227,5 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
 }
+
+

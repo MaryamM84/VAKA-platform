@@ -1,5 +1,3 @@
-"""T2-03 integration tests. Run against the project's PostGIS test database."""
-
 from datetime import timedelta
 
 from django.db import connection
@@ -16,8 +14,14 @@ from tests.test_tasks_api import APITestDataMixin
 
 class TaskDiscoveryTests(APITestDataMixin, APITestCase):
     def setUp(self):
-        self.employer_role = Role.objects.create(code="EMPLOYER", name="Employer")
-        self.executor_role = Role.objects.create(code="EXECUTOR", name="Executor")
+        self.employer_role, _ = Role.objects.get_or_create(
+            code="EMPLOYER",
+            defaults={"name": "Employer"},
+        )
+        self.executor_role, _ = Role.objects.get_or_create(
+            code="EXECUTOR",
+            defaults={"name": "Executor"},
+        )
         self.owner = self.make_employer("09128880001")
         self.viewer = self.make_employer("09128880002")
         self.category = self.make_category("Housework")
@@ -119,10 +123,47 @@ class TaskDiscoveryTests(APITestDataMixin, APITestCase):
         data = response.data
         self.assertEqual(data["task_id"], str(task.pk))
         self.assertIn("locations", data)
-        self.assertEqual(data["locations"][0]["city"], "Tehran")
-        for private in ("exact_point", "approximate_point", "location_notes",
-                        "exact_address_ciphertext", "employer_user_id"):
+        self.assertEqual(len(data["locations"]), 1)
+        location = data["locations"][0]
+        self.assertTrue(location["task_location_id"])
+        self.assertEqual(location["city"], "Tehran")
+        self.assertEqual(location["region"], "Central")
+        self.assertEqual(location["location_type"], "SERVICE")
+        self.assertEqual(location["stop_order"], 1)
+        for private in (
+            "exact_point", "approximate_point", "location_notes",
+            "exact_address_ciphertext", "employer_user_id", "latitude", "longitude",
+        ):
             self.assertNotIn(private, str(data))
+
+    def test_discovery_detail_returns_all_locations_in_stop_order(self):
+        """Discovery detail returns public fields for every saved stop."""
+        task = self.make_open_task(locations=[
+            self.location(2, "Karaj", "Mehrshahr", 35.82, 50.96),
+            self.location(1, "Tehran", "Central", 35.7035, 51.4103),
+        ])
+        response = self.client.get(
+            reverse("task-discovery-detail", kwargs={"task_id": task.pk})
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        locations = response.data["locations"]
+        self.assertEqual(
+            [
+                (row["stop_order"], row["city"], row["region"], row["location_type"])
+                for row in locations
+            ],
+            [
+                (1, "Tehran", "Central", "SERVICE"),
+                (2, "Karaj", "Mehrshahr", "SERVICE"),
+            ],
+        )
+        for row in locations:
+            self.assertTrue(row["task_location_id"])
+            for private in (
+                "exact_point", "approximate_point", "exact_address_ciphertext",
+                "location_notes", "latitude", "longitude",
+            ):
+                self.assertNotIn(private, row)
 
     def test_hidden_or_own_task_details_return_404(self):
         task = self.make_open_task()

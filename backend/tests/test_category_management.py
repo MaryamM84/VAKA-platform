@@ -10,8 +10,15 @@ from tests.test_tasks_api import APITestDataMixin
 
 class CategoryManagementTests(APITestDataMixin, APITestCase):
     def setUp(self):
-        self.employer_role = Role.objects.create(code="EMPLOYER", name="Employer")
-        self.admin_role = Role.objects.create(code="ADMIN", name="Administrator")
+        self.employer_role, _ = Role.objects.get_or_create(
+            code="EMPLOYER",
+            defaults={"name": "Employer"},
+        )
+
+        self.admin_role, _ = Role.objects.get_or_create(
+            code="ADMIN",
+            defaults={"name": "Platform Administrator"},
+        )        
         self.employer = self.make_employer("09129990001")
         self.admin = self.make_user("09129990002")
         UserRole.objects.create(user=self.admin, role=self.admin_role)

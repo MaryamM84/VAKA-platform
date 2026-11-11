@@ -8,6 +8,7 @@ from .models import (
     Skill,
     Task,
     TaskCategory,
+    TaskLocation,
     TaskRequiredSkill,
 )
 from .services import create_task_draft
@@ -356,3 +357,73 @@ class TaskReadSerializer(serializers.ModelSerializer):
                 "region",
             )
         ]
+
+
+
+# ============================================================
+# TASK DISCOVERY: PUBLIC READ-ONLY SERIALIZERS
+# ============================================================
+
+class TaskLocationDiscoverySerializer(serializers.ModelSerializer):
+    """Public location fields; never include exact geographic data."""
+
+    class Meta:
+        model = TaskLocation
+        fields = [
+            "task_location_id",
+            "location_type",
+            "stop_order",
+            "city",
+            "region",
+        ]
+        read_only_fields = fields
+
+
+class TaskDiscoverySerializer(serializers.ModelSerializer):
+    """Public representation of a discoverable task."""
+
+    category_id = serializers.UUIDField(read_only=True)
+
+    category_name = serializers.CharField(
+        source="category.name",
+        read_only=True,
+    )
+
+    required_skills = TaskRequiredSkillReadSerializer(
+        many=True,
+        read_only=True,
+    )
+
+    locations = TaskLocationDiscoverySerializer(
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Task
+
+        fields = [
+            "task_id",
+            "category_id",
+            "category_name",
+            "title",
+            "description",
+            "status",
+            "estimated_duration_minutes",
+            "wage_budget_amount",
+            "currency_code",
+            "item_cost_cap_amount",
+            "receipt_required",
+            "execution_window_start_at",
+            "execution_window_end_at",
+            "deadline_at",
+            "proposal_deadline_at",
+            "delivery_criteria",
+            "required_skills",
+            "locations",
+            "published_at",
+            "created_at",
+        ]
+
+        read_only_fields = fields
+

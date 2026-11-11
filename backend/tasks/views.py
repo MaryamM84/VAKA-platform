@@ -87,13 +87,16 @@ class TaskListCreateView(ListCreateAPIView):
 
     def get_queryset(self):
         return (
-            Task.objects.filter(
-                employer_user=self.request.user
-            )
-            .select_related("category")
-            .prefetch_related("required_skills__skill")
-            .order_by("-created_at", "-task_id")
+        Task.objects.filter(
+            employer_user=self.request.user
         )
+        .select_related("category")
+        .prefetch_related(
+            "required_skills__skill",
+            "locations",
+        )
+        .order_by("-created_at", "-task_id")
+    )
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -157,7 +160,7 @@ class TaskPublishView(GenericAPIView):
                 employer_user=self.request.user
             )
             .select_related("category")
-            .prefetch_related("required_skills__skill")
+            .prefetch_related("required_skills__skill", "locations")
         )
 
     def post(self, request, *args, **kwargs):

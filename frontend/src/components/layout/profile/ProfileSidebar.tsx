@@ -65,7 +65,7 @@ const menuItems = [
   },
   {
     label: "احراز هویت و امنیت",
-    href: "/worker/verification",
+    href: "/profile/verification",
     icon: "shield-check",
   },
 ];

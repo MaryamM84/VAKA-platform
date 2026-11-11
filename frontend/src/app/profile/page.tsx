@@ -76,7 +76,7 @@ export default function ProfilePage() {
           </p>
 
           <Link
-            href="/worker/verification"
+            href="/profile/verification"
             className={styles.verificationButton}
           >
             شروع احراز هویت

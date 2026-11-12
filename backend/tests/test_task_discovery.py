@@ -12,6 +12,7 @@ from tasks.models import Task, TaskCategory
 from tests.test_tasks_api import APITestDataMixin
 
 
+
 class TaskDiscoveryTests(APITestDataMixin, APITestCase):
     def setUp(self):
         self.employer_role, _ = Role.objects.get_or_create(

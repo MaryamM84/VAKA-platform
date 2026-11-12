@@ -21,6 +21,7 @@ TEST_THROTTLE_RATES = {
     "register": "1000/hour",
     "otp_send": "1000/hour",
     "otp_verify": "1000/hour",
+    "login_password": "1000/hour",
 }
 
 
@@ -926,6 +927,7 @@ THROTTLED_RATES = {
     "register": "1/hour",
     "otp_send": "1/hour",
     "otp_verify": "1/hour",
+    "login_password": "1/hour",
 }
 
 
@@ -1022,3 +1024,27 @@ class AuthenticationThrottleTests(APITestCase):
 
         self.assertEqual(first_response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+    
+    def test_password_login_throttle_returns_429_after_limit(self):
+        user = self.make_verified_user("09120000050")
+    
+        payload = {
+            "phone": user.phone,
+            "password": "Wrong-password-123!",
+        }
+    
+        first_response = self.client.post(
+            "/api/auth/login/password/",
+            payload,
+            format="json",
+        )
+    
+        second_response = self.client.post(
+            "/api/auth/login/password/",
+            payload,
+            format="json",
+        )
+    
+        self.assertEqual(first_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+

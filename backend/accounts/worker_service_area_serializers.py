@@ -44,6 +44,8 @@ class WorkerServiceAreaSerializer(serializers.Serializer):
         allow_null=True,
     )
 
+    covers_entire_city = serializers.BooleanField(required=False)
+
     def to_internal_value(self, data):
 
         allowed_fields = set(self.fields.keys())
@@ -95,5 +97,21 @@ class WorkerServiceAreaSerializer(serializers.Serializer):
                         "Latitude, longitude and radius must be provided together."
                     ]
                 })
+
+        city = attrs.get(
+            "service_area_city",
+            getattr(instance, "service_area_city", ""),
+        )
+        covers_entire_city = attrs.get(
+            "covers_entire_city",
+            getattr(instance, "covers_entire_city", False),
+        )
+
+        if covers_entire_city and not city.strip():
+            raise serializers.ValidationError({
+                "service_area_city": [
+                    "Select a city before enabling entire-city coverage."
+                ]
+            })
 
         return attrs

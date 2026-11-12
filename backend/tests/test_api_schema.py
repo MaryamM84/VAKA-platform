@@ -27,3 +27,15 @@ class APISchemaTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertContains(response, "swagger-ui")
+
+    def test_worker_coverage_and_statistics_are_documented(self):
+        response = self.client.get(reverse("schema"), {"format": "json"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        paths = response.json()["paths"]
+        for path in (
+            "/api/profile/me/statistics/",
+            "/api/profile/me/service-area/neighborhoods/",
+            "/api/profile/me/service-area/neighborhoods/{neighborhood_id}/",
+        ):
+            with self.subTest(path=path):
+                self.assertIn(path, paths)

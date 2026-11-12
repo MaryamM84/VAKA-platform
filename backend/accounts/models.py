@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.functions import Lower
 from .storage import private_verification_storage
 
 
@@ -231,6 +232,9 @@ class ExecutorProfile(models.Model):
         blank=True,
     )
 
+    # The toggle stores intent. Any future matching algorithm must honor it.
+    covers_entire_city = models.BooleanField(default=False)
+
     availability_timezone = models.CharField(
         max_length=64,
         default="UTC",
@@ -334,6 +338,37 @@ class ExecutorProfile(models.Model):
 
     def __str__(self):
         return f"ExecutorProfile: {self.user_id}"
+
+
+class WorkerServiceNeighborhood(models.Model):
+    """A selected neighborhood in the executor's current service-area city."""
+
+    neighborhood_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+    executor_profile = models.ForeignKey(
+        ExecutorProfile,
+        on_delete=models.CASCADE,
+        related_name="service_neighborhoods",
+    )
+    name = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "executor_service_neighborhoods"
+        ordering = ["name", "neighborhood_id"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"),
+                "executor_profile",
+                name="uq_executor_neighborhood_ci",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.executor_profile_id}: {self.name}"
 
 
 class WorkerSkill(models.Model):

@@ -42,6 +42,7 @@ class WorkerServiceAreaView(APIView):
                     "service_area_latitude": None,
                     "service_area_longitude": None,
                     "service_area_radius_km": None,
+                    "covers_entire_city": False,
                 },
                 status=status.HTTP_200_OK,
             )

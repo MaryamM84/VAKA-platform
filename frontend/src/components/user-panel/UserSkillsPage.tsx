@@ -4,19 +4,27 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import UserPanelLayout from "./UserPanelLayout";
 import CoverageMap from "./CoverageMap";
 import styles from "./UserSkillsPage.module.css";
+import {
+  addMySkill,
+  deleteMySkill,
+  getMySkills,
+  getSkillsCatalog,
+  updateMySkill,
+  type SkillCatalogItem,
+  type WorkerSkillLevel,
+  type WorkerSkillRecord,
+} from "@/lib/worker-skills-api";
 
-type SkillLevel = "beginner" | "intermediate" | "advanced";
+type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert";
 type SkillIcon = "delivery" | "cleaning" | "admin" | "general";
 
 type Skill = {
   id: string;
+  skillId: string;
   title: string;
   category: string;
   level: SkillLevel;
-  rate: string;
-  completed: number | null;
-  completedLabel?: string;
-  verified: boolean;
+  experienceYears: number;
   icon: SkillIcon;
 };
 
@@ -54,10 +62,9 @@ type ProfileSettings = {
 };
 
 type SkillDraft = {
-  title: string;
-  category: string;
+  skillId: string;
   level: SkillLevel;
-  rate: string;
+  experienceYears: string;
 };
 
 type IconName =
@@ -93,48 +100,13 @@ type IconName =
 
 const STORAGE_KEY = "vaka.executor-settings.v1";
 const emptyDraft: SkillDraft = {
-  title: "",
-  category: "خریدهای فوری و تحویل کالا",
-  level: "intermediate",
-  rate: "",
+  skillId: "",
+  level: "beginner",
+  experienceYears: "0",
 };
 
 const initialProfile: ProfileSettings = {
-  skills: [
-    {
-      id: "skill-delivery",
-      title: "خریدهای روزمره و پیک درون‌شهری",
-      category: "خریدهای فوری و تحویل کالا",
-      level: "advanced",
-      rate: "150000",
-      completed: 24,
-      completedLabel: "۲۴ انجام موفق با رضایت کامل",
-      verified: false,
-      icon: "delivery",
-    },
-    {
-      id: "skill-cleaning",
-      title: "نظافت منزل و مرتب‌سازی فضاهای اداری",
-      category: "نظافت و خانه‌داری",
-      level: "intermediate",
-      rate: "180000",
-      completed: 16,
-      completedLabel: "۱۶ انجام موفق",
-      verified: false,
-      icon: "cleaning",
-    },
-    {
-      id: "skill-admin",
-      title: "ایستادن در صف و پیگیری امور اداری",
-      category: "امور اداری و نوبت‌گیری",
-      level: "advanced",
-      rate: "توافقی",
-      completed: 9,
-      completedLabel: "۹ انجام موفق",
-      verified: false,
-      icon: "admin",
-    },
-  ],
+  skills: [],
   categories: [
     { id: "shopping", label: "خریدهای فوری و تحویل کالا", icon: "bag", active: true },
     { id: "admin", label: "امور اداری و نوبت‌گیری", icon: "building", active: true },
@@ -183,6 +155,7 @@ const levelLabels: Record<SkillLevel, string> = {
   beginner: "مبتدی",
   intermediate: "متوسط",
   advanced: "حرفه‌ای",
+  expert: "متخصص",
 };
 
 const categoryIcons: Record<WorkCategory["icon"], IconName> = {
@@ -267,50 +240,7 @@ function restoreProfile(value: unknown): ProfileSettings {
   const candidate = value as Partial<ProfileSettings>;
   const base = cloneProfile(initialProfile);
 
-  const storedSkills = Array.isArray(candidate.skills)
-    ? (candidate.skills as unknown[]).filter((item): item is Skill => {
-        if (!item || typeof item !== "object") return false;
-        const skill = item as Partial<Skill>;
-        return (
-          typeof skill.id === "string" &&
-          typeof skill.title === "string" &&
-          typeof skill.category === "string" &&
-          (skill.level === "beginner" || skill.level === "intermediate" || skill.level === "advanced")
-        );
-      })
-    : base.skills;
-
-  const skills = storedSkills.map((skill) => {
-    const seed = base.skills.find((item) => item.id === skill.id);
-    if (!seed) {
-      return {
-        ...skill,
-        title: toPersianDigits(skill.title),
-        rate: typeof skill.rate === "string" ? toPersianDigits(skill.rate) : "توافقی",
-        completedLabel:
-          typeof skill.completedLabel === "string"
-            ? toPersianDigits(skill.completedLabel)
-            : undefined,
-        completed: typeof skill.completed === "number" ? skill.completed : null,
-        verified: Boolean(skill.verified),
-        icon: skill.icon in skillIcons ? skill.icon : "general",
-      };
-    }
-
-    return {
-      ...seed,
-      ...skill,
-      title: toPersianDigits(skill.title),
-      rate: toPersianDigits(typeof skill.rate === "string" ? skill.rate : seed.rate),
-      completedLabel:
-        typeof skill.completedLabel === "string"
-          ? toPersianDigits(skill.completedLabel)
-          : seed.completedLabel,
-      completed: seed.completed,
-      verified: seed.verified,
-      icon: seed.icon,
-    };
-  });
+  const skills: Skill[] = [];
 
   const categories = base.categories.map((seed) => {
     const stored = Array.isArray(candidate.categories)
@@ -374,21 +304,6 @@ function restoreProfile(value: unknown): ProfileSettings {
   };
 }
 
-function formatMoney(value: string) {
-  if (!value || value.trim() === "توافقی") return "توافقی با کارفرما";
-  const normalized = value
-    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-    .replace(/[٬,\s]/g, "");
-  const amount = Number(normalized);
-  if (!Number.isFinite(amount)) return toPersianDigits(value);
-  return `${toPersianDigits(new Intl.NumberFormat("fa-IR").format(amount))} تومان`;
-}
-
-function createSkillId() {
-  return `skill-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function toPersianDigits(value: string | number) {
   return String(value)
     .replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])
@@ -442,9 +357,47 @@ function formatScheduleTime(value: string) {
   return `${toPersianDigits(`${hourText}:${minuteText}`)} ${period}`;
 }
 
+function mapApiLevel(level: WorkerSkillLevel): SkillLevel {
+  switch (level) {
+    case "BEGINNER": return "beginner";
+    case "INTERMEDIATE": return "intermediate";
+    case "ADVANCED": return "advanced";
+    case "EXPERT": return "expert";
+  }
+}
+
+function mapUiLevel(level: SkillLevel): WorkerSkillLevel {
+  switch (level) {
+    case "beginner": return "BEGINNER";
+    case "intermediate": return "INTERMEDIATE";
+    case "advanced": return "ADVANCED";
+    case "expert": return "EXPERT";
+  }
+}
+
+function mapWorkerSkill(record: WorkerSkillRecord): Skill {
+  return {
+    id: record.worker_skill_id,
+    skillId: record.skill.skill_id,
+    title: record.skill.name,
+    category: record.skill.category?.name ?? "مهارت عمومی",
+    level: mapApiLevel(record.proficiency_level),
+    experienceYears: record.experience_years,
+    icon: "general",
+  };
+}
+
+function getErrorText(error: unknown): string {
+  return error instanceof Error ? error.message : "دریافت اطلاعات مهارت‌ها با خطا مواجه شد.";
+}
+
 export default function UserSkillsPage() {
   const [profile, setProfile] = useState<ProfileSettings>(() => cloneProfile(initialProfile));
   const [savedProfile, setSavedProfile] = useState<ProfileSettings>(() => cloneProfile(initialProfile));
+  const [skillCatalog, setSkillCatalog] = useState<SkillCatalogItem[]>([]);
+  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
+  const [skillProfileLoadError, setSkillProfileLoadError] = useState<string | null>(null);
+  const [isSkillSaving, setIsSkillSaving] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [profileName, setProfileName] = useState("مریم احمدی");
@@ -495,12 +448,54 @@ export default function UserSkillsPage() {
     setIsHydrated(true);
   }, []);
 
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadSkillData() {
+      setIsSkillsLoading(true);
+      const errors: string[] = [];
+
+      try {
+        const catalog = await getSkillsCatalog();
+        if (isCurrent) setSkillCatalog(catalog);
+      } catch (error) {
+        errors.push(`فهرست مهارت‌ها: ${getErrorText(error)}`);
+      }
+
+      try {
+        const records = await getMySkills();
+        if (isCurrent) {
+          const skills = records.map(mapWorkerSkill);
+          setProfile((previous) => ({ ...previous, skills }));
+          setSavedProfile((previous) => ({ ...previous, skills }));
+          setSkillProfileLoadError(null);
+        }
+      } catch (error) {
+        const message = getErrorText(error);
+        errors.push(`مهارت‌های ثبت‌شده: ${message}`);
+        if (isCurrent) setSkillProfileLoadError(message);
+      }
+
+      if (isCurrent) {
+        if (errors.length) setToast(errors.join(" "));
+        setIsSkillsLoading(false);
+      }
+    }
+
+    void loadSkillData();
+    return () => { isCurrent = false; };
+  }, []);
+
   const isDirty = useMemo(
     () => JSON.stringify(profile) !== JSON.stringify(savedProfile),
     [profile, savedProfile],
   );
 
   const activeDays = profile.schedule.filter((day) => day.enabled).length;
+  const selectedCatalogSkill = skillCatalog.find((item) => item.skill_id === draft.skillId);
+  const selectedSkillCategory = selectedCatalogSkill?.category_name
+    ?? profile.skills.find((skill) => skill.skillId === draft.skillId)?.category
+    ?? "عمومی / بدون دسته‌بندی";
   const completion = Math.min(
     100,
     54 + Math.min(profile.skills.length, 4) * 6 + Math.min(profile.areas.length, 4) * 2 + (activeDays > 0 ? 5 : 0),
@@ -577,71 +572,90 @@ export default function UserSkillsPage() {
   }
 
   function openAddSkill() {
+    if (isSkillsLoading || skillProfileLoadError || skillCatalog.length === 0) {
+      showToast("ابتدا باید فهرست مهارت‌ها و اطلاعات حساب از سرور دریافت شوند.");
+      return;
+    }
     setEditingSkillId(null);
-    setDraft({ ...emptyDraft, category: profile.categories.find((category) => category.active)?.label ?? emptyDraft.category });
+    setDraft({ ...emptyDraft, skillId: skillCatalog[0]?.skill_id ?? "" });
     setModalOpen(true);
   }
 
   function openEditSkill(skill: Skill) {
     setEditingSkillId(skill.id);
-    setDraft({ title: skill.title, category: skill.category, level: skill.level, rate: toPersianDigits(skill.rate) });
+    setDraft({
+      skillId: skill.skillId,
+      level: skill.level,
+      experienceYears: String(skill.experienceYears),
+    });
     setModalOpen(true);
   }
 
-  function submitSkill(event: FormEvent<HTMLFormElement>) {
+  async function submitSkill(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const title = toPersianDigits(draft.title.trim());
-    if (!title) return;
+    if (isSkillSaving) return;
 
-    const normalizedTitle = title.normalize("NFKC").replace(/\s+/g, " ").toLocaleLowerCase("fa-IR");
-    const duplicate = profile.skills.some(
-      (skill) =>
-        skill.id !== editingSkillId &&
-        skill.category === draft.category &&
-        skill.title.normalize("NFKC").replace(/\s+/g, " ").toLocaleLowerCase("fa-IR") === normalizedTitle,
-    );
-    if (duplicate) {
-      showToast("این مهارت در همین دسته‌بندی قبلاً ثبت شده است.");
+    const experienceYears = Number(toLatinDigits(draft.experienceYears));
+    if (!draft.skillId || !Number.isInteger(experienceYears) || experienceYears < 0 || experienceYears > 60) {
+      showToast("مهارت و سابقه کار معتبر (بین صفر تا ۶۰ سال) را انتخاب کنید.");
       return;
     }
 
-    if (editingSkillId) {
+    setIsSkillSaving(true);
+    try {
+      const payload = {
+        proficiency_level: mapUiLevel(draft.level),
+        experience_years: experienceYears,
+      };
+      const record = editingSkillId
+        ? await updateMySkill(editingSkillId, payload)
+        : await addMySkill({ skill_id: draft.skillId, ...payload });
+      const savedSkill = mapWorkerSkill(record);
+
       setProfile((previous) => ({
         ...previous,
-        skills: previous.skills.map((skill) =>
-          skill.id === editingSkillId
-            ? { ...skill, title, category: draft.category, level: draft.level, rate: draft.rate.trim() || "توافقی" }
-            : skill,
-        ),
+        skills: editingSkillId
+          ? previous.skills.map((skill) => skill.id === editingSkillId ? savedSkill : skill)
+          : [...previous.skills, savedSkill],
       }));
-      showToast("مهارت ویرایش شد؛ برای ثبت نهایی، ذخیره تغییرات را بزنید.");
-    } else {
-      const newSkill: Skill = {
-        id: createSkillId(),
-        title,
-        category: draft.category,
-        level: draft.level,
-        rate: draft.rate.trim() || "توافقی",
-        completed: null,
-        verified: false,
-        icon: "general",
-      };
-      setProfile((previous) => ({ ...previous, skills: [...previous.skills, newSkill] }));
-      showToast("مهارت جدید اضافه شد؛ برای ثبت نهایی، ذخیره تغییرات را بزنید.");
+      setSavedProfile((previous) => ({
+        ...previous,
+        skills: editingSkillId
+          ? previous.skills.map((skill) => skill.id === editingSkillId ? savedSkill : skill)
+          : [...previous.skills, savedSkill],
+      }));
+      showToast(editingSkillId ? "مهارت با موفقیت در سرور ویرایش شد." : "مهارت با موفقیت در سرور ثبت شد.");
+      setModalOpen(false);
+      setEditingSkillId(null);
+      setDraft(emptyDraft);
+    } catch (error) {
+      showToast(getErrorText(error));
+    } finally {
+      setIsSkillSaving(false);
     }
-
-    setModalOpen(false);
-    setEditingSkillId(null);
-    setDraft(emptyDraft);
   }
 
-  function deleteSkill(skill: Skill) {
+  async function deleteSkill(skill: Skill) {
     if (!window.confirm(`مهارت «${skill.title}» از فهرست حذف شود؟`)) return;
-    setProfile((previous) => ({
-      ...previous,
-      skills: previous.skills.filter((item) => item.id !== skill.id),
-    }));
-    showToast("مهارت حذف شد؛ برای ثبت نهایی، ذخیره تغییرات را بزنید.");
+    if (isSkillSaving) return;
+
+    setIsSkillSaving(true);
+    try {
+      await deleteMySkill(skill.id);
+      setProfile((previous) => ({
+        ...previous,
+        skills: previous.skills.filter((item) => item.id !== skill.id),
+      }));
+      setSavedProfile((previous) => ({
+        ...previous,
+        skills: previous.skills.filter((item) => item.id !== skill.id),
+      }));
+      showToast("مهارت با موفقیت از سرور حذف شد.");
+    } catch (error) {
+      showToast(getErrorText(error));
+    } finally {
+      setIsSkillSaving(false);
+    }
   }
 
   function addArea(event: FormEvent<HTMLFormElement>) {
@@ -754,12 +768,25 @@ export default function UserSkillsPage() {
               <h2 id="skills-title">مهارت‌های ثبت‌شده من</h2>
               <span className={styles.countBadge}>{toPersianDigits(profile.skills.length.toLocaleString("fa-IR"))} مهارت فعال</span>
             </div>
-            <button type="button" className={styles.addButton} onClick={openAddSkill}>
+            <button
+              type="button"
+              className={styles.addButton}
+              onClick={openAddSkill}
+              disabled={isSkillsLoading || Boolean(skillProfileLoadError) || skillCatalog.length === 0}
+            >
               <Icon name="plus-circle" size={19} /> افزودن مهارت جدید
             </button>
           </div>
 
-          {profile.skills.length > 0 ? (
+          {isSkillsLoading ? (
+            <div className={styles.emptyState}><span>در حال دریافت مهارت‌ها از سرور...</span></div>
+          ) : skillProfileLoadError ? (
+            <div className={styles.emptyState}>
+              <strong>مهارت‌های حساب دریافت نشد.</strong>
+              <span>{skillProfileLoadError}</span>
+              <span>برای جلوگیری از نمایش اطلاعات نادرست، افزودن یا حذف مهارت تا دریافت موفق اطلاعات غیرفعال است.</span>
+            </div>
+          ) : profile.skills.length > 0 ? (
             <div className={styles.skillList}>
               {profile.skills.map((skill) => (
                 <article className={styles.skillRow} key={skill.id}>
@@ -776,18 +803,17 @@ export default function UserSkillsPage() {
                     <div className={styles.skillMeta}>
                       <span className={styles.completedMeta}>
                         <Icon name="check-circle" size={13} />
-                        {skill.completedLabel ? toPersianDigits(skill.completedLabel) : skill.completed === null ? "انجام موفق: —" : `${toPersianDigits(skill.completed.toLocaleString("fa-IR"))} انجام موفق`}
+                        سابقه کار: {toPersianDigits(skill.experienceYears)} سال
                       </span>
                       <span className={styles.metaDot} aria-hidden="true">•</span>
-                      <span className={styles.rateMeta}>نرخ پایه: <strong>{formatMoney(skill.rate)}</strong></span>
-                      {skill.verified && <span className={styles.verifiedMeta}>تأییدشده</span>}
+                      <span className={styles.rateMeta}>دسته‌بندی: <strong>{skill.category}</strong></span>
                     </div>
                   </div>
                   <div className={styles.skillActions}>
-                    <button type="button" className={styles.iconButton} onClick={() => openEditSkill(skill)} aria-label={`ویرایش مهارت ${skill.title}`} title="ویرایش مهارت">
+                    <button type="button" className={styles.iconButton} onClick={() => openEditSkill(skill)} aria-label={`ویرایش مهارت ${skill.title}`} title="ویرایش مهارت" disabled={isSkillSaving}>
                       <Icon name="edit" size={18} />
                     </button>
-                    <button type="button" className={styles.iconButton} onClick={() => deleteSkill(skill)} aria-label={`حذف مهارت ${skill.title}`} title="حذف مهارت">
+                    <button type="button" className={styles.iconButton} onClick={() => deleteSkill(skill)} aria-label={`حذف مهارت ${skill.title}`} title="حذف مهارت" disabled={isSkillSaving}>
                       <Icon name="trash" size={18} />
                     </button>
                   </div>
@@ -799,7 +825,9 @@ export default function UserSkillsPage() {
               <Icon name="settings" size={24} />
               <strong>هنوز مهارتی ثبت نکرده‌اید.</strong>
               <span>با افزودن مهارت، کارفرماها راحت‌تر شما را پیدا می‌کنند.</span>
-              <button type="button" className={styles.addButton} onClick={openAddSkill}><Icon name="plus" size={15} /> افزودن اولین مهارت</button>
+              <button type="button" className={styles.addButton} onClick={openAddSkill} disabled={skillCatalog.length === 0}>
+                <Icon name="plus" size={15} /> افزودن اولین مهارت
+              </button>
             </div>
           )}
         </section>
@@ -1048,55 +1076,63 @@ export default function UserSkillsPage() {
             <div className={styles.modalHeader}>
               <div>
                 <h2 id="skill-modal-title">{editingSkillId ? "ویرایش مهارت" : "افزودن مهارت جدید"}</h2>
-                <p>اطلاعات مهارت و نرخ پایه پیشنهادی خود را وارد کنید.</p>
+                <p>مهارت را از فهرست موجود انتخاب کنید و سطح و سابقه کار را مشخص کنید.</p>
               </div>
-              <button type="button" className={styles.iconButton} onClick={() => setModalOpen(false)} aria-label="بستن پنجره"><Icon name="x" /></button>
+              <button type="button" className={styles.iconButton} onClick={() => setModalOpen(false)} aria-label="بستن پنجره" disabled={isSkillSaving}><Icon name="x" /></button>
             </div>
             <form className={styles.skillForm} onSubmit={submitSkill}>
               <label>
                 <span>عنوان مهارت</span>
-                <input
-                  value={draft.title}
-                  onChange={(event) => setDraft((previous) => ({ ...previous, title: toPersianDigits(event.target.value) }))}
-                  placeholder="مثلاً خرید روزانه و تحویل سفارش"
-                  maxLength={90}
+                <select
+                  value={draft.skillId}
+                  onChange={(event) => setDraft((previous) => ({ ...previous, skillId: event.target.value }))}
+                  disabled={Boolean(editingSkillId) || isSkillSaving || isSkillsLoading}
                   required
-                />
+                >
+                  <option value="">انتخاب مهارت از فهرست سرور</option>
+                  {skillCatalog.map((item) => (
+                    <option value={item.skill_id} key={item.skill_id}>
+                      {item.name}{item.category_name ? ` — ${item.category_name}` : ""}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
-                <span>دسته‌بندی کاری</span>
-                <select value={draft.category} onChange={(event) => setDraft((previous) => ({ ...previous, category: event.target.value }))}>
-                  {profile.categories.map((category) => <option value={category.label} key={category.id}>{category.label}</option>)}
-                </select>
+                <span>دسته‌بندی مهارت</span>
+                <input value={selectedSkillCategory} readOnly />
               </label>
               <div className={styles.formGrid}>
                 <label>
                   <span>سطح مهارت</span>
-                  <select value={draft.level} onChange={(event) => setDraft((previous) => ({ ...previous, level: event.target.value as SkillLevel }))}>
+                  <select
+                    value={draft.level}
+                    onChange={(event) => setDraft((previous) => ({ ...previous, level: event.target.value as SkillLevel }))}
+                    disabled={isSkillSaving}
+                  >
                     <option value="beginner">مبتدی</option>
                     <option value="intermediate">متوسط</option>
                     <option value="advanced">حرفه‌ای</option>
+                    <option value="expert">متخصص</option>
                   </select>
                 </label>
                 <label>
-                  <span>نرخ پایه (تومان)</span>
+                  <span>سابقه کار (سال)</span>
                   <input
-                    value={draft.rate}
-                    onChange={(event) =>
-                      setDraft((previous) => ({
-                        ...previous,
-                        rate: toPersianDigits(event.target.value).replace(/[^۰-۹٬,]/g, ""),
-                      }))
-                    }
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={1}
+                    value={draft.experienceYears}
+                    onChange={(event) => setDraft((previous) => ({ ...previous, experienceYears: event.target.value }))}
                     inputMode="numeric"
-                    placeholder="خالی = توافقی"
+                    disabled={isSkillSaving}
                   />
                 </label>
               </div>
               <div className={styles.modalActions}>
-                <button type="button" className={styles.secondaryButton} onClick={() => setModalOpen(false)}>انصراف</button>
-                <button type="submit" className={styles.primaryButton} disabled={!draft.title.trim()}>
-                  <Icon name="check" size={16} /> {editingSkillId ? "ثبت ویرایش" : "افزودن مهارت"}
+                <button type="button" className={styles.secondaryButton} onClick={() => setModalOpen(false)} disabled={isSkillSaving}>انصراف</button>
+                <button type="submit" className={styles.primaryButton} disabled={isSkillSaving || !draft.skillId}>
+                  <Icon name="check" size={16} /> {isSkillSaving ? "در حال ذخیره..." : editingSkillId ? "ثبت ویرایش" : "افزودن مهارت"}
                 </button>
               </div>
             </form>

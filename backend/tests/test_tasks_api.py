@@ -1,562 +1,1073 @@
-"""Integration tests for the task and task-catalog HTTP APIs."""
+"""Integration tests for VAKA registration, login, OTP, and JWT APIs."""
 
 import base64
 from datetime import timedelta
+import json
+from unittest.mock import patch
 
-from django.urls import reverse
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from accounts.models import Role, User, UserRole
-from tasks.choices import TaskSkillSource, TaskStatus
-from tasks.models import (
-    Skill,
-    Task,
-    TaskCategory,
-    TaskRequiredSkill,
-    TaskStatusHistory,
-)
+from accounts.models import OTPChallenge, Role, User, UserRole
+from accounts.otp import OTPDeliveryError, hash_otp
 
 
-class APITestDataMixin:
-    """Shared factories for the custom user and task domain models."""
+PASSWORD = "Strong-test-password-123!"
+
+TEST_THROTTLE_RATES = {
+    "register": "1000/hour",
+    "otp_send": "1000/hour",
+    "otp_verify": "1000/hour",
+    "login_password": "1000/hour",
+}
 
 
-    def make_user(self, phone, *, account_status=User.AccountStatus.ACTIVE):
-        return User.objects.create_user(
-            phone=phone,
-            full_name=f"User {phone}",
-            password="Strong-test-password-123!",
-            account_status=account_status,
-            phone_verified_at=timezone.now(),
+
+@patch.object(ScopedRateThrottle, "THROTTLE_RATES", TEST_THROTTLE_RATES)
+class AuthenticationAPITests(APITestCase):
+    """End-to-end tests for the public authentication endpoints."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.employer_role, _ = Role.objects.get_or_create(
+            code="EMPLOYER",
+            defaults={"name": "Employer"},
         )
 
-
-    def make_employer(self, phone="09120000001", *, account_status=User.AccountStatus.ACTIVE):
-        user = self.make_user(phone, account_status=account_status)
-        UserRole.objects.create(user=user, role=self.employer_role)
-        return user
-
-    def make_category(self, name="Home Services", *, is_active=True, parent=None):
-        return TaskCategory.objects.create(
-            name=name,
-            is_active=is_active,
-            parent_category=parent,
+    def setUp(self):
+        cache.clear()
+        self.sent_sms = []
+        self.sms_patcher = patch(
+            "accounts.otp.send_sms",
+            side_effect=self.capture_sms,
         )
+        self.mock_send_sms = self.sms_patcher.start()
+        self.addCleanup(self.sms_patcher.stop)
 
-    def make_skill(self, name, *, category=None):
-        return Skill.objects.create(name=name, category=category)
+        self.register_url = "/api/auth/register/"
+        self.register_verify_url = "/api/auth/register/verify-otp/"
+        self.password_login_url = "/api/auth/login/password/"
+        self.otp_login_send_url = "/api/auth/login/otp/send/"
+        self.otp_login_verify_url = "/api/auth/login/otp/verify/"
+        self.otp_resend_url = "/api/auth/otp/resend/"
+        self.refresh_url = "/api/auth/token/refresh/"
+        self.verify_token_url = "/api/auth/token/verify/"
+        self.tasks_url = "/api/tasks/"
 
-    def valid_task_payload(self, *, category=None):
-        now = timezone.now()
+    def capture_sms(self, phone, code):
+        """Capture outgoing OTP messages without calling the real SMS provider."""
+        self.sent_sms.append((phone, code))
+
+    def registration_payload(self, phone="09120000001"):
         return {
-            "category_id": str(category.pk if category else self.category.pk),
-            "title": "Repair a kitchen cabinet",
-            "description": "Repair the damaged cabinet door and hinges.",
-            "estimated_duration_minutes": 90,
-            "wage_budget_amount": 2500000,
-            "execution_window_start_at": (now + timedelta(days=1)).isoformat(),
-            "execution_window_end_at": (now + timedelta(days=2)).isoformat(),
-            "proposal_deadline_at": (now + timedelta(hours=12)).isoformat(),
-            "delivery_criteria": "The cabinet door opens and closes correctly.",
+            "phone": phone,
+            "password": PASSWORD,
+            "password_confirm": PASSWORD,
         }
 
-
-class TaskEndpointPermissionTests(APITestDataMixin, APITestCase):
-    def setUp(self):
-        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", name="Employer")[0]
-        self.category = self.make_category()
-        self.url = reverse("task-list-create")
-
-    def test_task_endpoint_rejects_anonymous_get_and_post(self):
-        get_response = self.client.get(self.url)
-        post_response = self.client.post(self.url, self.valid_task_payload(), format="json")
-
-        self.assertEqual(get_response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(post_response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_basic_authentication_allows_an_active_employer(self):
-        employer = self.make_employer("09120000005")
-        token = base64.b64encode(
-            f"{employer.phone}:Strong-test-password-123!".encode("utf-8")
-        ).decode("ascii")
-        self.client.credentials(HTTP_AUTHORIZATION=f"Basic {token}")
-
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [])
-
-    def test_task_endpoint_rejects_authenticated_user_without_employer_role(self):
-        user = self.make_user("09120000002")
-        self.client.force_authenticate(user=user)
-
-        get_response = self.client.get(self.url)
-        post_response = self.client.post(self.url, self.valid_task_payload(), format="json")
-
-        self.assertEqual(get_response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(post_response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_task_endpoint_rejects_suspended_employer(self):
-        employer = self.make_employer(
-            "09120000003",
-            account_status=User.AccountStatus.SUSPENDED,
+    def make_user(
+        self,
+        phone="09120000010",
+        *,
+        password=PASSWORD,
+        verified=True,
+        account_status=User.AccountStatus.ACTIVE,
+        employer=False,
+    ):
+        user = User.objects.create_user(
+            phone=phone,
+            full_name=f"Test user {phone}",
+            password=password,
+            account_status=account_status,
         )
-        self.client.force_authenticate(user=employer)
 
-        response = self.client.get(self.url)
+        if verified:
+            User.objects.filter(pk=user.pk).update(
+                phone_verified_at=timezone.now()
+            )
+            user.refresh_from_db()
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        if employer:
+            UserRole.objects.create(
+                user=user,
+                role=self.employer_role,
+            )
 
-    def test_task_endpoint_rejects_deleted_employer(self):
-        employer = self.make_employer(
-            "09120000004",
-            account_status=User.AccountStatus.DELETED,
+        return user
+
+    def make_challenge(
+        self,
+        user,
+        purpose,
+        code="12345",
+        *,
+        expires_at=None,
+        last_sent_at=None,
+        attempts=0,
+    ):
+        now = timezone.now()
+        return OTPChallenge.objects.create(
+            user=user,
+            purpose=purpose,
+            code_hash=hash_otp(user, purpose, code),
+            expires_at=expires_at or now + timedelta(minutes=3),
+            last_sent_at=last_sent_at or now,
+            attempts=attempts,
         )
-        self.client.force_authenticate(user=employer)
 
-        response = self.client.get(self.url)
+    def assert_auth_response(self, response, user):
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertIn("user", response.data)
+        self.assertEqual(response.data["user"]["phone"], user.phone)
+        self.assertEqual(str(response.data["user"]["user_id"]), str(user.pk))
+        self.assertNotIn("password", response.data["user"])
+        self.assertNotIn("code", response.data)
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        access = AccessToken(response.data["access"])
+        self.assertEqual(str(access["user_id"]), str(user.pk))
 
+    # ------------------------------------------------------------------
+    # Registration
+    # ------------------------------------------------------------------
 
-class TaskCreateAPITests(APITestDataMixin, APITestCase):
-    def setUp(self):
-        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", name="Employer")[0]
-        self.employer = self.make_employer()
-        self.client.force_authenticate(user=self.employer)
-        self.category = self.make_category()
-        self.url = reverse("task-list-create")
-
-    def test_employer_can_create_task_as_draft(self):
+    def test_register_creates_unverified_user_and_sends_registration_otp(self):
         response = self.client.post(
-            self.url,
-            self.valid_task_payload(),
+            self.register_url,
+            self.registration_payload(),
             format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(Task.objects.count(), 1)
+        self.assertTrue(response.data["requires_verification"])
 
-        task = Task.objects.get()
-        self.assertEqual(task.employer_user, self.employer)
-        self.assertEqual(task.category, self.category)
-        self.assertEqual(task.status, TaskStatus.DRAFT)
-        self.assertEqual(task.currency_code, "IRR")
-        self.assertFalse(task.receipt_required)
-        self.assertIsNone(task.item_cost_cap_amount)
-        self.assertIsNone(task.deadline_at)
-        self.assertEqual(response.data["status"], TaskStatus.DRAFT)
-        self.assertEqual(response.data["employer_user_id"], str(self.employer.pk))
-        self.assertEqual(response.data["category_name"], self.category.name)
+        user = User.objects.get(phone="09120000001")
+        self.assertIsNone(user.phone_verified_at)
+        self.assertFalse(user.is_active)
 
-        history = TaskStatusHistory.objects.get(task=task)
-        self.assertIsNone(history.from_status)
-        self.assertEqual(history.to_status, TaskStatus.DRAFT)
-        self.assertEqual(history.changed_by_user, self.employer)
-        self.assertEqual(history.reason, "Task draft created")
-
-    def test_employer_can_create_task_with_category_and_global_skills(self):
-        category_skill = self.make_skill("Cabinet repair", category=self.category)
-        global_skill = self.make_skill("Customer communication")
-        payload = self.valid_task_payload()
-        payload["required_skills"] = [
-            {"skill_id": str(category_skill.pk), "importance": 2},
-            {"skill_id": str(global_skill.pk), "importance": 1},
-        ]
-
-        response = self.client.post(self.url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        task = Task.objects.get()
-        required_skills = TaskRequiredSkill.objects.filter(task=task)
-        self.assertEqual(required_skills.count(), 2)
-        self.assertEqual(
-            set(required_skills.values_list("skill_id", flat=True)),
-            {category_skill.pk, global_skill.pk},
-        )
-        self.assertEqual(
-            set(required_skills.values_list("source", flat=True)),
-            {TaskSkillSource.MANUAL},
+        self.assertTrue(
+            UserRole.objects.filter(
+                user=user,
+                role__code="EMPLOYER",
+            ).exists()
         )
 
-    def test_numeric_field_boundaries_are_accepted(self):
-        payload = self.valid_task_payload()
-        payload.update({
-            "estimated_duration_minutes": 1,
-            "wage_budget_amount": 0,
-            "item_cost_cap_amount": 0,
-        })
+        challenge = OTPChallenge.objects.get(
+            user=user,
+            purpose=OTPChallenge.Purpose.REGISTER,
+        )
+        self.assertEqual(len(challenge.code_hash), 64)
+        self.assertEqual(len(self.sent_sms), 1)
+        self.assertEqual(self.sent_sms[0][0], user.phone)
+        self.assertEqual(len(self.sent_sms[0][1]), 5)
 
-        response = self.client.post(self.url, payload, format="json")
+    def test_register_normalizes_international_phone_number(self):
+        payload = self.registration_payload("+98 912 000 0002")
 
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        task = Task.objects.get()
-        self.assertEqual(task.estimated_duration_minutes, 1)
-        self.assertEqual(task.wage_budget_amount, 0)
-        self.assertEqual(task.item_cost_cap_amount, 0)
-
-    def test_numeric_upper_boundaries_are_accepted(self):
-        payload = self.valid_task_payload()
-        payload.update({
-            "estimated_duration_minutes": 300,
-            "wage_budget_amount": 2**63 - 1,
-            "item_cost_cap_amount": 2**63 - 1,
-        })
-
-        response = self.client.post(self.url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        task = Task.objects.get()
-        self.assertEqual(task.estimated_duration_minutes, 300)
-        self.assertEqual(task.wage_budget_amount, 2**63 - 1)
-        self.assertEqual(task.item_cost_cap_amount, 2**63 - 1)
-
-    def test_required_skill_importance_accepts_smallint_boundaries(self):
-        skill = self.make_skill("Cabinet repair", category=self.category)
-        for importance in (-32768, 32767):
-            with self.subTest(importance=importance):
-                payload = self.valid_task_payload()
-                payload["required_skills"] = [
-                    {"skill_id": str(skill.pk), "importance": importance}
-                ]
-                response = self.client.post(self.url, payload, format="json")
-                self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-
-        self.assertEqual(Task.objects.count(), 2)
-        self.assertEqual(
-            set(TaskRequiredSkill.objects.values_list("importance", flat=True)),
-            {-32768, 32767},
+        response = self.client.post(
+            self.register_url,
+            payload,
+            format="json",
         )
 
-    def test_bigint_overflow_is_rejected(self):
-        for field_name in ("wage_budget_amount", "item_cost_cap_amount"):
-            with self.subTest(field=field_name):
-                payload = self.valid_task_payload()
-                payload[field_name] = 2**63
-                response = self.client.post(self.url, payload, format="json")
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertIn(field_name, response.data)
-
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_invalid_category_uuid_is_rejected(self):
-        payload = self.valid_task_payload()
-        payload["category_id"] = "not-a-uuid"
-
-        response = self.client.post(self.url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("category_id", response.data)
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_required_skills_are_optional(self):
-        response = self.client.post(self.url, self.valid_task_payload(), format="json")
-
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(TaskRequiredSkill.objects.count(), 0)
+        self.assertTrue(User.objects.filter(phone="09120000002").exists())
+        self.assertEqual(self.sent_sms[0][0], "09120000002")
 
-    def test_client_cannot_override_server_managed_fields(self):
-        forbidden_fields = {
-            "task_id": "00000000-0000-0000-0000-000000000001",
-            "employer_user_id": "00000000-0000-0000-0000-000000000002",
-            "status": TaskStatus.OPEN,
-            "currency_code": "USD",
-            "created_at": timezone.now().isoformat(),
-        }
+    def test_register_rejects_duplicate_phone_number(self):
+        self.make_user(phone="09120000003")
 
-        for field_name, value in forbidden_fields.items():
-            with self.subTest(field=field_name):
-                payload = self.valid_task_payload()
-                payload[field_name] = value
-                response = self.client.post(self.url, payload, format="json")
-
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertIn(field_name, response.data)
-
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_unknown_top_level_field_is_rejected(self):
-        payload = self.valid_task_payload()
-        payload["unexpected"] = "not allowed"
-
-        response = self.client.post(self.url, payload, format="json")
+        response = self.client.post(
+            self.register_url,
+            self.registration_payload("09120000003"),
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("unexpected", response.data)
-        self.assertEqual(Task.objects.count(), 0)
+        self.assertIn("phone", response.data)
 
-    def test_unknown_nested_required_skill_field_is_rejected(self):
-        skill = self.make_skill("Cabinet repair", category=self.category)
-        payload = self.valid_task_payload()
-        payload["required_skills"] = [
-            {"skill_id": str(skill.pk), "importance": 1, "is_admin": True}
-        ]
-
-        response = self.client.post(self.url, payload, format="json")
+    def test_register_rejects_invalid_phone_number(self):
+        response = self.client.post(
+            self.register_url,
+            self.registration_payload("08123456789"),
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("is_admin", response.data["required_skills"][0])
-        self.assertEqual(Task.objects.count(), 0)
+        self.assertIn("phone", response.data)
 
-    def test_duration_must_be_between_one_and_three_hundred_minutes(self):
-        for duration in (0, 301):
-            with self.subTest(duration=duration):
-                payload = self.valid_task_payload()
-                payload["estimated_duration_minutes"] = duration
-                response = self.client.post(self.url, payload, format="json")
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertIn("estimated_duration_minutes", response.data)
+    def test_register_rejects_mismatched_passwords(self):
+        payload = self.registration_payload()
+        payload["password_confirm"] = "Different-password-123!"
 
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_wage_and_optional_item_cap_cannot_be_negative(self):
-        for field_name in ("wage_budget_amount", "item_cost_cap_amount"):
-            with self.subTest(field=field_name):
-                payload = self.valid_task_payload()
-                payload[field_name] = -1
-                response = self.client.post(self.url, payload, format="json")
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertIn(field_name, response.data)
-
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_execution_window_end_must_be_after_start(self):
-        now = timezone.now()
-        for end_at in (now - timedelta(seconds=1), now):
-            with self.subTest(end_at=end_at):
-                payload = self.valid_task_payload()
-                payload["execution_window_start_at"] = now.isoformat()
-                payload["execution_window_end_at"] = end_at.isoformat()
-                response = self.client.post(self.url, payload, format="json")
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertIn("execution_window_end_at", response.data)
-
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_inactive_category_cannot_be_used_to_create_task(self):
-        inactive_category = self.make_category("Inactive category", is_active=False)
-        payload = self.valid_task_payload(category=inactive_category)
-
-        response = self.client.post(self.url, payload, format="json")
+        response = self.client.post(self.register_url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(Task.objects.count(), 0)
+        self.assertIn("password_confirm", response.data)
 
-    def test_skill_from_another_category_is_rejected(self):
-        another_category = self.make_category("Electrical work")
-        other_skill = self.make_skill("Wiring", category=another_category)
-        payload = self.valid_task_payload()
-        payload["required_skills"] = [
-            {"skill_id": str(other_skill.pk), "importance": 1}
-        ]
+    def test_register_rejects_numeric_only_password(self):
+        payload = self.registration_payload()
+        payload["password"] = "12345678"
+        payload["password_confirm"] = "12345678"
 
-        response = self.client.post(self.url, payload, format="json")
+        response = self.client.post(self.register_url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("required_skills", response.data)
-        self.assertEqual(Task.objects.count(), 0)
+        self.assertIn("password", response.data)
 
-    def test_duplicate_required_skill_is_rejected(self):
-        skill = self.make_skill("Cabinet repair", category=self.category)
-        payload = self.valid_task_payload()
-        payload["required_skills"] = [
-            {"skill_id": str(skill.pk), "importance": 1},
-            {"skill_id": str(skill.pk), "importance": 2},
-        ]
+    def test_register_rejects_too_short_password(self):
+        payload = self.registration_payload()
+        payload["password"] = "Ab1!"
+        payload["password_confirm"] = "Ab1!"
 
-        response = self.client.post(self.url, payload, format="json")
+        response = self.client.post(self.register_url, payload, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("required_skills", response.data)
-        self.assertEqual(Task.objects.count(), 0)
+        self.assertIn("password", response.data)
 
-    def test_required_skill_importance_must_fit_smallint(self):
-        skill = self.make_skill("Cabinet repair", category=self.category)
-        for importance in (-32769, 32768):
-            with self.subTest(importance=importance):
-                payload = self.valid_task_payload()
-                payload["required_skills"] = [
-                    {"skill_id": str(skill.pk), "importance": importance}
-                ]
-                response = self.client.post(self.url, payload, format="json")
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-                self.assertIn("required_skills", response.data)
-
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_unknown_skill_id_is_rejected(self):
-        payload = self.valid_task_payload()
-        payload["required_skills"] = [
-            {
-                "skill_id": "00000000-0000-0000-0000-000000000099",
-                "importance": 1,
-            }
-        ]
-
-        response = self.client.post(self.url, payload, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("required_skills", response.data)
-        self.assertEqual(Task.objects.count(), 0)
-
-    def test_missing_required_fields_are_rejected(self):
-        response = self.client.post(self.url, {}, format="json")
+    def test_register_rejects_missing_required_fields(self):
+        response = self.client.post(
+            self.register_url,
+            {},
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(response.data)
-        self.assertEqual(Task.objects.count(), 0)
+        self.assertEqual(User.objects.count(), 0)
 
+    def test_register_rejects_unsupported_fields(self):
+        payload = self.registration_payload()
+        payload["is_superuser"] = True
 
-class TaskListAPITests(APITestDataMixin, APITestCase):
-    def setUp(self):
-        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", name="Employer")[0]
-        self.employer = self.make_employer("09120000011")
-        self.other_employer = self.make_employer("09120000012")
-        self.client.force_authenticate(user=self.employer)
-        self.category = self.make_category()
-        self.url = reverse("task-list-create")
+        response = self.client.post(self.register_url, payload, format="json")
 
-    def create_task(self, employer, title):
-        payload = self.valid_task_payload()
-        payload["title"] = title
-        payload.pop("category_id")
-        return Task.objects.create(
-            employer_user=employer,
-            category=self.category,
-            **payload,
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("is_superuser", response.data)
+        self.assertEqual(User.objects.count(), 0)
+
+    def test_register_returns_503_when_sms_provider_fails(self):
+        self.mock_send_sms.side_effect = OTPDeliveryError("Provider unavailable.")
+
+        response = self.client.post(
+            self.register_url,
+            self.registration_payload("09120000004"),
+            format="json",
         )
 
-    def test_employer_sees_only_tasks_they_created(self):
-        own_task = self.create_task(self.employer, "My task")
-        self.create_task(self.other_employer, "Another employer task")
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            response.data,
+        )
+        self.assertTrue(User.objects.filter(phone="09120000004").exists())
 
-        response = self.client.get(self.url)
+        user = User.objects.get(phone="09120000004")
+        challenge = OTPChallenge.objects.get(
+            user=user,
+            purpose=OTPChallenge.Purpose.REGISTER,
+        )
+        self.assertLessEqual(challenge.expires_at, timezone.now())
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["task_id"], str(own_task.pk))
-        self.assertEqual(response.data[0]["title"], "My task")
-        self.assertEqual(response.data[0]["employer_user_id"], str(self.employer.pk))
+    # ------------------------------------------------------------------
+    # Registration OTP verification
+    # ------------------------------------------------------------------
 
-    def test_list_includes_required_skill_details(self):
-        task = self.create_task(self.employer, "Task with skill")
-        skill = self.make_skill("Cabinet repair", category=self.category)
-        TaskRequiredSkill.objects.create(
-            task=task,
-            skill=skill,
-            importance=3,
-            source=TaskSkillSource.MANUAL,
+    def test_register_otp_verification_activates_user_and_returns_jwt(self):
+        register_response = self.client.post(
+            self.register_url,
+            self.registration_payload("09120000005"),
+            format="json",
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+
+        user = User.objects.get(phone="09120000005")
+        code = self.sent_sms[-1][1]
+
+        response = self.client.post(
+            self.register_verify_url,
+            {"phone": user.phone, "code": code},
+            format="json",
         )
 
-        response = self.client.get(self.url)
+        self.assert_auth_response(response, user)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data[0]["required_skills"], [
-            {
-                "skill_id": str(skill.pk),
-                "skill_name": skill.name,
-                "importance": 3,
-                "source": TaskSkillSource.MANUAL,
-            }
-        ])
+        user.refresh_from_db()
+        self.assertIsNotNone(user.phone_verified_at)
+        self.assertTrue(user.is_active)
+        self.assertIsNotNone(user.last_login)
+        self.assertFalse(
+            OTPChallenge.objects.filter(
+                user=user,
+                purpose=OTPChallenge.Purpose.REGISTER,
+            ).exists()
+        )
 
-    def test_task_endpoint_does_not_allow_update_or_delete_methods(self):
-        for method in ("put", "patch", "delete"):
-            with self.subTest(method=method):
-                response = getattr(self.client, method)(self.url, {}, format="json")
-                self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    def test_register_otp_rejects_wrong_code_and_increments_attempts(self):
+        self.client.post(
+            self.register_url,
+            self.registration_payload("09120000006"),
+            format="json",
+        )
+        user = User.objects.get(phone="09120000006")
+        real_code = self.sent_sms[-1][1]
+        wrong_code = "00000" if real_code != "00000" else "00001"
 
-    def test_task_list_is_empty_when_employer_has_no_tasks(self):
-        response = self.client.get(self.url)
+        response = self.client.post(
+            self.register_verify_url,
+            {"phone": user.phone, "code": wrong_code},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        challenge = OTPChallenge.objects.get(
+            user=user,
+            purpose=OTPChallenge.Purpose.REGISTER,
+        )
+        self.assertEqual(challenge.attempts, 1)
+
+    def test_register_otp_rejects_expired_code(self):
+        user = self.make_user(
+            phone="09120000007",
+            verified=False,
+        )
+        self.make_challenge(
+            user,
+            OTPChallenge.Purpose.REGISTER,
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+
+        response = self.client.post(
+            self.register_verify_url,
+            {"phone": user.phone, "code": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_register_otp_rejects_unknown_phone(self):
+        response = self.client.post(
+            self.register_verify_url,
+            {"phone": "09120000008", "code": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_register_otp_rejects_already_verified_user(self):
+        user = self.make_user(phone="09120000009", verified=True)
+
+        response = self.client.post(
+            self.register_verify_url,
+            {"phone": user.phone, "code": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_register_otp_rejects_invalid_code_format(self):
+        for code in ("1234", "123456", "12a45"):
+            with self.subTest(code=code):
+                response = self.client.post(
+                    self.register_verify_url,
+                    {"phone": "09120000011", "code": code},
+                    format="json",
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_registration_otp_cannot_be_used_twice(self):
+        self.client.post(
+            self.register_url,
+            self.registration_payload("09120000012"),
+            format="json",
+        )
+        user = User.objects.get(phone="09120000012")
+        code = self.sent_sms[-1][1]
+
+        first_response = self.client.post(
+            self.register_verify_url,
+            {"phone": user.phone, "code": code},
+            format="json",
+        )
+        second_response = self.client.post(
+            self.register_verify_url,
+            {"phone": user.phone, "code": code},
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    # ------------------------------------------------------------------
+    # Password login
+    # ------------------------------------------------------------------
+
+    def test_password_login_success_returns_access_and_refresh_tokens(self):
+        user = self.make_user(phone="09120000013")
+
+        response = self.client.post(
+            self.password_login_url,
+            {"phone": user.phone, "password": PASSWORD},
+            format="json",
+        )
+
+        self.assert_auth_response(response, user)
+        user.refresh_from_db()
+        self.assertIsNotNone(user.last_login)
+
+    def test_password_login_rejects_wrong_password_and_unknown_phone(self):
+        user = self.make_user(phone="09120000014")
+
+        wrong_password_response = self.client.post(
+            self.password_login_url,
+            {"phone": user.phone, "password": "Wrong-password-123!"},
+            format="json",
+        )
+        unknown_phone_response = self.client.post(
+            self.password_login_url,
+            {"phone": "09120000015", "password": PASSWORD},
+            format="json",
+        )
+
+        self.assertEqual(
+            wrong_password_response.status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            unknown_phone_response.status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            wrong_password_response.data,
+            unknown_phone_response.data,
+        )
+
+    def test_password_login_rejects_unverified_account(self):
+        user = self.make_user(
+            phone="09120000016",
+            verified=False,
+        )
+
+        response = self.client.post(
+            self.password_login_url,
+            {"phone": user.phone, "password": PASSWORD},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_password_login_rejects_suspended_and_deleted_accounts(self):
+        for index, account_status in enumerate(
+            (User.AccountStatus.SUSPENDED, User.AccountStatus.DELETED),
+            start=17,
+        ):
+            with self.subTest(account_status=account_status):
+                user = self.make_user(
+                    phone=f"091200000{index}",
+                    account_status=account_status,
+                )
+                response = self.client.post(
+                    self.password_login_url,
+                    {"phone": user.phone, "password": PASSWORD},
+                    format="json",
+                )
+                self.assertEqual(
+                    response.status_code,
+                    status.HTTP_403_FORBIDDEN,
+                )
+
+    def test_password_login_rejects_invalid_phone(self):
+        response = self.client.post(
+            self.password_login_url,
+            {"phone": "12345", "password": PASSWORD},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("phone", response.data)
+
+    def test_password_login_requires_phone_and_password(self):
+        response = self.client.post(
+            self.password_login_url,
+            {"phone": "09120000018"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", response.data)
+
+    # ------------------------------------------------------------------
+    # OTP login: request and verify
+    # ------------------------------------------------------------------
+
+    def test_otp_login_send_creates_login_challenge_for_active_user(self):
+        user = self.make_user(phone="09120000019")
+
+        response = self.client.post(
+            self.otp_login_send_url,
+            {"phone": user.phone},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(len(self.sent_sms), 1)
+        self.assertEqual(self.sent_sms[0][0], user.phone)
+        self.assertTrue(
+            OTPChallenge.objects.filter(
+                user=user,
+                purpose=OTPChallenge.Purpose.LOGIN,
+            ).exists()
+        )
+
+    def test_otp_login_send_rejects_invalid_phone(self):
+        response = self.client.post(
+            self.otp_login_send_url,
+            {"phone": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.sent_sms, [])
+
+    def test_otp_login_send_does_not_reveal_unknown_or_unverified_accounts(self):
+        unknown_response = self.client.post(
+            self.otp_login_send_url,
+            {"phone": "09120000020"},
+            format="json",
+        )
+
+        unverified_user = self.make_user(
+            phone="09120000021",
+            verified=False,
+        )
+        unverified_response = self.client.post(
+            self.otp_login_send_url,
+            {"phone": unverified_user.phone},
+            format="json",
+        )
+
+        self.assertEqual(unknown_response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(unverified_response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(unknown_response.data, unverified_response.data)
+        self.assertEqual(self.sent_sms, [])
+        self.assertFalse(
+            OTPChallenge.objects.filter(user=unverified_user).exists()
+        )
+
+    def test_otp_login_send_respects_resend_cooldown(self):
+        user = self.make_user(phone="09120000022")
+        self.make_challenge(
+            user,
+            OTPChallenge.Purpose.LOGIN,
+            last_sent_at=timezone.now(),
+        )
+
+        response = self.client.post(
+            self.otp_login_send_url,
+            {"phone": user.phone},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(self.sent_sms, [])
+
+    def test_otp_login_send_handles_sms_provider_failure_without_account_disclosure(self):
+        user = self.make_user(phone="09120000023")
+        self.mock_send_sms.side_effect = OTPDeliveryError("Provider unavailable.")
+
+        response = self.client.post(
+            self.otp_login_send_url,
+            {"phone": user.phone},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        challenge = OTPChallenge.objects.get(
+            user=user,
+            purpose=OTPChallenge.Purpose.LOGIN,
+        )
+        self.assertLessEqual(challenge.expires_at, timezone.now())
+
+    def test_otp_login_verify_success_returns_jwt_and_consumes_challenge(self):
+        user = self.make_user(phone="09120000024")
+        self.make_challenge(
+            user,
+            OTPChallenge.Purpose.LOGIN,
+            code="54321",
+        )
+
+        response = self.client.post(
+            self.otp_login_verify_url,
+            {"phone": user.phone, "code": "54321"},
+            format="json",
+        )
+
+        self.assert_auth_response(response, user)
+        self.assertFalse(
+            OTPChallenge.objects.filter(
+                user=user,
+                purpose=OTPChallenge.Purpose.LOGIN,
+            ).exists()
+        )
+
+    def test_otp_login_verify_rejects_wrong_code_and_increments_attempts(self):
+        user = self.make_user(phone="09120000025")
+        self.make_challenge(
+            user,
+            OTPChallenge.Purpose.LOGIN,
+            code="54321",
+        )
+
+        response = self.client.post(
+            self.otp_login_verify_url,
+            {"phone": user.phone, "code": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        challenge = OTPChallenge.objects.get(
+            user=user,
+            purpose=OTPChallenge.Purpose.LOGIN,
+        )
+        self.assertEqual(challenge.attempts, 1)
+
+    def test_otp_login_verify_rejects_expired_code(self):
+        user = self.make_user(phone="09120000026")
+        self.make_challenge(
+            user,
+            OTPChallenge.Purpose.LOGIN,
+            code="54321",
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+
+        response = self.client.post(
+            self.otp_login_verify_url,
+            {"phone": user.phone, "code": "54321"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_otp_login_verify_rejects_unknown_and_unverified_users(self):
+        unknown_response = self.client.post(
+            self.otp_login_verify_url,
+            {"phone": "09120000027", "code": "12345"},
+            format="json",
+        )
+
+        unverified_user = self.make_user(
+            phone="09120000028",
+            verified=False,
+        )
+        unverified_response = self.client.post(
+            self.otp_login_verify_url,
+            {"phone": unverified_user.phone, "code": "12345"},
+            format="json",
+        )
+
+        self.assertEqual(unknown_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(unverified_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_otp_login_verify_rejects_invalid_code_format(self):
+        response = self.client.post(
+            self.otp_login_verify_url,
+            {"phone": "09120000029", "code": "abcde"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ------------------------------------------------------------------
+    # OTP resend
+    # ------------------------------------------------------------------
+
+    def test_registration_otp_resend_works_after_cooldown(self):
+        user = self.make_user(
+            phone="09120000030",
+            verified=False,
+        )
+        old_challenge = self.make_challenge(
+            user,
+            OTPChallenge.Purpose.REGISTER,
+            code="11111",
+            last_sent_at=timezone.now() - timedelta(seconds=61),
+            attempts=2,
+        )
+
+        response = self.client.post(
+            self.otp_resend_url,
+            {"phone": user.phone, "purpose": OTPChallenge.Purpose.REGISTER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(len(self.sent_sms), 1)
+
+        old_challenge.refresh_from_db()
+        new_code = self.sent_sms[0][1]
+        self.assertEqual(old_challenge.attempts, 0)
+        self.assertEqual(
+            old_challenge.code_hash,
+            hash_otp(user, OTPChallenge.Purpose.REGISTER, new_code),
+        )
+        self.assertGreater(old_challenge.expires_at, timezone.now())
+
+    def test_login_otp_resend_works_after_cooldown(self):
+        user = self.make_user(phone="09120000037")
+        challenge = self.make_challenge(
+            user,
+            OTPChallenge.Purpose.LOGIN,
+            code="11111",
+            last_sent_at=timezone.now() - timedelta(seconds=61),
+            attempts=2,
+        )
+
+        response = self.client.post(
+            self.otp_resend_url,
+            {"phone": user.phone, "purpose": OTPChallenge.Purpose.LOGIN},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(len(self.sent_sms), 1)
+        challenge.refresh_from_db()
+        self.assertEqual(challenge.attempts, 0)
+        self.assertEqual(
+            challenge.code_hash,
+            hash_otp(user, OTPChallenge.Purpose.LOGIN, self.sent_sms[0][1]),
+        )
+
+    def test_otp_resend_for_unknown_phone_does_not_disclose_account_existence(self):
+        response = self.client.post(
+            self.otp_resend_url,
+            {"phone": "09120000031", "purpose": OTPChallenge.Purpose.LOGIN},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(self.sent_sms, [])
+
+    def test_otp_resend_rejects_invalid_purpose(self):
+        response = self.client.post(
+            self.otp_resend_url,
+            {"phone": "09120000032", "purpose": "PASSWORD_RESET"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ------------------------------------------------------------------
+    # JWT token management and protected endpoints
+    # ------------------------------------------------------------------
+
+    def test_refresh_and_verify_jwt_tokens(self):
+        user = self.make_user(phone="09120000033")
+        login_response = self.client.post(
+            self.password_login_url,
+            {"phone": user.phone, "password": PASSWORD},
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        refresh_response = self.client.post(
+            self.refresh_url,
+            {"refresh": login_response.data["refresh"]},
+            format="json",
+        )
+
+        self.assertEqual(refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", refresh_response.data)
+
+        verify_response = self.client.post(
+            self.verify_token_url,
+            {"token": refresh_response.data["access"]},
+            format="json",
+        )
+        self.assertEqual(verify_response.status_code, status.HTTP_200_OK)
+
+    def test_refresh_endpoint_rejects_invalid_refresh_token(self):
+        response = self.client.post(
+            self.refresh_url,
+            {"refresh": "not-a-valid-refresh-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_token_verify_rejects_invalid_token(self):
+        response = self.client.post(
+            self.verify_token_url,
+            {"token": "not-a-valid-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_access_token_authenticates_user_on_protected_tasks_endpoint(self):
+        user = self.make_user(
+            phone="09120000034",
+            employer=True,
+        )
+        login_response = self.client.post(
+            self.password_login_url,
+            {"phone": user.phone, "password": PASSWORD},
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access']}"
+        )
+        response = self.client.get(self.tasks_url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])
 
+    def test_basic_authentication_is_rejected_on_protected_tasks_endpoint(self):
+        """Valid Basic credentials must not grant API access when BasicAuth is disabled."""
+        user = self.make_user(phone="09120000051", employer=True)
+        encoded_credentials = base64.b64encode(
+            f"{user.phone}:{PASSWORD}".encode("utf-8")
+        ).decode("ascii")
 
-class TaskCategoryCatalogAPITests(APITestDataMixin, APITestCase):
-    def setUp(self):
-        self.url = reverse("task-category-list")
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Basic {encoded_credentials}"
+        )
+        response = self.client.get(self.tasks_url)
 
-    def test_categories_endpoint_is_public_and_returns_only_active_categories(self):
-        parent = self.make_category("Home", is_active=True)
-        child = self.make_category("Cleaning", is_active=True, parent=parent)
-        inactive = self.make_category("Archived", is_active=False)
-
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        returned_ids = {row["category_id"] for row in response.data}
-        self.assertEqual(returned_ids, {str(parent.pk), str(child.pk)})
-        child_data = next(row for row in response.data if row["category_id"] == str(child.pk))
-        self.assertEqual(child_data["parent_category_id"], str(parent.pk))
-        self.assertEqual(child_data["parent_category_name"], parent.name)
-        self.assertNotIn(str(inactive.pk), returned_ids)
-
-    def test_categories_endpoint_is_read_only(self):
-        response = self.client.post(self.url, {"name": "Injected"}, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-        self.assertEqual(TaskCategory.objects.count(), 0)
-
-
-class SkillCatalogAPITests(APITestDataMixin, APITestCase):
-    def setUp(self):
-        self.url = reverse("skill-list")
-        self.category_a = self.make_category("Home services")
-        self.category_b = self.make_category("Electrical")
-        self.inactive_category = self.make_category("Inactive", is_active=False)
-        self.skill_a = self.make_skill("Cleaning", category=self.category_a)
-        self.skill_b = self.make_skill("Wiring", category=self.category_b)
-        self.inactive_skill = self.make_skill("Archived skill", category=self.inactive_category)
-        self.global_skill = self.make_skill("Communication")
-
-    def test_skills_endpoint_is_public_and_excludes_skills_from_inactive_categories(self):
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        returned_ids = {row["skill_id"] for row in response.data}
         self.assertEqual(
-            returned_ids,
-            {str(self.skill_a.pk), str(self.skill_b.pk), str(self.global_skill.pk)},
+            response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
+            response.data,
         )
-        self.assertNotIn(str(self.inactive_skill.pk), returned_ids)
 
-    def test_category_filter_returns_category_skills_and_global_skills(self):
-        response = self.client.get(self.url, {"category_id": str(self.category_a.pk)})
+    def test_expired_access_token_is_rejected_by_protected_endpoint(self):
+        user = self.make_user(
+            phone="09120000038",
+            employer=True,
+        )
+        token = AccessToken.for_user(user)
+        token["exp"] = int(timezone.now().timestamp()) - 10
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        returned_ids = {row["skill_id"] for row in response.data}
-        self.assertEqual(returned_ids, {str(self.skill_a.pk), str(self.global_skill.pk)})
-        self.assertNotIn(str(self.skill_b.pk), returned_ids)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {str(token)}")
+        response = self.client.get(self.tasks_url)
 
-    def test_invalid_category_uuid_returns_400(self):
-        response = self.client.get(self.url, {"category_id": "not-a-uuid"})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("category_id", response.data)
+    def test_expired_refresh_token_is_rejected(self):
+        user = self.make_user(phone="09120000039")
+        refresh = RefreshToken.for_user(user)
+        refresh["exp"] = int(timezone.now().timestamp()) - 10
 
-    def test_nonexistent_category_returns_400(self):
+        response = self.client.post(
+            self.refresh_url,
+            {"refresh": str(refresh)},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_suspending_user_invalidates_an_existing_access_token(self):
+        user = self.make_user(
+            phone="09120000040",
+            employer=True,
+        )
+        login_response = self.client.post(
+            self.password_login_url,
+            {"phone": user.phone, "password": PASSWORD},
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        User.objects.filter(pk=user.pk).update(
+            account_status=User.AccountStatus.SUSPENDED
+        )
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access']}"
+        )
+
+        response = self.client.get(self.tasks_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_protected_tasks_endpoint_rejects_missing_and_invalid_tokens(self):
+        anonymous_response = self.client.get(self.tasks_url)
+        self.assertEqual(
+            anonymous_response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token")
+        invalid_token_response = self.client.get(self.tasks_url)
+        self.assertEqual(
+            invalid_token_response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+    def test_openapi_schema_contains_authentication_endpoints(self):
         response = self.client.get(
-            self.url,
-            {"category_id": "00000000-0000-0000-0000-000000000099"},
+            "/api/schema/",
+            HTTP_ACCEPT="application/vnd.oai.openapi+json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("category_id", response.data)
-
-    def test_inactive_category_filter_returns_400(self):
-        response = self.client.get(
-            self.url,
-            {"category_id": str(self.inactive_category.pk)},
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+            response.content[:500],
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("category_id", response.data)
+        schema = response.data
 
-    def test_skills_endpoint_is_read_only(self):
-        response = self.client.post(self.url, {"name": "Injected"}, format="json")
+        self.assertIsInstance(schema, dict)
+        self.assertIn("paths", schema)
 
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-        self.assertEqual(Skill.objects.count(), 4)
+        schema_paths = schema["paths"]
+
+        expected_paths = (
+            "/api/auth/register/",
+            "/api/auth/register/verify-otp/",
+            "/api/auth/login/password/",
+            "/api/auth/login/otp/send/",
+            "/api/auth/login/otp/verify/",
+            "/api/auth/otp/resend/",
+            "/api/auth/token/refresh/",
+            "/api/auth/token/verify/",
+        )
+
+        for path in expected_paths:
+            with self.subTest(path=path):
+                self.assertIn(path, schema_paths)
+
+
+THROTTLED_RATES = {
+    "register": "1/hour",
+    "otp_send": "1/hour",
+    "otp_verify": "1/hour",
+    "login_password": "1/hour",
+}
+
+
+@patch.object(ScopedRateThrottle, "THROTTLE_RATES", THROTTLED_RATES)
+class AuthenticationThrottleTests(APITestCase):
+    """Verify rate limits for registration, OTP, and password login scopes."""
+
+    @classmethod
+    def setUpTestData(cls):
+        Role.objects.get_or_create(
+            code="EMPLOYER",
+            defaults={"name": "Employer"},
+        )
+
+    def setUp(self):
+        cache.clear()
+        self.sms_patcher = patch("accounts.otp.send_sms")
+        self.sms_patcher.start()
+        self.addCleanup(self.sms_patcher.stop)
+
+    def make_verified_user(self, phone):
+        user = User.objects.create_user(
+            phone=phone,
+            full_name="Throttle test user",
+            password=PASSWORD,
+        )
+        User.objects.filter(pk=user.pk).update(
+            phone_verified_at=timezone.now()
+        )
+        user.refresh_from_db()
+        return user
+
+    def test_register_throttle_returns_429_after_configured_limit(self):
+        payload_1 = {
+            "phone": "09120000035",
+            "password": PASSWORD,
+            "password_confirm": PASSWORD,
+        }
+        payload_2 = {
+            "phone": "09120000036",
+            "password": PASSWORD,
+            "password_confirm": PASSWORD,
+        }
+
+        first_response = self.client.post(
+            "/api/auth/register/",
+            payload_1,
+            format="json",
+        )
+        second_response = self.client.post(
+            "/api/auth/register/",
+            payload_2,
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_otp_send_throttle_returns_429_after_configured_limit(self):
+        user = self.make_verified_user("09120000041")
+
+        first_response = self.client.post(
+            "/api/auth/login/otp/send/",
+            {"phone": user.phone},
+            format="json",
+        )
+        second_response = self.client.post(
+            "/api/auth/login/otp/send/",
+            {"phone": user.phone},
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_202_ACCEPTED)
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    def test_otp_verify_throttle_returns_429_after_configured_limit(self):
+        user = self.make_verified_user("09120000042")
+        OTPChallenge.objects.create(
+            user=user,
+            purpose=OTPChallenge.Purpose.LOGIN,
+            code_hash=hash_otp(user, OTPChallenge.Purpose.LOGIN, "12345"),
+            expires_at=timezone.now() + timedelta(minutes=3),
+            last_sent_at=timezone.now(),
+            attempts=0,
+        )
+
+        first_response = self.client.post(
+            "/api/auth/login/otp/verify/",
+            {"phone": user.phone, "code": "54321"},
+            format="json",
+        )
+        second_response = self.client.post(
+            "/api/auth/login/otp/verify/",
+            {"phone": user.phone, "code": "54321"},
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+    
+    def test_password_login_throttle_returns_429_after_limit(self):
+        user = self.make_verified_user("09120000050")
+    
+        payload = {
+            "phone": user.phone,
+            "password": "Wrong-password-123!",
+        }
+    
+        first_response = self.client.post(
+            "/api/auth/login/password/",
+            payload,
+            format="json",
+        )
+    
+        second_response = self.client.post(
+            "/api/auth/login/password/",
+            payload,
+            format="json",
+        )
+    
+        self.assertEqual(first_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(second_response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+

@@ -368,6 +368,265 @@ paths:
           description: Token is valid.
         '401':
           description: Token is invalid or expired.
+  /api/discovery/tasks/:
+    get:
+      operationId: discoverable_tasks_list
+      description: Restrict visible tasks, then apply validated discovery filters.
+      summary: Browse open, non-expired tasks
+      parameters:
+      - in: query
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        description: Match tasks directly in this active category.
+      - in: query
+        name: city
+        schema:
+          type: string
+        description: Filter by task location city.
+      - in: query
+        name: description
+        schema:
+          type: string
+        description: Search task description (case-insensitive).
+      - in: query
+        name: latitude
+        schema:
+          type: number
+        description: Search center latitude; requires longitude and radius_meters.
+      - in: query
+        name: longitude
+        schema:
+          type: number
+        description: Search center longitude; requires latitude and radius_meters.
+      - in: query
+        name: max_budget
+        schema:
+          type: integer
+        description: Maximum executor wage in IRR.
+      - in: query
+        name: min_budget
+        schema:
+          type: integer
+        description: Minimum executor wage in IRR.
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: published_at, -published_at, wage_budget_amount, -wage_budget_amount,
+          estimated_duration_minutes, -estimated_duration_minutes, proposal_deadline_at,
+          -proposal_deadline_at
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: radius_meters
+        schema:
+          type: number
+        description: Positive distance in meters; requires latitude and longitude.
+      - in: query
+        name: region
+        schema:
+          type: string
+        description: Filter by task location region.
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search task title OR description (case-insensitive).
+      - in: query
+        name: title
+        schema:
+          type: string
+        description: Search task title (case-insensitive).
+      tags:
+      - Task Discovery
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskDiscoveryList'
+          description: ''
+  /api/discovery/tasks/{task_id}/:
+    get:
+      operationId: discoverable_task_detail
+      description: Restrict visible tasks, then apply validated discovery filters.
+      summary: Details of an available task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task Discovery
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDiscovery'
+          description: ''
+  /api/manage/task-categories/:
+    get:
+      operationId: manage_task_categories_list
+      summary: List categories for authorized managers (including inactive)
+      tags:
+      - Category Management
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskCategory'
+          description: ''
+    post:
+      operationId: manage_task_categories_create
+      summary: Create a category or subcategory (ADMIN only)
+      tags:
+      - Category Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWrite'
+          description: ''
+  /api/manage/task-categories/{category_id}/:
+    get:
+      operationId: manage_task_categories_retrieve
+      summary: Retrieve a category for authorized management
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Category Management
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCategory'
+          description: ''
+    put:
+      operationId: manage_task_categories_update
+      summary: Replace editable category fields (ADMIN only)
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Category Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWrite'
+          description: ''
+    patch:
+      operationId: manage_task_categories_partial_update
+      summary: Partially edit or deactivate a category (ADMIN only)
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Category Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWrite'
+          description: ''
   /api/offers/bids/:
     get:
       operationId: my_bids_list
@@ -1075,6 +1334,127 @@ paths:
                 items:
                   $ref: '#/components/schemas/TaskCategory'
           description: ''
+  /api/task-categories/{category_id}/subcategories/:
+    get:
+      operationId: task_subcategories_list
+      summary: List direct active subcategories
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task Catalog
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskCategory'
+          description: ''
+  /api/task-categories/{category_id}/tasks/:
+    get:
+      operationId: category_available_tasks_list
+      description: Restrict visible tasks, then apply validated discovery filters.
+      summary: List available tasks directly in a category
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: city
+        schema:
+          type: string
+        description: Filter by task location city.
+      - in: query
+        name: description
+        schema:
+          type: string
+        description: Search task description (case-insensitive).
+      - in: query
+        name: latitude
+        schema:
+          type: number
+        description: Search center latitude; requires longitude and radius_meters.
+      - in: query
+        name: longitude
+        schema:
+          type: number
+        description: Search center longitude; requires latitude and radius_meters.
+      - in: query
+        name: max_budget
+        schema:
+          type: integer
+        description: Maximum executor wage in IRR.
+      - in: query
+        name: min_budget
+        schema:
+          type: integer
+        description: Minimum executor wage in IRR.
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: published_at, -published_at, wage_budget_amount, -wage_budget_amount,
+          estimated_duration_minutes, -estimated_duration_minutes, proposal_deadline_at,
+          -proposal_deadline_at
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: radius_meters
+        schema:
+          type: number
+        description: Positive distance in meters; requires latitude and longitude.
+      - in: query
+        name: region
+        schema:
+          type: string
+        description: Filter by task location region.
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search task title OR description (case-insensitive).
+      - in: query
+        name: title
+        schema:
+          type: string
+        description: Search task title (case-insensitive).
+      tags:
+      - Task Discovery
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskDiscoveryList'
+          description: ''
   /api/tasks/:
     get:
       operationId: tasks_list
@@ -1366,6 +1746,46 @@ components:
       - proposed_duration_minutes
       - proposed_wage_amount
       - task_id
+    CategoryWrite:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - category_id
+      - name
+    CategoryWriteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - name
     EmployerBidDetail:
       type: object
       properties:
@@ -1715,6 +2135,29 @@ components:
       required:
       - code
       - phone
+    PaginatedTaskDiscoveryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDiscovery'
     PasswordLoginRequest:
       type: object
       properties:
@@ -1747,6 +2190,22 @@ components:
           type: string
           format: date-time
           nullable: true
+    PatchedCategoryWriteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
     PatchedMyProfileRequest:
       type: object
       properties:
@@ -2018,6 +2477,34 @@ components:
         * `REJECTED` - Rejected
         * `WITHDRAWN` - Withdrawn
         * `EXPIRED` - Expired
+    Status7deEnum:
+      enum:
+      - DRAFT
+      - OPEN
+      - FUNDING_PENDING
+      - ASSIGNED
+      - IN_PROGRESS
+      - SUBMITTED
+      - APPROVED
+      - DISPUTED
+      - CANCELLATION_REVIEW
+      - COMPLETED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `OPEN` - Open
+        * `FUNDING_PENDING` - Funding pending
+        * `ASSIGNED` - Assigned
+        * `IN_PROGRESS` - In progress
+        * `SUBMITTED` - Submitted
+        * `APPROVED` - Approved
+        * `DISPUTED` - Disputed
+        * `CANCELLATION_REVIEW` - Cancellation review
+        * `COMPLETED` - Completed
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
     TaskCategory:
       type: object
       description: Read-only representation of a task category.
@@ -2205,6 +2692,133 @@ components:
       - proposal_deadline_at
       - title
       - wage_budget_amount
+    TaskDiscovery:
+      type: object
+      description: Public representation of a discoverable task.
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status7deEnum'
+          readOnly: true
+        estimated_duration_minutes:
+          type: integer
+          readOnly: true
+        wage_budget_amount:
+          type: integer
+          readOnly: true
+        currency_code:
+          type: string
+          readOnly: true
+        item_cost_cap_amount:
+          type: integer
+          readOnly: true
+          nullable: true
+        receipt_required:
+          type: boolean
+          readOnly: true
+        execution_window_start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        execution_window_end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        deadline_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+          readOnly: true
+        delivery_criteria:
+          type: string
+          readOnly: true
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRequiredSkillRead'
+          readOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskLocationDiscovery'
+          readOnly: true
+        published_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_id
+      - category_name
+      - created_at
+      - currency_code
+      - deadline_at
+      - delivery_criteria
+      - description
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - item_cost_cap_amount
+      - locations
+      - proposal_deadline_at
+      - published_at
+      - receipt_required
+      - required_skills
+      - status
+      - task_id
+      - title
+      - wage_budget_amount
+    TaskLocationDiscovery:
+      type: object
+      description: Public location fields; never include exact geographic data.
+      properties:
+        task_location_id:
+          type: string
+          format: uuid
+          readOnly: true
+        location_type:
+          type: string
+          readOnly: true
+        stop_order:
+          type: integer
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        region:
+          type: string
+          readOnly: true
+      required:
+      - city
+      - location_type
+      - region
+      - stop_order
+      - task_location_id
     TaskRead:
       type: object
       description: Representation returned when an employer lists their own tasks.
@@ -2230,7 +2844,7 @@ components:
         description:
           type: string
         status:
-          $ref: '#/components/schemas/TaskReadStatusEnum'
+          $ref: '#/components/schemas/Status7deEnum'
         estimated_duration_minutes:
           type: integer
           maximum: 32767
@@ -2299,34 +2913,6 @@ components:
       - title
       - updated_at
       - wage_budget_amount
-    TaskReadStatusEnum:
-      enum:
-      - DRAFT
-      - OPEN
-      - FUNDING_PENDING
-      - ASSIGNED
-      - IN_PROGRESS
-      - SUBMITTED
-      - APPROVED
-      - DISPUTED
-      - CANCELLATION_REVIEW
-      - COMPLETED
-      - CANCELLED
-      - EXPIRED
-      type: string
-      description: |-
-        * `DRAFT` - Draft
-        * `OPEN` - Open
-        * `FUNDING_PENDING` - Funding pending
-        * `ASSIGNED` - Assigned
-        * `IN_PROGRESS` - In progress
-        * `SUBMITTED` - Submitted
-        * `APPROVED` - Approved
-        * `DISPUTED` - Disputed
-        * `CANCELLATION_REVIEW` - Cancellation review
-        * `COMPLETED` - Completed
-        * `CANCELLED` - Cancelled
-        * `EXPIRED` - Expired
     TaskRequiredSkillRead:
       type: object
       description: Read-only skill information attached to a task.

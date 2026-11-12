@@ -1,4 +1,5 @@
-/** The main landing-page content is not designed yet; the shared header comes from layout.tsx. */
+import HomePage from "@/components/home/HomePage";
+
 export default function Home() {
-  return <main id="main-content" className="min-h-[calc(100vh-150px)]" />;
+  return <HomePage />;
 }

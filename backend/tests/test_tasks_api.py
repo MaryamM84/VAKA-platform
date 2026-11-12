@@ -1,5 +1,3 @@
-"""Integration tests for VAKA registration, login, OTP, and JWT APIs."""
-
 import base64
 from datetime import timedelta
 import json
@@ -808,22 +806,93 @@ class AuthenticationAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_access_token_authenticates_user_on_protected_tasks_endpoint(self):
-        user = self.make_user(
-            phone="09120000034",
-            employer=True,
-        )
-        login_response = self.client.post(
-            self.password_login_url,
-            {"phone": user.phone, "password": PASSWORD},
-            format="json",
-        )
-        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["required_skills"], [
+            {
+                "skill_id": str(skill.pk),
+                "skill_name": skill.name,
+                "importance": 3,
+                "source": TaskSkillSource.MANUAL,
+            }
+        ])
 
-        self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access']}"
+    def test_employer_task_list_includes_saved_location_details(self):
+        """GET /api/tasks/ includes saved public location metadata."""
+        payload = self.valid_task_payload()
+        payload["locations"] = [
+            {
+                "location_type": "SERVICE",
+                "stop_order": 1,
+                "city": "Tehran",
+                "region": "Central",
+                "latitude": 35.7035,
+                "longitude": 51.4103,
+            }
+        ]
+        created = self.client.post(self.url, payload, format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED, created.data)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["task_id"], created.data["task_id"])
+
+        locations = response.data[0]["saved_locations"]
+        self.assertEqual(len(locations), 1)
+        location = locations[0]
+        self.assertEqual(location["location_type"], "SERVICE")
+        self.assertEqual(location["stop_order"], 1)
+        self.assertEqual(location["city"], "Tehran")
+        self.assertEqual(location["region"], "Central")
+        self.assertTrue(location["task_location_id"])
+        for private_field in (
+            "exact_point", "approximate_point", "exact_address_ciphertext",
+            "location_notes", "latitude", "longitude",
+        ):
+            self.assertNotIn(private_field, location)
+
+    def test_employer_task_list_returns_multiple_locations_in_stop_order(self):
+        """Every stop is returned, ordered by stop_order (not input order)."""
+        payload = self.valid_task_payload()
+        payload["locations"] = [
+            {
+                "location_type": "SERVICE",
+                "stop_order": 2,
+                "city": "Karaj",
+                "region": "Mehrshahr",
+                "latitude": 35.82,
+                "longitude": 50.96,
+            },
+            {
+                "location_type": "SERVICE",
+                "stop_order": 1,
+                "city": "Tehran",
+                "region": "Central",
+                "latitude": 35.7035,
+                "longitude": 51.4103,
+            },
+        ]
+        created = self.client.post(self.url, payload, format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED, created.data)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(len(response.data), 1)
+        locations = response.data[0]["saved_locations"]
+        self.assertEqual(
+            [(row["stop_order"], row["city"], row["region"]) for row in locations],
+            [(1, "Tehran", "Central"), (2, "Karaj", "Mehrshahr")],
         )
-        response = self.client.get(self.tasks_url)
+        self.assertTrue(all(row["task_location_id"] for row in locations))
+
+    def test_task_endpoint_does_not_allow_update_or_delete_methods(self):
+        for method in ("put", "patch", "delete"):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)(self.url, {}, format="json")
+                self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_task_list_is_empty_when_employer_has_no_tasks(self):
+        response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])

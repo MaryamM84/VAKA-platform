@@ -14,6 +14,7 @@ class CategoryManagementTests(APITestDataMixin, APITestCase):
             code="EMPLOYER",
             defaults={"name": "Employer"},
         )
+
         self.admin_role, _ = Role.objects.get_or_create(
             code="ADMIN",
             defaults={"name": "Platform Administrator"},

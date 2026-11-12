@@ -313,6 +313,11 @@ class TaskReadSerializer(serializers.ModelSerializer):
     category_id = serializers.UUIDField(read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     required_skills = TaskRequiredSkillReadSerializer(many=True, read_only=True)
+    saved_locations = SavedTaskLocationSerializer(
+    source="locations",
+    many=True,
+    read_only=True,
+)
 
     class Meta:
         model = Task
@@ -338,25 +343,9 @@ class TaskReadSerializer(serializers.ModelSerializer):
             "published_at",
             "created_at",
             "updated_at",
+            "saved_locations",
         ]
 
-    def get_saved_locations(self, task):
-        return [
-            {
-                "task_location_id": str(location["task_location_id"]),
-                "location_type": location["location_type"],
-                "stop_order": location["stop_order"],
-                "city": location["city"],
-                "region": location["region"],
-            }
-            for location in task.locations.order_by("stop_order").values(
-                "task_location_id",
-                "location_type",
-                "stop_order",
-                "city",
-                "region",
-            )
-        ]
 
 
 

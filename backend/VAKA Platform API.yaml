@@ -2897,6 +2897,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+        saved_locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedTaskLocation'
+          readOnly: true
       required:
       - category_id
       - category_name
@@ -2909,6 +2914,7 @@ components:
       - execution_window_start_at
       - proposal_deadline_at
       - required_skills
+      - saved_locations
       - task_id
       - title
       - updated_at

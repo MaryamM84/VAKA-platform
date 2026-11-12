@@ -376,3 +376,41 @@ class WorkerServiceAreaAPITests(APITestCase):
             response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
+    def test_entire_city_defaults_to_false(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIs(response.data["covers_entire_city"], False)
+
+    def test_enable_entire_city_after_choosing_city(self):
+        response = self.client.patch(
+            self.url,
+            {"service_area_city": "Tehran", "covers_entire_city": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertTrue(response.data["covers_entire_city"])
+        self.assertTrue(ExecutorProfile.objects.get(user=self.user).covers_entire_city)
+
+    def test_cannot_enable_entire_city_without_city(self):
+        response = self.client.patch(self.url, {"covers_entire_city": True}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("service_area_city", response.data)
+
+    def test_cannot_clear_city_while_entire_city_enabled(self):
+        self.client.patch(
+            self.url,
+            {"service_area_city": "Tehran", "covers_entire_city": True},
+            format="json",
+        )
+        response = self.client.patch(self.url, {"service_area_city": ""}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_can_disable_entire_city(self):
+        self.client.patch(
+            self.url,
+            {"service_area_city": "Tehran", "covers_entire_city": True},
+            format="json",
+        )
+        response = self.client.patch(self.url, {"covers_entire_city": False}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["covers_entire_city"])

@@ -14,6 +14,12 @@ def update_worker_service_area(*, user, changes):
         pk=profile.pk,
     )
 
+    # Neighborhoods belong to a single selected city. Switching city clears
+    # old selections to avoid silently covering neighborhoods elsewhere.
+    new_city = changes.get("service_area_city", profile.service_area_city)
+    if new_city.casefold() != profile.service_area_city.casefold():
+        profile.service_neighborhoods.all().delete()
+
     updated_fields = []
 
     for field, value in changes.items():

@@ -14,7 +14,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -40,7 +39,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -66,7 +64,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -100,7 +97,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           description: Private verification document.
@@ -134,7 +130,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -454,7 +449,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -479,7 +473,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -496,7 +489,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -526,7 +518,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '201':
           content:
@@ -550,7 +541,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -585,7 +575,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -619,7 +608,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -637,7 +625,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -669,7 +656,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '201':
           content:
@@ -694,7 +680,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -729,7 +714,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -748,7 +732,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -776,7 +759,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -801,7 +783,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -822,7 +803,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -851,7 +831,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -872,7 +851,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -900,7 +878,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '201':
           content:
@@ -931,7 +908,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -968,7 +944,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -995,7 +970,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '204':
           description: Availability slot deleted successfully.
@@ -1010,7 +984,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1039,7 +1012,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1060,7 +1032,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1087,7 +1058,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1099,6 +1069,76 @@ paths:
           description: Invalid service area information.
         '401':
           description: Authentication required.
+  /api/profile/me/service-area/neighborhoods/:
+    get:
+      operationId: profile_me_service_area_neighborhoods_list
+      summary: List selected service-area neighborhoods
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerServiceNeighborhoodRead'
+          description: ''
+    post:
+      operationId: profile_me_service_area_neighborhoods_create
+      summary: Add a neighborhood to the current service-area city
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerServiceNeighborhoodCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerServiceNeighborhoodCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerServiceNeighborhoodCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerServiceNeighborhoodRead'
+          description: ''
+        '400':
+          description: City missing, duplicate or invalid neighborhood.
+        '401':
+          description: Authentication required.
+  /api/profile/me/service-area/neighborhoods/{neighborhood_id}/:
+    delete:
+      operationId: profile_me_service_area_neighborhoods_destroy
+      summary: Remove a selected neighborhood
+      parameters:
+      - in: path
+        name: neighborhood_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Neighborhood removed.
+        '404':
+          description: Neighborhood not found.
   /api/profile/me/skills/:
     get:
       operationId: profile_me_skills_list
@@ -1108,7 +1148,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1138,7 +1177,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '201':
           content:
@@ -1177,7 +1215,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1204,12 +1241,27 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '204':
           description: Skill successfully deleted.
         '404':
           description: Skill not found.
+  /api/profile/me/statistics/:
+    get:
+      operationId: profile_me_statistics_retrieve
+      summary: Get the current worker's dashboard statistics
+      tags:
+      - Worker Dashboard
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerStatistics'
+          description: ''
   /api/profile/me/verification/:
     get:
       operationId: profile_me_verification_retrieve
@@ -1219,7 +1271,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1249,7 +1300,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '201':
           content:
@@ -1270,7 +1320,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1301,7 +1350,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -1323,7 +1371,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -1350,7 +1397,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -1447,7 +1493,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1466,7 +1511,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1498,7 +1542,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '201':
           content:
@@ -1525,7 +1568,6 @@ paths:
       security:
       - jwtAuth: []
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -2280,6 +2322,8 @@ components:
           maximum: 32767
           minimum: 1
           nullable: true
+        covers_entire_city:
+          type: boolean
     PatchedWorkerSkillUpdateRequest:
       type: object
       properties:
@@ -3132,6 +3176,30 @@ components:
           maximum: 32767
           minimum: 1
           nullable: true
+        covers_entire_city:
+          type: boolean
+    WorkerServiceNeighborhoodCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required:
+      - name
+    WorkerServiceNeighborhoodRead:
+      type: object
+      properties:
+        neighborhood_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - name
+      - neighborhood_id
     WorkerSkillCreateRequest:
       type: object
       properties:
@@ -3182,6 +3250,33 @@ components:
       - skill
       - updated_at
       - worker_skill_id
+    WorkerStatistics:
+      type: object
+      properties:
+        average_rating:
+          type: number
+          format: double
+          nullable: true
+        completed_tasks_count:
+          type: integer
+          minimum: 0
+        received_offers_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        submitted_bids_count:
+          type: integer
+          minimum: 0
+        profile_completion_percent:
+          type: integer
+          maximum: 100
+          minimum: 0
+      required:
+      - average_rating
+      - completed_tasks_count
+      - profile_completion_percent
+      - received_offers_count
+      - submitted_bids_count
     WorkerVerificationDocumentRead:
       type: object
       properties:
@@ -3266,9 +3361,6 @@ components:
       - reviewed_at
       - verification_status
   securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
     cookieAuth:
       type: apiKey
       in: cookie

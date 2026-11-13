@@ -18,7 +18,8 @@ from .worker_availability_views import (
     WorkerAvailabilityDetailView,
 )
 from .worker_verification_views import (WorkerVerificationDocumentUploadView,
-    WorkerVerificationStatusView,WorkerVerificationSubmitView,)
+    WorkerVerificationStatusView,WorkerVerificationSubmitView,
+    WorkerVerificationIdentityView, WorkerVerificationDocumentDeleteView,)
 
 app_name = "profile"
 
@@ -35,6 +36,8 @@ urlpatterns = [
     path("me/availability/",WorkerAvailabilityCollectionView.as_view(),name="my-worker-availability",),
     path("me/availability/<uuid:availability_id>/",WorkerAvailabilityDetailView.as_view(),name="my-worker-availability-detail",),
     path("me/verification/",WorkerVerificationStatusView.as_view(),name="worker-verification-status",),
+    path("me/verification/identity/", WorkerVerificationIdentityView.as_view(), name="worker-verification-identity"),
     path("me/verification/documents/",WorkerVerificationDocumentUploadView.as_view(),name="worker-verification-document-upload",),
+    path("me/verification/documents/<uuid:document_id>/", WorkerVerificationDocumentDeleteView.as_view(), name="worker-verification-document-delete"),
     path("me/verification/submit/",WorkerVerificationSubmitView.as_view(),name="worker-verification-submit",),
 ]   

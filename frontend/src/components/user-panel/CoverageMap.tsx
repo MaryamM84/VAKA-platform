@@ -8,8 +8,8 @@ type CoverageMapProps = {
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  locationSelected: boolean;
   onLocationChange: (latitude: number, longitude: number, address: string) => void;
-  onAreaSelect?: (area: string) => void;
 };
 
 type LeafletModule = typeof import("leaflet");
@@ -18,19 +18,6 @@ type ReverseGeocodeResult = {
   display_name?: string;
   address?: Record<string, string | undefined>;
 };
-
-function extractNeighborhood(address?: ReverseGeocodeResult["address"]) {
-  if (!address) return "";
-  return (
-    address.neighbourhood ||
-    address.suburb ||
-    address.quarter ||
-    address.residential ||
-    address.city_district ||
-    address.district ||
-    ""
-  ).trim();
-}
 
 function toPersianDigits(value: string | number) {
   return String(value)
@@ -46,15 +33,15 @@ export default function CoverageMap({
   latitude,
   longitude,
   radiusMeters,
+  locationSelected,
   onLocationChange,
-  onAreaSelect,
 }: CoverageMapProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const markerRef = useRef<import("leaflet").CircleMarker | null>(null);
   const radiusRef = useRef<import("leaflet").Circle | null>(null);
   const onLocationChangeRef = useRef(onLocationChange);
-  const onAreaSelectRef = useRef(onAreaSelect);
+  const leafletRef = useRef<LeafletModule | null>(null);
   const geocodeRequestRef = useRef(0);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
@@ -65,10 +52,6 @@ export default function CoverageMap({
   }, [onLocationChange]);
 
   useEffect(() => {
-    onAreaSelectRef.current = onAreaSelect;
-  }, [onAreaSelect]);
-
-  useEffect(() => {
     let disposed = false;
 
     async function selectPoint(lat: number, lng: number) {
@@ -76,6 +59,31 @@ export default function CoverageMap({
       const fallbackAddress = coordinatesLabel(lat, lng);
       onLocationChangeRef.current(lat, lng, fallbackAddress);
       setAnnouncement("موقعیت جدید روی نقشه انتخاب شد.");
+
+      const L = leafletRef.current;
+      const map = mapRef.current;
+      if (L && map) {
+        const center: [number, number] = [lat, lng];
+        const primary = getComputedStyle(document.documentElement)
+          .getPropertyValue("--vaka-primary")
+          .trim();
+        const surface = getComputedStyle(document.documentElement)
+          .getPropertyValue("--vaka-surface")
+          .trim();
+        if (markerRef.current) markerRef.current.setLatLng(center);
+        else {
+          markerRef.current = L.circleMarker(center, {
+            radius: 8, color: surface, weight: 3, fillColor: primary, fillOpacity: 1,
+          }).addTo(map);
+        }
+        if (radiusRef.current) radiusRef.current.setLatLng(center).setRadius(radiusMeters);
+        else {
+          radiusRef.current = L.circle(center, {
+            radius: radiusMeters, color: primary, weight: 2, opacity: 0.9, fillColor: primary, fillOpacity: 0.1,
+          }).addTo(map);
+        }
+        map.setView(center, Math.max(map.getZoom(), 12));
+      }
 
       try {
         const response = await fetch(
@@ -85,16 +93,8 @@ export default function CoverageMap({
         if (!response.ok) return;
         const result = (await response.json()) as ReverseGeocodeResult;
         if (requestId !== geocodeRequestRef.current) return;
-
         if (result.display_name) {
           onLocationChangeRef.current(lat, lng, toPersianDigits(result.display_name));
-        }
-
-        const neighborhood = extractNeighborhood(result.address);
-        if (neighborhood) {
-          const localizedNeighborhood = toPersianDigits(neighborhood);
-          onAreaSelectRef.current?.(localizedNeighborhood);
-          setAnnouncement(`موقعیت و محله ${localizedNeighborhood} انتخاب شد.`);
         }
       } catch {
         // Coordinates remain selected even when reverse geocoding is unavailable.
@@ -107,13 +107,14 @@ export default function CoverageMap({
       try {
         const L: LeafletModule = await import("leaflet");
         if (disposed || !elementRef.current) return;
+        leafletRef.current = L;
 
         const map = L.map(elementRef.current, {
           zoomControl: false,
           scrollWheelZoom: true,
           doubleClickZoom: true,
           keyboard: true,
-        }).setView([latitude, longitude], 12);
+        }).setView([latitude, longitude], locationSelected ? 12 : 5);
 
         mapRef.current = map;
 
@@ -130,22 +131,24 @@ export default function CoverageMap({
           .getPropertyValue("--vaka-surface")
           .trim();
 
-        markerRef.current = L.circleMarker([latitude, longitude], {
-          radius: 8,
-          color: surface,
-          weight: 3,
-          fillColor: primary,
-          fillOpacity: 1,
-        }).addTo(map);
+        if (locationSelected) {
+          markerRef.current = L.circleMarker([latitude, longitude], {
+            radius: 8,
+            color: surface,
+            weight: 3,
+            fillColor: primary,
+            fillOpacity: 1,
+          }).addTo(map);
 
-        radiusRef.current = L.circle([latitude, longitude], {
-          radius: radiusMeters,
-          color: primary,
-          weight: 2,
-          opacity: 0.9,
-          fillColor: primary,
-          fillOpacity: 0.1,
-        }).addTo(map);
+          radiusRef.current = L.circle([latitude, longitude], {
+            radius: radiusMeters,
+            color: primary,
+            weight: 2,
+            opacity: 0.9,
+            fillColor: primary,
+            fillOpacity: 0.1,
+          }).addTo(map);
+        }
 
         map.on("click", (event: import("leaflet").LeafletMouseEvent) => {
           void selectPoint(event.latlng.lat, event.latlng.lng);
@@ -176,16 +179,42 @@ export default function CoverageMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !markerRef.current || !radiusRef.current) return;
+    const L = leafletRef.current;
+    if (!map || !L) return;
+
+    if (!locationSelected) {
+      if (markerRef.current) map.removeLayer(markerRef.current);
+      if (radiusRef.current) map.removeLayer(radiusRef.current);
+      markerRef.current = null;
+      radiusRef.current = null;
+      return;
+    }
 
     const center: [number, number] = [latitude, longitude];
-    markerRef.current.setLatLng(center);
-    radiusRef.current.setLatLng(center).setRadius(radiusMeters);
+    const primary = getComputedStyle(document.documentElement)
+      .getPropertyValue("--vaka-primary")
+      .trim();
+    const surface = getComputedStyle(document.documentElement)
+      .getPropertyValue("--vaka-surface")
+      .trim();
+
+    if (markerRef.current) markerRef.current.setLatLng(center);
+    else {
+      markerRef.current = L.circleMarker(center, {
+        radius: 8, color: surface, weight: 3, fillColor: primary, fillOpacity: 1,
+      }).addTo(map);
+    }
+    if (radiusRef.current) radiusRef.current.setLatLng(center).setRadius(radiusMeters);
+    else {
+      radiusRef.current = L.circle(center, {
+        radius: radiusMeters, color: primary, weight: 2, opacity: 0.9, fillColor: primary, fillOpacity: 0.1,
+      }).addTo(map);
+    }
 
     if (!map.getBounds().contains(center)) {
       map.panTo(center, { animate: true, duration: 0.35 });
     }
-  }, [latitude, longitude, radiusMeters]);
+  }, [latitude, longitude, radiusMeters, locationSelected]);
 
   return (
     <div className={styles.mapPanel}>
@@ -230,7 +259,9 @@ export default function CoverageMap({
           </button>
         </div>
         <div className={styles.mapRadiusBadge}>
-          شعاع فعال: {toPersianDigits((radiusMeters / 1000).toLocaleString("fa-IR"))} کیلومتر
+          {locationSelected
+            ? `شعاع فعال: ${toPersianDigits((radiusMeters / 1000).toLocaleString("fa-IR"))} کیلومتر`
+            : "نقطه مبدأ انتخاب نشده است"}
         </div>
       </div>
       <span className={styles.srOnly} role="status" aria-live="polite">

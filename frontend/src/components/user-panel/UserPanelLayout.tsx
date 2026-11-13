@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import styles from "./UserPanelLayout.module.css";
@@ -17,7 +16,7 @@ type PanelIconName =
 type UserPanelLayoutProps = {
   children: ReactNode;
   profileName: string;
-  completion: number;
+  completion?: number;
   rating?: number;
   completedTaskCount?: number;
   receivedOffersCount?: number;
@@ -113,17 +112,18 @@ export default function UserPanelLayout({
   children,
   profileName,
   completion,
-  rating = 4.8,
-  completedTaskCount = 12,
-  receivedOffersCount = 3,
+  rating,
+  completedTaskCount,
+  receivedOffersCount,
   activePage = "skills",
-  isVerified = true,
+  isVerified = false,
 }: UserPanelLayoutProps) {
-  const safeCompletion = Math.min(100, Math.max(0, Math.round(completion)));
-  const ratingText = toPersianDigits(rating.toFixed(1));
-  const completedTasksText = toPersianDigits(completedTaskCount);
-  const offersText = toPersianDigits(receivedOffersCount);
-  const displayName = toPersianDigits(profileName.trim() || "مریم احمدی");
+  const ratingText = rating === undefined ? null : toPersianDigits(rating.toFixed(1));
+  const completedTasksText = completedTaskCount === undefined ? null : toPersianDigits(completedTaskCount);
+  const offersText = receivedOffersCount === undefined ? null : toPersianDigits(receivedOffersCount);
+  const safeCompletion = completion === undefined ? null : Math.min(100, Math.max(0, Math.round(completion)));
+  const displayName = toPersianDigits(profileName.trim() || "کاربر واکا");
+  const avatarInitial = displayName.slice(0, 1) || "و";
 
   return (
     <div className={styles.page} dir="rtl">
@@ -142,16 +142,8 @@ export default function UserPanelLayout({
           <aside className={styles.sidebar} aria-label="پنل کاربری">
             <section className={styles.profileCard}>
               <div className={styles.profileIdentity}>
-                <div className={styles.avatar}>
-                  <Image
-                    src="/images/maryam-ahmadi-avatar.png"
-                    alt={`تصویر پروفایل ${displayName}`}
-                    width={96}
-                    height={96}
-                    priority
-                    sizes="96px"
-                    className={styles.avatarImage}
-                  />
+                <div className={styles.avatar} aria-label={`حساب کاربری ${displayName}`}>
+                  <span className={styles.avatarInitial} aria-hidden="true">{avatarInitial}</span>
                   {isVerified && (
                     <span className={styles.avatarVerified} aria-label="حساب تأییدشده">
                       <PanelIcon name="verified-seal" />
@@ -162,46 +154,43 @@ export default function UserPanelLayout({
                 <h2 className={styles.profileName}>{displayName}</h2>
 
                 <div className={styles.roleBadges}>
-                  <span className={styles.activeRole}>مجری فعال</span>
-                  <span className={styles.secondaryRole}>کارفرما و مجری</span>
+                  <span className={styles.secondaryRole}>حساب کاربری</span>
                 </div>
               </div>
 
-              <div className={styles.profileStats} aria-label="آمار عملکرد">
-                <div className={styles.statBlock}>
-                  <strong className={styles.ratingValue}>
-                    {ratingText}<span aria-hidden="true">★</span>
-                  </strong>
-                  <span className={styles.statLabel}>امتیاز کاربران</span>
+              {ratingText !== null && completedTasksText !== null && (
+                <div className={styles.profileStats} aria-label="آمار عملکرد">
+                  <div className={styles.statBlock}>
+                    <strong className={styles.ratingValue}>{ratingText}<span aria-hidden="true">★</span></strong>
+                    <span className={styles.statLabel}>امتیاز کاربران</span>
+                  </div>
+                  <span className={styles.statDivider} aria-hidden="true" />
+                  <div className={styles.statBlock}>
+                    <strong className={styles.taskValue}>{completedTasksText}<span>تسک</span></strong>
+                    <span className={styles.statLabel}>انجام موفق</span>
+                  </div>
                 </div>
+              )}
 
-                <span className={styles.statDivider} aria-hidden="true" />
-
-                <div className={styles.statBlock}>
-                  <strong className={styles.taskValue}>
-                    {completedTasksText}<span>تسک</span>
-                  </strong>
-                  <span className={styles.statLabel}>انجام موفق</span>
-                </div>
-              </div>
-
-              <section className={styles.completion} aria-label="تکمیل پروفایل">
-                <div className={styles.completionLabel}>
-                  <span>تکمیل پروفایل</span>
-                  <strong>{toPersianDigits(safeCompletion)}٪</strong>
-                </div>
-                <div
-                  className={styles.progressTrack}
-                  role="progressbar"
-                  aria-label="درصد تکمیل پروفایل"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={safeCompletion}
-                >
-                  <span style={{ width: `${safeCompletion}%` }} />
-                </div>
-                <p>با تکمیل پروفایل، اعتماد بیشتری بسازید.</p>
-              </section>
+              {safeCompletion !== null && (
+                <section className={styles.completion} aria-label="تکمیل پروفایل">
+                  <div className={styles.completionLabel}>
+                    <span>تکمیل پروفایل</span>
+                    <strong>{toPersianDigits(safeCompletion)}٪</strong>
+                  </div>
+                  <div
+                    className={styles.progressTrack}
+                    role="progressbar"
+                    aria-label="درصد تکمیل پروفایل"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={safeCompletion}
+                  >
+                    <span style={{ width: `${safeCompletion}%` }} />
+                  </div>
+                  <p>با تکمیل پروفایل، اعتماد بیشتری بسازید.</p>
+                </section>
+              )}
 
               <nav className={styles.profileNav} aria-label="بخش‌های پنل کاربری">
                 {navigation.map((item) => {
@@ -217,7 +206,7 @@ export default function UserPanelLayout({
                     <span className={styles.navItemMeta}>
                       {item.meta === "chevron" && <PanelIcon name="chevron-left" />}
                       {item.meta === "dot" && <span className={styles.activeDot} />}
-                      {item.meta === "offers" && <span className={styles.offerBadge}>{offersText} جدید</span>}
+                      {item.meta === "offers" && offersText !== null && <span className={styles.offerBadge}>{offersText} جدید</span>}
                       {item.meta === "verified" && isVerified && (
                         <span className={styles.verifiedStatus} aria-label="تأییدشده">
                           <PanelIcon name="check-circle" />

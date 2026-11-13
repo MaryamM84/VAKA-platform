@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import UserPanelLayout from "./UserPanelLayout";
 import CoverageMap from "./CoverageMap";
 import styles from "./UserSkillsPage.module.css";
@@ -14,6 +14,21 @@ import {
   type WorkerSkillLevel,
   type WorkerSkillRecord,
 } from "@/lib/worker-skills-api";
+import {
+  createMyAvailabilitySlot,
+  deleteMyAvailabilitySlot,
+  getMyAvailability,
+  getMyServiceArea,
+  getMyWorkerPreferences,
+  getTaskCategories,
+  updateMyAvailabilitySlot,
+  updateMyServiceArea,
+  updateMyWorkerPreferences,
+  type WorkerAvailabilitySlotRecord,
+  type WorkerServiceAreaPayload,
+  type WorkerServiceAreaRecord,
+} from "@/lib/worker-profile-settings-api";
+import { getMyProfileSummary } from "@/lib/worker-profile-summary-api";
 
 type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert";
 type SkillIcon = "delivery" | "cleaning" | "admin" | "general";
@@ -35,14 +50,6 @@ type WorkCategory = {
   active: boolean;
 };
 
-type ScheduleDay = {
-  id: string;
-  label: string;
-  enabled: boolean;
-  from: string;
-  to: string;
-};
-
 type ScheduleGroup = {
   id: "weekdays" | "thursday" | "friday";
   label: string;
@@ -51,14 +58,6 @@ type ScheduleGroup = {
 
 type ProfileSettings = {
   skills: Skill[];
-  categories: WorkCategory[];
-  areas: string[];
-  radiusKm: number;
-  latitude: number;
-  longitude: number;
-  address: string;
-  cityWide: boolean;
-  schedule: ScheduleDay[];
 };
 
 type SkillDraft = {
@@ -98,39 +97,21 @@ type IconName =
   | "shapes"
   | "compass";
 
-const STORAGE_KEY = "vaka.executor-settings.v1";
 const emptyDraft: SkillDraft = {
   skillId: "",
   level: "beginner",
   experienceYears: "0",
 };
 
-const initialProfile: ProfileSettings = {
-  skills: [],
-  categories: [
-    { id: "shopping", label: "خریدهای فوری و تحویل کالا", icon: "bag", active: true },
-    { id: "admin", label: "امور اداری و نوبت‌گیری", icon: "building", active: true },
-    { id: "cleaning", label: "نظافت و خانه‌داری", icon: "cleaning", active: true },
-    { id: "delivery", label: "جابه‌جایی بسته‌های سبک", icon: "package", active: true },
-    { id: "pets", label: "نگهداری حیوانات (پیتاری)", icon: "paw", active: false },
-    { id: "repairs", label: "تعمیرات و خدمات فنی ساده", icon: "tools", active: false },
-  ],
-  areas: ["سعادت‌آباد", "شهرک غرب", "صادقیه", "ونک"],
-  radiusKm: 10,
-  latitude: 35.8045,
-  longitude: 51.4324,
-  address: "تهران، تجریش",
-  cityWide: true,
-  schedule: [
-    { id: "sat", label: "شنبه", enabled: true, from: "09:00", to: "18:00" },
-    { id: "sun", label: "یکشنبه", enabled: true, from: "09:00", to: "18:00" },
-    { id: "mon", label: "دوشنبه", enabled: true, from: "09:00", to: "18:00" },
-    { id: "tue", label: "سه‌شنبه", enabled: true, from: "09:00", to: "18:00" },
-    { id: "wed", label: "چهارشنبه", enabled: true, from: "09:00", to: "18:00" },
-    { id: "thu", label: "پنجشنبه", enabled: true, from: "09:00", to: "14:00" },
-    { id: "fri", label: "جمعه", enabled: false, from: "09:00", to: "14:00" },
-  ],
-};
+function skillDraftSignature(draft: SkillDraft): string {
+  return JSON.stringify({
+    skillId: draft.skillId,
+    level: draft.level,
+    experienceYears: toLatinDigits(draft.experienceYears).trim(),
+  });
+}
+
+const initialProfile: ProfileSettings = { skills: [] };
 
 const scheduleGroups: ScheduleGroup[] = [
   { id: "weekdays", label: "شنبه تا چهارشنبه", dayIds: ["sat", "sun", "mon", "tue", "wed"] },
@@ -138,18 +119,7 @@ const scheduleGroups: ScheduleGroup[] = [
   { id: "friday", label: "جمعه", dayIds: ["fri"] },
 ];
 
-const areaSuggestions = [
-  "تجریش",
-  "قیطریه",
-  "نیاوران",
-  "پونک",
-  "جنت‌آباد",
-  "مرزداران",
-  "یوسف‌آباد",
-  "جردن",
-  "اکباتان",
-  "تهران‌پارس",
-];
+
 
 const levelLabels: Record<SkillLevel, string> = {
   beginner: "مبتدی",
@@ -225,83 +195,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 }
 
 function cloneProfile(profile: ProfileSettings): ProfileSettings {
-  return {
-    ...profile,
-    skills: profile.skills.map((skill) => ({ ...skill })),
-    categories: profile.categories.map((category) => ({ ...category })),
-    areas: [...profile.areas],
-    schedule: profile.schedule.map((day) => ({ ...day })),
-  };
-}
-
-function restoreProfile(value: unknown): ProfileSettings {
-  if (!value || typeof value !== "object") return cloneProfile(initialProfile);
-
-  const candidate = value as Partial<ProfileSettings>;
-  const base = cloneProfile(initialProfile);
-
-  const skills: Skill[] = [];
-
-  const categories = base.categories.map((seed) => {
-    const stored = Array.isArray(candidate.categories)
-      ? (candidate.categories as WorkCategory[]).find((item) => item?.id === seed.id)
-      : undefined;
-    return stored && typeof stored.active === "boolean"
-      ? { ...seed, active: stored.active }
-      : seed;
-  });
-
-  const areas = Array.isArray(candidate.areas)
-    ? Array.from(
-        new Map(
-          candidate.areas
-            .filter((area): area is string => typeof area === "string" && area.trim().length > 0)
-            .map((area) => {
-              const clean = toPersianDigits(area.trim().normalize("NFKC").replace(/\s+/g, " "));
-              return [clean.toLocaleLowerCase("fa-IR"), clean] as const;
-            }),
-        ).values(),
-      )
-    : base.areas;
-
-  const storedSchedule = Array.isArray(candidate.schedule)
-    ? (candidate.schedule as ScheduleDay[])
-    : [];
-  const schedule = base.schedule.map((day) => {
-    const stored = storedSchedule.find((item) => item?.id === day.id);
-    if (!stored) return day;
-    const storedFrom =
-      typeof stored.from === "string" ? normalizeTimeInput(stored.from) : day.from;
-    const storedTo =
-      typeof stored.to === "string" ? normalizeTimeInput(stored.to) : day.to;
-    return {
-      ...day,
-      enabled: typeof stored.enabled === "boolean" ? stored.enabled : day.enabled,
-      from: isValidTime(storedFrom) ? storedFrom : day.from,
-      to: isValidTime(storedTo) ? storedTo : day.to,
-    };
-  });
-
-  return {
-    skills,
-    categories,
-    areas,
-    radiusKm:
-      typeof candidate.radiusKm === "number" && Number.isFinite(candidate.radiusKm)
-        ? Math.min(35, Math.max(1, candidate.radiusKm))
-        : base.radiusKm,
-    latitude:
-      typeof candidate.latitude === "number" && Number.isFinite(candidate.latitude)
-        ? candidate.latitude
-        : base.latitude,
-    longitude:
-      typeof candidate.longitude === "number" && Number.isFinite(candidate.longitude)
-        ? candidate.longitude
-        : base.longitude,
-    address: typeof candidate.address === "string" ? toPersianDigits(candidate.address) : base.address,
-    cityWide: typeof candidate.cityWide === "boolean" ? candidate.cityWide : base.cityWide,
-    schedule,
-  };
+  return { skills: profile.skills.map((skill) => ({ ...skill })) };
 }
 
 function toPersianDigits(value: string | number) {
@@ -335,19 +229,6 @@ function isValidTime(value: string) {
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
-}
-
-function formatScheduleGroupTitle(group: ScheduleGroup, schedule: ScheduleDay[]) {
-  const enabledDays = group.dayIds
-    .map((dayId) => schedule.find((day) => day.id === dayId))
-    .filter((day): day is ScheduleDay => Boolean(day?.enabled));
-
-  if (enabledDays.length === 0) return group.label;
-  if (group.id === "weekdays" && enabledDays.length === 5) return "شنبه تا چهارشنبه";
-  if (enabledDays.length === 1) return enabledDays[0].label;
-
-  const names = enabledDays.map((day) => `${day.label}‌ها`);
-  return `${names.slice(0, -1).join("، ")} و ${names[names.length - 1]}`;
 }
 
 function formatScheduleTime(value: string) {
@@ -391,61 +272,917 @@ function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : "دریافت اطلاعات مهارت‌ها با خطا مواجه شد.";
 }
 
+function getCategoryIcon(name: string): WorkCategory["icon"] {
+  const normalized = name.toLocaleLowerCase("fa-IR");
+  if (normalized.includes("نظافت") || normalized.includes("خانه")) return "cleaning";
+  if (normalized.includes("حیوان") || normalized.includes("پت")) return "paw";
+  if (normalized.includes("تعمیر") || normalized.includes("فنی")) return "tools";
+  if (normalized.includes("اداری") || normalized.includes("نوبت")) return "building";
+  if (normalized.includes("تحویل") || normalized.includes("بسته") || normalized.includes("جابه")) return "package";
+  return "bag";
+}
+
+function categorySelectionSignature(ids: string[]): string {
+  return [...ids].sort().join("|");
+}
+
+function PreferredCategoriesSection() {
+  const [categories, setCategories] = useState<WorkCategory[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const selectedIdsRef = useRef(selectedIds);
+  const lastAttemptedSignatureRef = useRef<string | null>(null);
+  selectedIdsRef.current = selectedIds;
+
+  useEffect(() => {
+    let isCurrent = true;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const [catalog, preferences] = await Promise.all([
+          getTaskCategories(),
+          getMyWorkerPreferences(),
+        ]);
+        if (!isCurrent) return;
+        const nextCategories = catalog.map((item) => ({
+          id: item.category_id,
+          label: item.name,
+          icon: getCategoryIcon(item.name),
+          active: preferences.preferred_categories.some((saved) => saved.category_id === item.category_id),
+        }));
+        const nextIds = preferences.preferred_categories.map((item) => item.category_id);
+        setCategories(nextCategories);
+        setSelectedIds(nextIds);
+        setSavedIds(nextIds);
+        setError(null);
+      } catch (loadError) {
+        if (isCurrent) setError(getErrorText(loadError));
+      } finally {
+        if (isCurrent) setIsLoading(false);
+      }
+    }
+    void load();
+    return () => { isCurrent = false; };
+  }, []);
+
+  const isDirty = categorySelectionSignature(selectedIds) !== categorySelectionSignature(savedIds);
+
+  function toggleCategory(categoryId: string) {
+    lastAttemptedSignatureRef.current = null;
+    setSelectedIds((previous) => previous.includes(categoryId)
+      ? previous.filter((id) => id !== categoryId)
+      : [...previous, categoryId]);
+  }
+
+  useEffect(() => {
+    if (isLoading || error || !isDirty || isSaving) return;
+
+    const idsToSave = [...selectedIds];
+    const signature = categorySelectionSignature(idsToSave);
+    if (signature === lastAttemptedSignatureRef.current) return;
+
+    const timeout = window.setTimeout(async () => {
+      if (signature === lastAttemptedSignatureRef.current) return;
+      lastAttemptedSignatureRef.current = signature;
+      setIsSaving(true);
+      setNotice("در حال ذخیره خودکار دسته‌بندی‌ها...");
+
+      try {
+        const response = await updateMyWorkerPreferences({ preferred_category_ids: idsToSave });
+        const nextIds = response.preferred_categories.map((item) => item.category_id);
+        setSavedIds(nextIds);
+        setCategories((previous) => previous.map((category) => ({
+          ...category,
+          active: nextIds.includes(category.id),
+        })));
+
+        if (categorySelectionSignature(selectedIdsRef.current) === signature) {
+          setSelectedIds(nextIds);
+        }
+        setNotice("تغییرات دسته‌بندی‌های موردعلاقه ذخیره شد.");
+      } catch (saveError) {
+        setNotice(getErrorText(saveError));
+      } finally {
+        setIsSaving(false);
+      }
+    }, 650);
+
+    return () => window.clearTimeout(timeout);
+  }, [selectedIds, savedIds, isLoading, error, isSaving, isDirty]);
+
+  return (
+    <section className={`${styles.card} ${styles.categoryCard}`} aria-labelledby="categories-title">
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionTitleWrap}>
+          <span className={styles.sectionIcon}><Icon name="shapes" size={21} /></span>
+          <h2 id="categories-title">دسته‌بندی‌های کاری موردعلاقه</h2>
+        </div>
+        <span className={styles.helperText}>
+          {isLoading
+            ? "در حال دریافت..."
+            : isSaving
+              ? "در حال ذخیره خودکار..."
+              : isDirty
+                ? "تغییرات در انتظار ذخیره خودکار..."
+                : "ذخیره‌سازی خودکار فعال است"}
+        </span>
+      </div>
+      <p className={styles.sectionSubtext}>دسته‌هایی که می‌خواهید آگهی‌های آن‌ها در اولویت پیشنهادها باشند.</p>
+      {notice && <div className={styles.toast} role="status">{notice}</div>}
+      {isLoading ? (
+        <div className={styles.emptyState}>در حال دریافت دسته‌بندی‌ها از سرور...</div>
+      ) : error ? (
+        <div className={styles.emptyState}><strong>دسته‌بندی‌ها دریافت نشدند.</strong><span>{error}</span></div>
+      ) : categories.length === 0 ? (
+        <div className={styles.emptyState}>در حال حاضر دسته‌بندی فعالی در سرور وجود ندارد.</div>
+      ) : (
+        <div className={styles.categoryGrid}>
+          {categories.map((category) => {
+            const active = selectedIds.includes(category.id);
+            return (
+              <button
+                type="button"
+                key={category.id}
+                className={`${styles.categoryChip} ${active ? styles.categoryChipActive : ""}`}
+                aria-pressed={active}
+                onClick={() => toggleCategory(category.id)}
+                disabled={isSaving}
+              >
+                <span className={styles.categoryIcon}><Icon name={categoryIcons[category.icon]} size={19} /></span>
+                <span className={styles.categoryLabel}>{category.label}</span>
+                <span className={styles.categoryCheck}>{active ? <Icon name="check" size={16} /> : <Icon name="plus" size={16} />}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+type ServiceAreaDraft = {
+  city: string;
+  region: string;
+  latitude: number | null;
+  longitude: number | null;
+  radiusKm: number;
+  locationSelected: boolean;
+};
+
+const emptyServiceArea: ServiceAreaDraft = {
+  city: "",
+  region: "",
+  latitude: null,
+  longitude: null,
+  radiusKm: 10,
+  locationSelected: false,
+};
+
+function serviceAreaFromApi(record: WorkerServiceAreaRecord): ServiceAreaDraft {
+  const latitude = record.service_area_latitude === null ? null : Number(record.service_area_latitude);
+  const longitude = record.service_area_longitude === null ? null : Number(record.service_area_longitude);
+  const radiusKm = record.service_area_radius_km;
+  const hasAnyLocationValue = latitude !== null || longitude !== null || radiusKm !== null;
+  const locationSelected = latitude !== null && Number.isFinite(latitude)
+    && longitude !== null && Number.isFinite(longitude)
+    && radiusKm !== null && Number.isFinite(radiusKm);
+  if (hasAnyLocationValue && !locationSelected) {
+    throw new Error("اطلاعات نقطه مبدأ در سرور ناقص است؛ برای جلوگیری از بازنویسی ناخواسته، ویرایش محدوده متوقف شد.");
+  }
+  return {
+    city: record.service_area_city ?? "",
+    region: record.service_area_region ?? "",
+    latitude: locationSelected ? latitude : null,
+    longitude: locationSelected ? longitude : null,
+    radiusKm: locationSelected ? radiusKm as number : 10,
+    locationSelected,
+  };
+}
+
+function serviceAreaEqual(left: ServiceAreaDraft, right: ServiceAreaDraft): boolean {
+  if (left.city.trim() !== right.city.trim() || left.region.trim() !== right.region.trim()) return false;
+  if (left.locationSelected !== right.locationSelected) return false;
+  if (!left.locationSelected) return true;
+  return left.latitude === right.latitude && left.longitude === right.longitude && left.radiusKm === right.radiusKm;
+}
+
+function serviceAreaSignature(area: ServiceAreaDraft): string {
+  return JSON.stringify({
+    city: area.city.trim(),
+    region: area.region.trim(),
+    locationSelected: area.locationSelected,
+    latitude: area.locationSelected ? area.latitude : null,
+    longitude: area.locationSelected ? area.longitude : null,
+    radiusKm: area.locationSelected ? area.radiusKm : null,
+  });
+}
+
+function ServiceAreaSection() {
+  const [area, setArea] = useState<ServiceAreaDraft>(emptyServiceArea);
+  const [savedArea, setSavedArea] = useState<ServiceAreaDraft>(emptyServiceArea);
+  const [address, setAddress] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const latestAreaRef = useRef(area);
+  const lastAttemptedSignatureRef = useRef<string | null>(null);
+  latestAreaRef.current = area;
+
+  useEffect(() => {
+    let isCurrent = true;
+    getMyServiceArea()
+      .then((record) => {
+        if (!isCurrent) return;
+        const next = serviceAreaFromApi(record);
+        setArea(next);
+        setSavedArea(next);
+        if (next.locationSelected && next.latitude !== null && next.longitude !== null) {
+          setAddress(toPersianDigits(`${next.latitude.toFixed(5)} ، ${next.longitude.toFixed(5)}`));
+        }
+      })
+      .catch((loadError) => {
+        if (isCurrent) setError(getErrorText(loadError));
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+    return () => { isCurrent = false; };
+  }, []);
+
+  const isDirty = !serviceAreaEqual(area, savedArea);
+  const mapLatitude = area.latitude ?? 32.4279;
+  const mapLongitude = area.longitude ?? 53.6880;
+  const radiusMax = Math.max(35, Math.min(32767, area.radiusKm));
+
+  const updateArea = useCallback((updater: (previous: ServiceAreaDraft) => ServiceAreaDraft) => {
+    lastAttemptedSignatureRef.current = null;
+    setArea(updater);
+  }, []);
+
+  const updateLocation = useCallback((latitude: number, longitude: number, selectedAddress: string) => {
+    updateArea((previous) => ({
+      ...previous,
+      latitude,
+      longitude,
+      locationSelected: true,
+    }));
+    setAddress(selectedAddress);
+  }, [updateArea]);
+
+  const persistArea = useCallback(async (snapshot: ServiceAreaDraft) => {
+    const signature = serviceAreaSignature(snapshot);
+    if (isSaving || signature === serviceAreaSignature(savedArea) || signature === lastAttemptedSignatureRef.current) {
+      return;
+    }
+
+    if (snapshot.locationSelected && (
+      snapshot.latitude === null
+      || snapshot.longitude === null
+      || snapshot.radiusKm < 1
+      || snapshot.radiusKm > 32767
+    )) {
+      setNotice("نقطه مبدأ و شعاع فعالیت معتبر نیستند.");
+      return;
+    }
+
+    const payload: WorkerServiceAreaPayload = {
+      service_area_city: snapshot.city.trim(),
+      service_area_region: snapshot.region.trim(),
+    };
+    if (snapshot.locationSelected) {
+      payload.service_area_latitude = snapshot.latitude;
+      payload.service_area_longitude = snapshot.longitude;
+      payload.service_area_radius_km = snapshot.radiusKm;
+    } else if (savedArea.locationSelected) {
+      payload.service_area_latitude = null;
+      payload.service_area_longitude = null;
+      payload.service_area_radius_km = null;
+    }
+
+    lastAttemptedSignatureRef.current = signature;
+    setIsSaving(true);
+    setNotice("در حال ذخیره خودکار محدوده جغرافیایی...");
+
+    try {
+      const response = await updateMyServiceArea(payload);
+      const next = serviceAreaFromApi(response);
+      setSavedArea(next);
+
+      if (serviceAreaSignature(latestAreaRef.current) === signature) {
+        setArea(next);
+        if (!next.locationSelected) setAddress("");
+        setNotice("تغییرات محدوده جغرافیایی ذخیره شد.");
+      } else {
+        setNotice("محدوده قبلی ذخیره شد؛ تغییر جدید نیز در صف ذخیره‌سازی است.");
+      }
+    } catch (saveError) {
+      setNotice(getErrorText(saveError));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isSaving, savedArea]);
+
+  useEffect(() => {
+    if (isLoading || error || !isDirty || isSaving) return;
+
+    const snapshot = { ...area };
+    const signature = serviceAreaSignature(snapshot);
+    if (signature === lastAttemptedSignatureRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      void persistArea(snapshot);
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [area, savedArea, isLoading, error, isSaving, isDirty, persistArea]);
+
+  function clearLocation() {
+    updateArea((previous) => ({
+      ...previous,
+      latitude: null,
+      longitude: null,
+      locationSelected: false,
+    }));
+    setAddress("");
+  }
+
+  return (
+    <section className={styles.card} aria-labelledby="coverage-title">
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionTitleWrap}>
+          <span className={styles.sectionIcon}><Icon name="compass" size={21} /></span>
+          <h2 id="coverage-title">محدوده جغرافیایی و مناطق تحت پوشش</h2>
+        </div>
+        <span className={styles.cityBadge}>{area.city.trim() || "شهر ثبت نشده"} <Icon name="pin" size={14} /></span>
+      </div>
+      {notice && <div className={styles.toast} role="status">{notice}</div>}
+      {isLoading ? (
+        <div className={styles.emptyState}>در حال دریافت محدوده جغرافیایی از سرور...</div>
+      ) : error ? (
+        <div className={styles.emptyState}><strong>محدوده جغرافیایی دریافت نشد.</strong><span>{error}</span></div>
+      ) : (
+        <>
+          <div className={styles.formGrid}>
+            <label className={styles.scheduleTimeField}>
+              <span>شهر</span>
+              <input value={area.city} onChange={(event) => updateArea((previous) => ({ ...previous, city: event.target.value }))} maxLength={100} disabled={isSaving} />
+            </label>
+            <label className={styles.scheduleTimeField}>
+              <span>استان / منطقه</span>
+              <input value={area.region} onChange={(event) => updateArea((previous) => ({ ...previous, region: event.target.value }))} maxLength={120} disabled={isSaving} />
+            </label>
+          </div>
+          <div className={styles.areaSection}>
+            <div className={styles.areaHeading}>
+              <span>نقطه مبدأ فعالیت:</span>
+              {area.locationSelected ? (
+                <button type="button" className={styles.secondaryButton} onClick={clearLocation} disabled={isSaving}>حذف نقطه مبدأ</button>
+              ) : <span className={styles.helperText}>برای ثبت مبدأ، روی نقشه انتخاب کنید.</span>}
+            </div>
+            <CoverageMap
+              key={area.locationSelected ? "location-selected" : "location-empty"}
+              latitude={mapLatitude}
+              longitude={mapLongitude}
+              radiusMeters={area.radiusKm * 1000}
+              locationSelected={area.locationSelected}
+              onLocationChange={updateLocation}
+            />
+            <p className={styles.sectionSubtext}>
+              {area.locationSelected ? (address || "مختصات نقطه مبدأ انتخاب شده است.") : "هنوز نقطه مبدأیی ثبت نشده است؛ نقشه در مرکز ایران باز می‌شود."}
+            </p>
+          </div>
+          <div className={styles.radiusSection}>
+            <div className={styles.radiusHeading}>
+              <label htmlFor="coverage-radius">شعاع جغرافیایی مجاز برای انجام کار:</label>
+              <strong>تا {toPersianDigits(area.radiusKm)} کیلومتر از مبدأ</strong>
+            </div>
+            <input
+              id="coverage-radius"
+              className={styles.rangeInput}
+              type="range"
+              min={1}
+              max={radiusMax}
+              step={1}
+              value={area.radiusKm}
+              onChange={(event) => updateArea((previous) => ({ ...previous, radiusKm: Number(event.target.value) }))}
+              disabled={!area.locationSelected || isSaving}
+              aria-valuetext={`${toPersianDigits(area.radiusKm)} کیلومتر`}
+            />
+            <div className={styles.rangeLabels}>
+              <span>۱ کیلومتر</span><span>۱۰ کیلومتر</span><span>حداکثر {toPersianDigits(radiusMax)} کیلومتر</span>
+            </div>
+          </div>
+          <p className={styles.sectionSubtext}>اطلاعاتی که API فعلی ذخیره می‌کند شامل شهر، استان، مختصات مبدأ و شعاع است؛ فهرست محله‌ها و گزینه «پذیرش سراسر شهر» در مدل فعلی Backend وجود ندارد.</p>
+          <p className={styles.helperText}>
+            {isSaving
+              ? "در حال ذخیره خودکار..."
+              : isDirty
+                ? "تغییرات در انتظار ذخیره خودکار..."
+                : "تغییرات این بخش به‌صورت خودکار ذخیره می‌شوند."}
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+type AvailabilityDay = { id: string; label: string; weekday: number };
+type AvailabilityUiSlot = { availabilityId: string; weekday: number; from: string; to: string };
+type AvailabilityDraftSlot = { availabilityId: string | null; from: string; to: string };
+type AvailabilityDraftDay = { enabled: boolean; slots: AvailabilityDraftSlot[] };
+type AvailabilityDraft = Record<string, AvailabilityDraftDay>;
+
+const availabilityDays: AvailabilityDay[] = [
+  { id: "sat", label: "شنبه", weekday: 0 },
+  { id: "sun", label: "یکشنبه", weekday: 1 },
+  { id: "mon", label: "دوشنبه", weekday: 2 },
+  { id: "tue", label: "سه‌شنبه", weekday: 3 },
+  { id: "wed", label: "چهارشنبه", weekday: 4 },
+  { id: "thu", label: "پنجشنبه", weekday: 5 },
+  { id: "fri", label: "جمعه", weekday: 6 },
+];
+
+function availabilitySlotsFromApi(records: WorkerAvailabilitySlotRecord[]): AvailabilityUiSlot[] {
+  return records.map((record) => ({
+    availabilityId: record.availability_id,
+    weekday: record.weekday,
+    from: normalizeTimeInput(record.start_time.slice(0, 5)),
+    to: normalizeTimeInput(record.end_time.slice(0, 5)),
+  }));
+}
+
+function timeToMinutes(value: string): number {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function getScheduleGroupTitle(group: ScheduleGroup, activeDays: AvailabilityDay[]): string {
+  if (activeDays.length === 0) return group.label;
+  if (group.id === "weekdays" && activeDays.length === 5) return "شنبه تا چهارشنبه";
+  if (activeDays.length === 1) return activeDays[0].label;
+  return activeDays.map((day) => day.label).join("، ");
+}
+
+function getAvailabilityDraftError(group: ScheduleGroup, draft: AvailabilityDraft): string | null {
+  for (const dayId of group.dayIds) {
+    const draftDay = draft[dayId];
+    if (!draftDay?.enabled) continue;
+    if (draftDay.slots.length === 0) {
+      return "برای روز فعال، حداقل یک بازه زمانی اضافه کنید.";
+    }
+
+    const ordered = [...draftDay.slots].sort((a, b) => timeToMinutes(a.from) - timeToMinutes(b.from));
+    for (let index = 0; index < ordered.length; index += 1) {
+      const slot = ordered[index];
+      if (!isValidTime(slot.from) || !isValidTime(slot.to) || slot.from >= slot.to) {
+        return "ساعت شروع و پایان هر بازه باید معتبر باشد و پایان بعد از شروع قرار بگیرد.";
+      }
+      if (index > 0 && timeToMinutes(slot.from) < timeToMinutes(ordered[index - 1].to)) {
+        return "بازه‌های یک روز نباید با یکدیگر هم‌پوشانی داشته باشند.";
+      }
+    }
+  }
+  return null;
+}
+
+function availabilityDraftFromSlots(
+  group: ScheduleGroup,
+  slots: AvailabilityUiSlot[],
+): AvailabilityDraft {
+  const draft: AvailabilityDraft = {};
+  for (const dayId of group.dayIds) {
+    const day = availabilityDays.find((item) => item.id === dayId);
+    if (!day) continue;
+    const daySlots = slots.filter((slot) => slot.weekday === day.weekday);
+    draft[dayId] = {
+      enabled: daySlots.length > 0,
+      slots: daySlots.map((slot) => ({
+        availabilityId: slot.availabilityId,
+        from: slot.from,
+        to: slot.to,
+      })),
+    };
+  }
+  return draft;
+}
+
+function AvailabilitySection() {
+  const [slots, setSlots] = useState<AvailabilityUiSlot[]>([]);
+  const [timezone, setTimezone] = useState("UTC");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [scheduleEditorGroup, setScheduleEditorGroup] = useState<ScheduleGroup | null>(null);
+  const [scheduleDraft, setScheduleDraft] = useState<AvailabilityDraft>({});
+  const savedDraftSignatureRef = useRef<string | null>(null);
+  const lastAttemptedDraftSignatureRef = useRef<string | null>(null);
+  const closeAfterSaveRef = useRef(false);
+
+  useEffect(() => {
+    let isCurrent = true;
+    getMyAvailability()
+      .then((response) => {
+        if (!isCurrent) return;
+        setTimezone(response.availability_timezone || "UTC");
+        setSlots(availabilitySlotsFromApi(response.slots));
+      })
+      .catch((loadError) => {
+        if (isCurrent) setError(getErrorText(loadError));
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+    return () => { isCurrent = false; };
+  }, []);
+
+  function openScheduleEditor(group: ScheduleGroup) {
+    const nextDraft = availabilityDraftFromSlots(group, slots);
+    setScheduleDraft(nextDraft);
+    savedDraftSignatureRef.current = JSON.stringify(nextDraft);
+    lastAttemptedDraftSignatureRef.current = null;
+    closeAfterSaveRef.current = false;
+    setScheduleEditorGroup(group);
+    setNotice("");
+  }
+
+  function updateScheduleDraft(updater: (previous: AvailabilityDraft) => AvailabilityDraft) {
+    lastAttemptedDraftSignatureRef.current = null;
+    setScheduleDraft(updater);
+    setNotice("تغییرات پس از توقف ویرایش به‌صورت خودکار ذخیره می‌شوند.");
+  }
+
+  function toggleDraftDay(dayId: string) {
+    updateScheduleDraft((previous) => {
+      const current = previous[dayId];
+      if (!current) return previous;
+      return {
+        ...previous,
+        [dayId]: {
+          ...current,
+          enabled: !current.enabled,
+          slots: !current.enabled && current.slots.length === 0
+            ? [{ availabilityId: null, from: "09:00", to: "18:00" }]
+            : current.slots,
+        },
+      };
+    });
+  }
+
+  function updateDraftSlot(dayId: string, index: number, field: "from" | "to", value: string) {
+    updateScheduleDraft((previous) => ({
+      ...previous,
+      [dayId]: {
+        ...previous[dayId],
+        slots: previous[dayId].slots.map((slot, slotIndex) => slotIndex === index
+          ? { ...slot, [field]: normalizeTimeInput(value) }
+          : slot),
+      },
+    }));
+  }
+
+  function addDraftSlot(dayId: string) {
+    updateScheduleDraft((previous) => ({
+      ...previous,
+      [dayId]: {
+        ...previous[dayId],
+        enabled: true,
+        slots: [...previous[dayId].slots, { availabilityId: null, from: "14:00", to: "18:00" }],
+      },
+    }));
+  }
+
+  function removeDraftSlot(dayId: string, index: number) {
+    updateScheduleDraft((previous) => ({
+      ...previous,
+      [dayId]: {
+        ...previous[dayId],
+        slots: previous[dayId].slots.filter((_, slotIndex) => slotIndex !== index),
+      },
+    }));
+  }
+
+  const persistScheduleGroup = useCallback(async (
+    group: ScheduleGroup,
+    draftSnapshot: AvailabilityDraft,
+    baselineSlots: AvailabilityUiSlot[],
+  ) => {
+    if (isSaving) return;
+
+    const validationError = getAvailabilityDraftError(group, draftSnapshot);
+    if (validationError) {
+      setNotice(validationError);
+      return;
+    }
+
+    const signature = JSON.stringify(draftSnapshot);
+    if (signature === savedDraftSignatureRef.current || signature === lastAttemptedDraftSignatureRef.current) {
+      return;
+    }
+
+    lastAttemptedDraftSignatureRef.current = signature;
+    setIsSaving(true);
+    setNotice("در حال ذخیره خودکار برنامه کاری...");
+
+    try {
+      for (const dayId of group.dayIds) {
+        const day = availabilityDays.find((item) => item.id === dayId);
+        const draftDay = draftSnapshot[dayId];
+        if (!day || !draftDay) continue;
+
+        const oldSlots = baselineSlots.filter((slot) => slot.weekday === day.weekday);
+        const desiredSlots = draftDay.enabled ? draftDay.slots : [];
+        const retainedIds = new Set(desiredSlots.flatMap((slot) => slot.availabilityId ? [slot.availabilityId] : []));
+        const removedSlots = oldSlots.filter((slot) => !retainedIds.has(slot.availabilityId));
+
+        for (const slot of removedSlots) {
+          await deleteMyAvailabilitySlot(slot.availabilityId);
+        }
+
+        for (const slot of desiredSlots) {
+          if (!slot.availabilityId) continue;
+          const old = oldSlots.find((item) => item.availabilityId === slot.availabilityId);
+          if (old && (old.from !== slot.from || old.to !== slot.to)) {
+            await updateMyAvailabilitySlot(slot.availabilityId, {
+              weekday: day.weekday,
+              start_time: slot.from,
+              end_time: slot.to,
+            });
+          }
+        }
+
+        for (const slot of desiredSlots) {
+          if (slot.availabilityId) continue;
+          await createMyAvailabilitySlot({
+            weekday: day.weekday,
+            start_time: slot.from,
+            end_time: slot.to,
+          });
+        }
+      }
+
+      const refreshed = await getMyAvailability();
+      const refreshedSlots = availabilitySlotsFromApi(refreshed.slots);
+      const normalizedDraft = availabilityDraftFromSlots(group, refreshedSlots);
+      setTimezone(refreshed.availability_timezone || "UTC");
+      setSlots(refreshedSlots);
+      setScheduleDraft(normalizedDraft);
+      savedDraftSignatureRef.current = JSON.stringify(normalizedDraft);
+      lastAttemptedDraftSignatureRef.current = JSON.stringify(normalizedDraft);
+      setNotice("تغییرات برنامه کاری به‌صورت خودکار ذخیره شد.");
+
+      if (closeAfterSaveRef.current) {
+        setScheduleEditorGroup(null);
+        closeAfterSaveRef.current = false;
+      }
+    } catch (saveError) {
+      let refreshedSuccessfully = false;
+      try {
+        const refreshed = await getMyAvailability();
+        const refreshedSlots = availabilitySlotsFromApi(refreshed.slots);
+        const refreshedDraft = availabilityDraftFromSlots(group, refreshedSlots);
+        setTimezone(refreshed.availability_timezone || "UTC");
+        setSlots(refreshedSlots);
+        setScheduleDraft(refreshedDraft);
+        savedDraftSignatureRef.current = JSON.stringify(refreshedDraft);
+        lastAttemptedDraftSignatureRef.current = JSON.stringify(refreshedDraft);
+        refreshedSuccessfully = true;
+      } catch {
+        // Keep the original API error visible; a later page refresh can reload the schedule.
+      }
+
+      if (!refreshedSuccessfully || closeAfterSaveRef.current) {
+        setScheduleEditorGroup(null);
+      }
+      closeAfterSaveRef.current = false;
+      setNotice(refreshedSuccessfully
+        ? `${getErrorText(saveError)} وضعیت فعلی برنامه از سرور دریافت شد؛ در صورت نیاز تغییرات را دوباره اعمال کنید.`
+        : `${getErrorText(saveError)} دریافت دوباره برنامه از سرور نیز ناموفق بود.`);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isSaving]);
+
+  useEffect(() => {
+    if (!scheduleEditorGroup || isLoading || error || isSaving) return;
+
+    const signature = JSON.stringify(scheduleDraft);
+    if (signature === savedDraftSignatureRef.current || signature === lastAttemptedDraftSignatureRef.current) {
+      return;
+    }
+
+    const validationError = getAvailabilityDraftError(scheduleEditorGroup, scheduleDraft);
+    if (validationError) {
+      setNotice(validationError);
+      return;
+    }
+
+    const draftSnapshot = scheduleDraft;
+    const baselineSlots = slots;
+    const timeout = window.setTimeout(() => {
+      void persistScheduleGroup(scheduleEditorGroup, draftSnapshot, baselineSlots);
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [scheduleEditorGroup, scheduleDraft, slots, isLoading, error, isSaving, persistScheduleGroup]);
+
+  function closeScheduleEditor() {
+    if (!scheduleEditorGroup || isSaving) return;
+
+    const signature = JSON.stringify(scheduleDraft);
+    if (signature === savedDraftSignatureRef.current) {
+      setScheduleEditorGroup(null);
+      return;
+    }
+
+    const validationError = getAvailabilityDraftError(scheduleEditorGroup, scheduleDraft);
+    if (validationError) {
+      const discard = window.confirm(`${validationError} پنجره بدون ذخیره این تغییرات بسته شود؟`);
+      if (discard) {
+        setScheduleEditorGroup(null);
+        closeAfterSaveRef.current = false;
+      } else {
+        setNotice(validationError);
+      }
+      return;
+    }
+
+    closeAfterSaveRef.current = true;
+    lastAttemptedDraftSignatureRef.current = null;
+    void persistScheduleGroup(scheduleEditorGroup, scheduleDraft, slots);
+  }
+
+  return (
+    <section className={styles.card} aria-labelledby="availability-title">
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionTitleWrap}>
+          <span className={styles.sectionIcon}><Icon name="calendar" /></span>
+          <div>
+            <h2 id="availability-title">زمان‌های در دسترس بودن و تقویم کاری</h2>
+            <p className={styles.sectionSubtext}>مدیریت روزها و چند بازه زمانی در هر روز</p>
+          </div>
+        </div>
+        <span className={styles.activeHoursBadge}><span aria-hidden="true" />{isLoading ? "در حال دریافت" : "ذخیره‌سازی خودکار فعال است"}</span>
+      </div>
+      {notice && <div className={styles.toast} role="status">{notice}</div>}
+      {isLoading ? (
+        <div className={styles.emptyState}>در حال دریافت برنامه کاری از سرور...</div>
+      ) : error ? (
+        <div className={styles.emptyState}><strong>برنامه کاری دریافت نشد.</strong><span>{error}</span></div>
+      ) : (
+        <>
+          <p className={styles.sectionSubtext}>منطقه زمانی ثبت‌شده: {timezone}</p>
+          <div className={styles.scheduleList}>
+            {scheduleGroups.map((group) => {
+              const groupDays = group.dayIds
+                .map((dayId) => availabilityDays.find((day) => day.id === dayId))
+                .filter((day): day is AvailabilityDay => Boolean(day));
+              const activeDays = groupDays.filter((day) => slots.some((slot) => slot.weekday === day.weekday));
+              const groupSlots = groupDays.map((day) => slots.filter((slot) => slot.weekday === day.weekday));
+              const allDisabled = activeDays.length === 0;
+              const hasMultiple = groupSlots.some((daySlots) => daySlots.length > 1);
+              const allSingle = groupSlots.every((daySlots) => daySlots.length === 1);
+              const firstSlot = groupSlots.find((daySlots) => daySlots.length > 0)?.[0];
+              const sameHours = allSingle && groupSlots.every((daySlots) => daySlots[0]?.from === firstSlot?.from && daySlots[0]?.to === firstSlot?.to);
+              const title = getScheduleGroupTitle(group, activeDays);
+              const timeText = allDisabled
+                ? "تعطیل و استراحت هفتگی"
+                : hasMultiple
+                  ? "چند بازه زمانی در روز"
+                  : sameHours && firstSlot
+                    ? `از ${formatScheduleTime(firstSlot.from)} الی ${formatScheduleTime(firstSlot.to)}`
+                    : "بازه‌های زمانی متفاوت";
+              return (
+                <button
+                  type="button"
+                  key={group.id}
+                  className={`${styles.scheduleRow} ${allDisabled ? styles.scheduleRowDisabled : ""}`}
+                  onClick={() => openScheduleEditor(group)}
+                  aria-label={`ویرایش برنامه ${title}`}
+                  disabled={isSaving}
+                >
+                  <span className={styles.scheduleIcon}><Icon name="calendar" size={19} /></span>
+                  <strong className={styles.dayName}>{title}</strong>
+                  <span className={`${styles.scheduleTime} ${allDisabled ? styles.offDayText : ""}`}>{timeText}</span>
+                  <span className={`${styles.scheduleStatus} ${allDisabled ? styles.scheduleStatusRest : ""}`}>
+                    {allDisabled ? "استراحت" : hasMultiple ? "چندبازه" : activeDays.length === groupDays.length ? "فعال" : "ترکیبی"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {scheduleEditorGroup && (
+        <div className={styles.modalBackdrop}>
+          <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 id="schedule-modal-title">ویرایش زمان {scheduleEditorGroup.label}</h2>
+                <p>برای هر روز می‌توانید یک یا چند بازه بدون هم‌پوشانی تعریف کنید. تغییرات پس از توقف ویرایش خودکار ذخیره می‌شوند.</p>
+              </div>
+              <button type="button" className={styles.iconButton} onClick={closeScheduleEditor} aria-label="بستن پنجره" disabled={isSaving}><Icon name="x" /></button>
+            </div>
+            <div className={styles.scheduleEditorList}>
+              {scheduleEditorGroup.dayIds.map((dayId) => {
+                const day = availabilityDays.find((item) => item.id === dayId);
+                const draftDay = scheduleDraft[dayId];
+                if (!day || !draftDay) return null;
+                return (
+                  <div className={styles.scheduleEditorDayBlock} key={dayId}>
+                    <label className={styles.scheduleEditorDay}>
+                      <input type="checkbox" checked={draftDay.enabled} onChange={() => toggleDraftDay(dayId)} disabled={isSaving} />
+                      <strong>{day.label}</strong>
+                    </label>
+                    {draftDay.enabled && (
+                      <div className={styles.scheduleSlotList}>
+                        {draftDay.slots.map((slot, index) => (
+                          <div className={styles.scheduleSlotRow} key={slot.availabilityId ?? `${dayId}-${index}`}>
+                            <label className={styles.scheduleTimeField}>
+                              <span>شروع بازه {toPersianDigits(index + 1)}</span>
+                              <input type="text" inputMode="numeric" dir="ltr" maxLength={5} value={toPersianDigits(slot.from)} onChange={(event) => updateDraftSlot(dayId, index, "from", event.target.value)} disabled={isSaving} />
+                            </label>
+                            <label className={styles.scheduleTimeField}>
+                              <span>پایان بازه {toPersianDigits(index + 1)}</span>
+                              <input type="text" inputMode="numeric" dir="ltr" maxLength={5} value={toPersianDigits(slot.to)} onChange={(event) => updateDraftSlot(dayId, index, "to", event.target.value)} disabled={isSaving} />
+                            </label>
+                            <button type="button" className={styles.iconButton} onClick={() => removeDraftSlot(dayId, index)} aria-label={`حذف بازه ${index + 1} ${day.label}`} disabled={isSaving}><Icon name="trash" size={16} /></button>
+                          </div>
+                        ))}
+                        <button type="button" className={styles.addAreaButton} onClick={() => addDraftSlot(dayId)} disabled={isSaving}><Icon name="plus" size={14} /> افزودن بازه زمانی</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className={styles.modalActions}>
+              <span className={styles.helperText}>
+                {isSaving
+                  ? "در حال ذخیره خودکار..."
+                  : JSON.stringify(scheduleDraft) !== savedDraftSignatureRef.current
+                    ? "تغییرات در انتظار ذخیره خودکار..."
+                    : "ذخیره‌سازی خودکار فعال است."}
+              </span>
+              <button type="button" className={styles.secondaryButton} onClick={closeScheduleEditor} disabled={isSaving}>بستن</button>
+            </div>
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function UserSkillsPage() {
   const [profile, setProfile] = useState<ProfileSettings>(() => cloneProfile(initialProfile));
-  const [savedProfile, setSavedProfile] = useState<ProfileSettings>(() => cloneProfile(initialProfile));
   const [skillCatalog, setSkillCatalog] = useState<SkillCatalogItem[]>([]);
   const [isSkillsLoading, setIsSkillsLoading] = useState(true);
   const [skillProfileLoadError, setSkillProfileLoadError] = useState<string | null>(null);
   const [isSkillSaving, setIsSkillSaving] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [profileName, setProfileName] = useState("مریم احمدی");
+  const [isSkillDraftTouched, setIsSkillDraftTouched] = useState(false);
+  const [profileName, setProfileName] = useState("کاربر واکا");
+  const [isVerified, setIsVerified] = useState<boolean | null>(null);
   const [toast, setToast] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SkillDraft>(emptyDraft);
-  const [areaEditorOpen, setAreaEditorOpen] = useState(false);
-  const [newArea, setNewArea] = useState("");
-  const [scheduleEditorGroup, setScheduleEditorGroup] = useState<ScheduleGroup | null>(null);
-  const [scheduleDraft, setScheduleDraft] = useState<{ enabledDays: string[]; from: string; to: string }>({
-    enabledDays: [],
-    from: "09:00",
-    to: "18:00",
-  });
-  const storageKeyRef = useRef(STORAGE_KEY);
+  const skillDraftRef = useRef(draft);
+  const lastSavedSkillDraftSignatureRef = useRef<string | null>(null);
+  const lastAttemptedSkillDraftSignatureRef = useRef<string | null>(null);
+  const closeSkillModalAfterSaveRef = useRef(false);
+  skillDraftRef.current = draft;
 
   useEffect(() => {
-    let key = STORAGE_KEY;
-    let name = "مریم احمدی";
-    let restored = cloneProfile(initialProfile);
-    let storageWarning = "";
+    let isCurrent = true;
 
-    try {
-      const rawAuth =
-        window.localStorage.getItem("vaka.auth") ??
-        window.sessionStorage.getItem("vaka.auth");
+    async function loadProfileSummary() {
+      try {
+        const summary = await getMyProfileSummary();
+        if (!isCurrent) return;
 
-      if (rawAuth) {
-        const auth = JSON.parse(rawAuth) as {
-          user?: { user_id?: string; full_name?: string };
-        };
-        if (auth.user?.user_id) key = `${STORAGE_KEY}:${auth.user.user_id}`;
-        if (auth.user?.full_name?.trim()) name = auth.user.full_name.trim();
+        setProfileName(summary.full_name?.trim() || "کاربر واکا");
+        setIsVerified(summary.verification_status === "APPROVED");
+      } catch (error) {
+        if (!isCurrent) return;
+
+        setProfileName("کاربر واکا");
+        // Keep the verification indicator unknown when the API request fails.
+        setIsVerified(null);
+        const message = error instanceof Error ? error.message : "دریافت اطلاعات پروفایل از سرور ناموفق بود.";
+        setToast((previous) => [previous, `اطلاعات پروفایل: ${message}`].filter(Boolean).join(" "));
       }
-
-      const rawSettings = window.localStorage.getItem(key);
-      if (rawSettings) restored = restoreProfile(JSON.parse(rawSettings) as unknown);
-    } catch {
-      storageWarning = "تنظیمات ذخیره‌شده قابل خواندن نبود؛ مقادیر پیش‌فرض بارگذاری شد.";
     }
 
-    storageKeyRef.current = key;
-    setProfileName(name);
-    setProfile(restored);
-    setSavedProfile(cloneProfile(restored));
-    if (storageWarning) setToast(storageWarning);
-    setIsHydrated(true);
+    void loadProfileSummary();
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -465,9 +1202,7 @@ export default function UserSkillsPage() {
       try {
         const records = await getMySkills();
         if (isCurrent) {
-          const skills = records.map(mapWorkerSkill);
-          setProfile((previous) => ({ ...previous, skills }));
-          setSavedProfile((previous) => ({ ...previous, skills }));
+          setProfile({ skills: records.map(mapWorkerSkill) });
           setSkillProfileLoadError(null);
         }
       } catch (error) {
@@ -477,7 +1212,7 @@ export default function UserSkillsPage() {
       }
 
       if (isCurrent) {
-        if (errors.length) setToast(errors.join(" "));
+        if (errors.length) setToast((previous) => [previous, errors.join(" ")].filter(Boolean).join(" "));
         setIsSkillsLoading(false);
       }
     }
@@ -486,89 +1221,22 @@ export default function UserSkillsPage() {
     return () => { isCurrent = false; };
   }, []);
 
-  const isDirty = useMemo(
-    () => JSON.stringify(profile) !== JSON.stringify(savedProfile),
-    [profile, savedProfile],
-  );
-
-  const activeDays = profile.schedule.filter((day) => day.enabled).length;
   const selectedCatalogSkill = skillCatalog.find((item) => item.skill_id === draft.skillId);
   const selectedSkillCategory = selectedCatalogSkill?.category_name
     ?? profile.skills.find((skill) => skill.skillId === draft.skillId)?.category
     ?? "عمومی / بدون دسته‌بندی";
-  const completion = Math.min(
-    100,
-    54 + Math.min(profile.skills.length, 4) * 6 + Math.min(profile.areas.length, 4) * 2 + (activeDays > 0 ? 5 : 0),
-  );
-
-  const updateLocation = useCallback((latitude: number, longitude: number, address: string) => {
-    setProfile((previous) => ({ ...previous, latitude, longitude, address }));
-  }, []);
-
-  const addAreaFromMap = useCallback((area: string) => {
-    const localizedArea = toPersianDigits(area.trim().normalize("NFKC").replace(/\s+/g, " "));
-    const normalized = localizedArea.toLocaleLowerCase("fa-IR");
-    if (!normalized) return;
-
-    setProfile((previous) => {
-      const exists = previous.areas.some(
-        (item) =>
-          toPersianDigits(item).normalize("NFKC").replace(/\s+/g, " ").toLocaleLowerCase("fa-IR") === normalized,
-      );
-      return exists ? previous : { ...previous, areas: [...previous.areas, localizedArea] };
-    });
-  }, []);
-
   function showToast(message: string) {
     setToast(message);
   }
 
-  function saveChanges() {
-    const invalidDay = profile.schedule.find(
-      (day) => day.enabled && (!isValidTime(day.from) || !isValidTime(day.to) || day.from >= day.to),
-    );
-    if (invalidDay) {
-      showToast(`بازه زمانی ${invalidDay.label} معتبر نیست؛ ساعت پایان باید بعد از ساعت شروع باشد.`);
-      return;
-    }
-
-    if (profile.radiusKm < 1 || profile.radiusKm > 35) {
-      showToast("شعاع فعالیت باید بین ۱ تا ۳۵ کیلومتر باشد.");
-      return;
-    }
-
-    if (isSaving || !isHydrated) return;
-    setIsSaving(true);
-
-    try {
-      window.localStorage.setItem(storageKeyRef.current, JSON.stringify(profile));
-      setSavedProfile(cloneProfile(profile));
-      showToast("تغییرات با موفقیت در همین مرورگر ذخیره شد.");
-    } catch {
-      showToast("ذخیره‌سازی مرورگر در دسترس نیست؛ فضای ذخیره‌سازی را بررسی کنید.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  function resetChanges() {
-    setProfile(cloneProfile(savedProfile));
+  function resetSkillModal() {
     setModalOpen(false);
     setEditingSkillId(null);
     setDraft(emptyDraft);
-    setAreaEditorOpen(false);
-    setNewArea("");
-    setScheduleEditorGroup(null);
-    setToast("تغییرات ذخیره‌نشده لغو شد.");
-  }
-
-  function toggleCategory(categoryId: string) {
-    setProfile((previous) => ({
-      ...previous,
-      categories: previous.categories.map((category) =>
-        category.id === categoryId ? { ...category, active: !category.active } : category,
-      ),
-    }));
+    setIsSkillDraftTouched(false);
+    lastSavedSkillDraftSignatureRef.current = null;
+    lastAttemptedSkillDraftSignatureRef.current = null;
+    closeSkillModalAfterSaveRef.current = false;
   }
 
   function openAddSkill() {
@@ -576,63 +1244,187 @@ export default function UserSkillsPage() {
       showToast("ابتدا باید فهرست مهارت‌ها و اطلاعات حساب از سرور دریافت شوند.");
       return;
     }
+    const nextDraft = { ...emptyDraft, skillId: "" };
     setEditingSkillId(null);
-    setDraft({ ...emptyDraft, skillId: skillCatalog[0]?.skill_id ?? "" });
+    setDraft(nextDraft);
+    setIsSkillDraftTouched(false);
+    lastSavedSkillDraftSignatureRef.current = null;
+    lastAttemptedSkillDraftSignatureRef.current = null;
+    closeSkillModalAfterSaveRef.current = false;
     setModalOpen(true);
   }
 
   function openEditSkill(skill: Skill) {
-    setEditingSkillId(skill.id);
-    setDraft({
+    const nextDraft = {
       skillId: skill.skillId,
       level: skill.level,
       experienceYears: String(skill.experienceYears),
-    });
+    };
+    setEditingSkillId(skill.id);
+    setDraft(nextDraft);
+    setIsSkillDraftTouched(false);
+    lastSavedSkillDraftSignatureRef.current = skillDraftSignature(nextDraft);
+    lastAttemptedSkillDraftSignatureRef.current = null;
+    closeSkillModalAfterSaveRef.current = false;
     setModalOpen(true);
   }
 
-  async function submitSkill(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function updateSkillDraft(updater: (previous: SkillDraft) => SkillDraft) {
+    lastAttemptedSkillDraftSignatureRef.current = null;
+    setIsSkillDraftTouched(true);
+    setDraft(updater);
+  }
+
+  const persistSkillDraft = useCallback(async (
+    draftSnapshot: SkillDraft,
+    targetEditingSkillId: string | null,
+  ) => {
     if (isSkillSaving) return;
 
-    const experienceYears = Number(toLatinDigits(draft.experienceYears));
-    if (!draft.skillId || !Number.isInteger(experienceYears) || experienceYears < 0 || experienceYears > 60) {
-      showToast("مهارت و سابقه کار معتبر (بین صفر تا ۶۰ سال) را انتخاب کنید.");
+    const experienceYears = Number(toLatinDigits(draftSnapshot.experienceYears));
+    if (
+      !draftSnapshot.skillId
+      || !Number.isInteger(experienceYears)
+      || experienceYears < 0
+      || experienceYears > 60
+    ) {
+      setToast("مهارت و سابقه کار معتبر (بین صفر تا ۶۰ سال) را انتخاب کنید.");
       return;
     }
 
+    const signature = skillDraftSignature(draftSnapshot);
+    if (
+      signature === lastSavedSkillDraftSignatureRef.current
+      || signature === lastAttemptedSkillDraftSignatureRef.current
+    ) {
+      return;
+    }
+
+    lastAttemptedSkillDraftSignatureRef.current = signature;
     setIsSkillSaving(true);
+    setToast("در حال ذخیره خودکار مهارت...");
+
     try {
       const payload = {
-        proficiency_level: mapUiLevel(draft.level),
+        proficiency_level: mapUiLevel(draftSnapshot.level),
         experience_years: experienceYears,
       };
-      const record = editingSkillId
-        ? await updateMySkill(editingSkillId, payload)
-        : await addMySkill({ skill_id: draft.skillId, ...payload });
+      const record = targetEditingSkillId
+        ? await updateMySkill(targetEditingSkillId, payload)
+        : await addMySkill({ skill_id: draftSnapshot.skillId, ...payload });
       const savedSkill = mapWorkerSkill(record);
+      const normalizedDraft: SkillDraft = {
+        skillId: record.skill.skill_id,
+        level: mapApiLevel(record.proficiency_level),
+        experienceYears: String(record.experience_years),
+      };
+      const normalizedSignature = skillDraftSignature(normalizedDraft);
 
-      setProfile((previous) => ({
-        ...previous,
-        skills: editingSkillId
-          ? previous.skills.map((skill) => skill.id === editingSkillId ? savedSkill : skill)
-          : [...previous.skills, savedSkill],
-      }));
-      setSavedProfile((previous) => ({
-        ...previous,
-        skills: editingSkillId
-          ? previous.skills.map((skill) => skill.id === editingSkillId ? savedSkill : skill)
-          : [...previous.skills, savedSkill],
-      }));
-      showToast(editingSkillId ? "مهارت با موفقیت در سرور ویرایش شد." : "مهارت با موفقیت در سرور ثبت شد.");
-      setModalOpen(false);
-      setEditingSkillId(null);
-      setDraft(emptyDraft);
-    } catch (error) {
-      showToast(getErrorText(error));
+      setProfile((previous) => {
+        const alreadyExists = previous.skills.some((skill) => skill.id === savedSkill.id);
+        return {
+          ...previous,
+          skills: alreadyExists
+            ? previous.skills.map((skill) => skill.id === savedSkill.id ? savedSkill : skill)
+            : [...previous.skills, savedSkill],
+        };
+      });
+
+      lastSavedSkillDraftSignatureRef.current = normalizedSignature;
+      lastAttemptedSkillDraftSignatureRef.current = normalizedSignature;
+      setDraft(normalizedDraft);
+      setIsSkillDraftTouched(false);
+      if (!targetEditingSkillId) setEditingSkillId(record.worker_skill_id);
+
+      setToast(targetEditingSkillId
+        ? "تغییرات مهارت به‌صورت خودکار ذخیره شد."
+        : "مهارت به‌صورت خودکار در حساب شما ثبت شد.");
+
+      if (closeSkillModalAfterSaveRef.current) {
+        setModalOpen(false);
+        setEditingSkillId(null);
+        setDraft(emptyDraft);
+        setIsSkillDraftTouched(false);
+        lastSavedSkillDraftSignatureRef.current = null;
+        lastAttemptedSkillDraftSignatureRef.current = null;
+        closeSkillModalAfterSaveRef.current = false;
+      }
+    } catch (saveError) {
+      setToast(getErrorText(saveError));
+      if (closeSkillModalAfterSaveRef.current) {
+        setModalOpen(false);
+        setEditingSkillId(null);
+        setDraft(emptyDraft);
+        setIsSkillDraftTouched(false);
+        lastSavedSkillDraftSignatureRef.current = null;
+        lastAttemptedSkillDraftSignatureRef.current = null;
+        closeSkillModalAfterSaveRef.current = false;
+      }
     } finally {
       setIsSkillSaving(false);
     }
+  }, [isSkillSaving]);
+
+  useEffect(() => {
+    if (
+      !modalOpen
+      || !isSkillDraftTouched
+      || isSkillsLoading
+      || skillProfileLoadError
+      || isSkillSaving
+    ) {
+      return;
+    }
+
+    const signature = skillDraftSignature(draft);
+    if (
+      signature === lastSavedSkillDraftSignatureRef.current
+      || signature === lastAttemptedSkillDraftSignatureRef.current
+    ) {
+      return;
+    }
+
+    const draftSnapshot = { ...draft };
+    const timeout = window.setTimeout(() => {
+      void persistSkillDraft(draftSnapshot, editingSkillId);
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    modalOpen,
+    isSkillDraftTouched,
+    isSkillsLoading,
+    skillProfileLoadError,
+    isSkillSaving,
+    draft,
+    editingSkillId,
+    persistSkillDraft,
+  ]);
+
+  function closeSkillModal() {
+    if (isSkillSaving) return;
+
+    if (!isSkillDraftTouched || skillDraftSignature(draft) === lastSavedSkillDraftSignatureRef.current) {
+      resetSkillModal();
+      return;
+    }
+
+    const experienceYears = Number(toLatinDigits(draft.experienceYears));
+    if (
+      !draft.skillId
+      || !Number.isInteger(experienceYears)
+      || experienceYears < 0
+      || experienceYears > 60
+    ) {
+      const discard = window.confirm("اطلاعات مهارت کامل یا معتبر نیست. پنجره بدون ذخیره این تغییرات بسته شود؟");
+      if (discard) resetSkillModal();
+      else showToast("برای ذخیره خودکار، مهارت و سابقه کار معتبر را وارد کنید.");
+      return;
+    }
+
+    closeSkillModalAfterSaveRef.current = true;
+    lastAttemptedSkillDraftSignatureRef.current = null;
+    void persistSkillDraft(draft, editingSkillId);
   }
 
   async function deleteSkill(skill: Skill) {
@@ -646,10 +1438,6 @@ export default function UserSkillsPage() {
         ...previous,
         skills: previous.skills.filter((item) => item.id !== skill.id),
       }));
-      setSavedProfile((previous) => ({
-        ...previous,
-        skills: previous.skills.filter((item) => item.id !== skill.id),
-      }));
       showToast("مهارت با موفقیت از سرور حذف شد.");
     } catch (error) {
       showToast(getErrorText(error));
@@ -658,83 +1446,11 @@ export default function UserSkillsPage() {
     }
   }
 
-  function addArea(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const area = toPersianDigits(newArea.trim());
-    if (!area) return;
-    if (profile.areas.some((item) => item.toLocaleLowerCase("fa") === area.toLocaleLowerCase("fa"))) {
-      showToast("این محله از قبل در فهرست مناطق شما وجود دارد.");
-      return;
-    }
-    setProfile((previous) => ({ ...previous, areas: [...previous.areas, area] }));
-    setNewArea("");
-    setAreaEditorOpen(false);
-    showToast("محله به مناطق تحت پوشش اضافه شد.");
-  }
-
-  function removeArea(area: string) {
-    setProfile((previous) => ({ ...previous, areas: previous.areas.filter((item) => item !== area) }));
-  }
-
-  function openScheduleEditor(group: ScheduleGroup) {
-    const days = group.dayIds
-      .map((dayId) => profile.schedule.find((day) => day.id === dayId))
-      .filter((day): day is ScheduleDay => Boolean(day));
-    const referenceDay = days.find((day) => day.enabled) ?? days[0];
-
-    setScheduleDraft({
-      enabledDays: days.filter((day) => day.enabled).map((day) => day.id),
-      from: referenceDay?.from ?? "09:00",
-      to: referenceDay?.to ?? "18:00",
-    });
-    setScheduleEditorGroup(group);
-  }
-
-  function toggleScheduleDraftDay(dayId: string) {
-    setScheduleDraft((previous) => ({
-      ...previous,
-      enabledDays: previous.enabledDays.includes(dayId)
-        ? previous.enabledDays.filter((id) => id !== dayId)
-        : [...previous.enabledDays, dayId],
-    }));
-  }
-
-  function saveScheduleGroup() {
-    if (!scheduleEditorGroup) return;
-    if (
-      scheduleDraft.enabledDays.length > 0 &&
-      (!isValidTime(scheduleDraft.from) || !isValidTime(scheduleDraft.to) || scheduleDraft.from >= scheduleDraft.to)
-    ) {
-      showToast("ساعت شروع و پایان را معتبر وارد کنید؛ ساعت پایان باید بعد از ساعت شروع باشد.");
-      return;
-    }
-
-    setProfile((previous) => ({
-      ...previous,
-      schedule: previous.schedule.map((day) =>
-        scheduleEditorGroup.dayIds.includes(day.id)
-          ? {
-              ...day,
-              enabled: scheduleDraft.enabledDays.includes(day.id),
-              from: scheduleDraft.from,
-              to: scheduleDraft.to,
-            }
-          : day,
-      ),
-    }));
-    setScheduleEditorGroup(null);
-    showToast("برنامه زمانی ویرایش شد؛ برای ثبت نهایی، ذخیره نهایی تغییرات را بزنید.");
-  }
-
   return (
     <UserPanelLayout
       profileName={profileName}
-      completion={completion}
-      rating={4.8}
-      completedTaskCount={12}
-      receivedOffersCount={3}
       activePage="skills"
-      isVerified
+      isVerified={isVerified === true}
     >
       <div className={styles.contentStack}>
         <section className={`${styles.card} ${styles.pageHeading}`}>
@@ -742,15 +1458,7 @@ export default function UserSkillsPage() {
             <span className={styles.headingIcon}><Icon name="sliders" size={20} /></span>
             <h1>مدیریت مهارت‌ها و شرایط کاری مجری</h1>
           </div>
-          <div className={styles.headingActions}>
-            <button type="button" className={styles.secondaryButton} onClick={resetChanges} disabled={!isHydrated || !isDirty || isSaving}>
-              انصراف و بازنشانی
-            </button>
-            <button type="button" className={styles.primaryButton} onClick={saveChanges} disabled={!isHydrated || !isDirty || isSaving} aria-busy={isSaving}>
-              <Icon name="check" size={17} />
-              ذخیره نهایی تغییرات
-            </button>
-          </div>
+          <span className={styles.helperText}>تغییرات هر بخش پس از توقف ویرایش، به‌صورت خودکار در حساب شما ذخیره می‌شود.</span>
         </section>
 
         {toast && (
@@ -766,7 +1474,7 @@ export default function UserSkillsPage() {
             <div className={styles.sectionTitleWrap}>
               <span className={styles.sectionIcon}><Icon name="award" size={21} /></span>
               <h2 id="skills-title">مهارت‌های ثبت‌شده من</h2>
-              <span className={styles.countBadge}>{toPersianDigits(profile.skills.length.toLocaleString("fa-IR"))} مهارت فعال</span>
+              <span className={styles.countBadge}>{toPersianDigits(profile.skills.length.toLocaleString("fa-IR"))} مهارت ثبت‌شده</span>
             </div>
             <button
               type="button"
@@ -832,243 +1540,12 @@ export default function UserSkillsPage() {
           )}
         </section>
 
-        <section className={`${styles.card} ${styles.categoryCard}`} aria-labelledby="categories-title">
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitleWrap}>
-              <span className={styles.sectionIcon}><Icon name="shapes" size={21} /></span>
-              <h2 id="categories-title">دسته‌بندی‌های کاری موردعلاقه</h2>
-            </div>
-            <span className={styles.helperText}>دسته‌هایی که باید آگهی‌های آن در اولویت باشند</span>
-          </div>
+        <PreferredCategoriesSection />
 
-          <div className={styles.categoryGrid}>
-            {profile.categories.map((category) => (
-              <button
-                type="button"
-                key={category.id}
-                className={`${styles.categoryChip} ${category.active ? styles.categoryChipActive : ""}`}
-                aria-pressed={category.active}
-                onClick={() => toggleCategory(category.id)}
-              >
-                <span className={styles.categoryIcon}><Icon name={categoryIcons[category.icon]} size={19} /></span>
-                <span className={styles.categoryLabel}>{category.label}</span>
-                <span className={styles.categoryCheck}>{category.active ? <Icon name="check" size={16} /> : <Icon name="plus" size={16} />}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+        <ServiceAreaSection />
 
-        <section className={styles.card} aria-labelledby="coverage-title">
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitleWrap}>
-              <span className={styles.sectionIcon}><Icon name="compass" size={21} /></span>
-              <h2 id="coverage-title">محدوده جغرافیایی و مناطق تحت پوشش</h2>
-            </div>
-            <span className={styles.cityBadge}>شهر: تهران <Icon name="pin" size={14} /></span>
-          </div>
-
-          <div className={styles.areaSection}>
-            <div className={styles.areaHeading}>
-              <span>محله‌ها و مناطق فعالیت برگزیده:</span>
-            </div>
-            <div className={styles.areaTags}>
-              {profile.areas.map((area) => (
-                <span className={styles.areaTag} key={area}>
-                  {area}
-                  <button type="button" onClick={() => removeArea(area)} aria-label={`حذف ${area}`} title={`حذف ${area}`}><Icon name="x" size={12} /></button>
-                </span>
-              ))}
-              {!areaEditorOpen ? (
-                <button type="button" className={styles.addAreaButton} onClick={() => setAreaEditorOpen(true)}>
-                  <Icon name="plus" size={14} /> افزودن محله جدید
-                </button>
-              ) : (
-                <form className={styles.addAreaForm} onSubmit={addArea}>
-                  <label className={styles.srOnly} htmlFor="new-coverage-area">نام محله جدید</label>
-                  <input
-                    id="new-coverage-area"
-                    list="coverage-area-suggestions"
-                    value={newArea}
-                    onChange={(event) => setNewArea(toPersianDigits(event.target.value))}
-                    placeholder="نام محله..."
-                    autoFocus
-                  />
-                  <datalist id="coverage-area-suggestions">
-                    {areaSuggestions.map((area) => <option value={area} key={area} />)}
-                  </datalist>
-                  <button type="submit" disabled={!newArea.trim()} aria-label="افزودن محله"><Icon name="check" size={14} /></button>
-                  <button type="button" onClick={() => { setAreaEditorOpen(false); setNewArea(""); }} aria-label="لغو"><Icon name="x" size={14} /></button>
-                </form>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.radiusSection}>
-            <div className={styles.radiusHeading}>
-              <label htmlFor="coverage-radius">شعاع جغرافیایی مجاز برای انجام کار:</label>
-              <strong>تا {toPersianDigits(profile.radiusKm.toLocaleString("fa-IR"))} کیلومتر از مبدأ</strong>
-            </div>
-            <input
-              id="coverage-radius"
-              className={styles.rangeInput}
-              type="range"
-              min={1}
-              max={35}
-              step={1}
-              value={profile.radiusKm}
-              onChange={(event) => setProfile((previous) => ({ ...previous, radiusKm: Number(event.target.value) }))}
-              aria-valuetext={`${toPersianDigits(profile.radiusKm)} کیلومتر`}
-            />
-            <div className={styles.rangeLabels}>
-              <span>۱ کیلومتر (فقط محله من)</span>
-              <span>۱۰ کیلومتر (منطقه شهری)</span>
-              <span>۳۵ کیلومتر (کل استان تهران)</span>
-            </div>
-          </div>
-
-          <CoverageMap
-            latitude={profile.latitude}
-            longitude={profile.longitude}
-            radiusMeters={profile.radiusKm * 1000}
-            onLocationChange={updateLocation}
-            onAreaSelect={addAreaFromMap}
-          />
-
-          <div className={styles.citywideRow}>
-            <span className={styles.citywideIcon}><Icon name="delivery" size={18} /></span>
-            <div className={styles.citywideCopy}>
-              <strong>پذیرش کارهای سراسر شهر</strong>
-              <span>در صورت پوشش کامل هزینه رفت‌وآمد توسط کارفرما</span>
-            </div>
-            <button
-              type="button"
-              className={`${styles.switch} ${profile.cityWide ? styles.switchOn : ""}`}
-              role="switch"
-              aria-checked={profile.cityWide}
-              aria-label="پذیرش کارهای سراسر شهر"
-              onClick={() => setProfile((previous) => ({ ...previous, cityWide: !previous.cityWide }))}
-            ><span /></button>
-          </div>
-        </section>
-
-        <section className={styles.card} aria-labelledby="availability-title">
-          <div className={styles.sectionHeader}>
-            <div className={styles.sectionTitleWrap}>
-              <span className={styles.sectionIcon}><Icon name="calendar" /></span>
-              <div>
-                <h2 id="availability-title">زمان‌های در دسترس بودن و تقویم کاری</h2>
-                <p className={styles.sectionSubtext}>مدیریت روزها و بازه‌های زمانی پذیرش سفارش‌ها</p>
-              </div>
-            </div>
-            <span className={styles.activeHoursBadge}><span aria-hidden="true" />ساعات فعال آماده‌به‌کار</span>
-          </div>
-
-          <div className={styles.scheduleList}>
-            {scheduleGroups.map((group) => {
-              const groupDays = group.dayIds
-                .map((dayId) => profile.schedule.find((day) => day.id === dayId))
-                .filter((day): day is ScheduleDay => Boolean(day));
-              const enabledDays = groupDays.filter((day) => day.enabled);
-              const allEnabled = groupDays.length > 0 && enabledDays.length === groupDays.length;
-              const allDisabled = enabledDays.length === 0;
-              const referenceDay = enabledDays[0] ?? groupDays[0];
-              const sameHours = enabledDays.every(
-                (day) => day.from === referenceDay?.from && day.to === referenceDay?.to,
-              );
-              const dayTitle = formatScheduleGroupTitle(group, profile.schedule);
-              const timeText = allDisabled
-                ? "تعطیل و استراحت هفتگی"
-                : sameHours && referenceDay
-                  ? `از ${formatScheduleTime(referenceDay.from)} الی ${formatScheduleTime(referenceDay.to)}`
-                  : "بازه‌های زمانی متفاوت";
-
-              return (
-                <button
-                  type="button"
-                  key={group.id}
-                  className={`${styles.scheduleRow} ${allDisabled ? styles.scheduleRowDisabled : ""}`}
-                  onClick={() => openScheduleEditor(group)}
-                  aria-label={`ویرایش برنامه ${dayTitle}`}
-                >
-                  <span className={styles.scheduleIcon}><Icon name="calendar" size={19} /></span>
-                  <strong className={styles.dayName}>{dayTitle}</strong>
-                  <span className={`${styles.scheduleTime} ${allDisabled ? styles.offDayText : ""}`}>{timeText}</span>
-                  <span className={`${styles.scheduleStatus} ${allDisabled ? styles.scheduleStatusRest : ""}`}>
-                    {allDisabled ? "استراحت" : allEnabled ? "فعال" : "ترکیبی"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-        </section>
+        <AvailabilitySection />
       </div>
-
-      {scheduleEditorGroup && (
-        <div className={styles.modalBackdrop}>
-          <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
-            <div className={styles.modalHeader}>
-              <div>
-                <h2 id="schedule-modal-title">ویرایش زمان {formatScheduleGroupTitle(scheduleEditorGroup, profile.schedule)}</h2>
-                <p>روزهای فعال و ساعت پذیرش سفارش را مشخص کنید.</p>
-              </div>
-              <button type="button" className={styles.iconButton} onClick={() => setScheduleEditorGroup(null)} aria-label="بستن پنجره"><Icon name="x" /></button>
-            </div>
-            <div className={styles.scheduleEditorDays}>
-              {scheduleEditorGroup.dayIds.map((dayId) => {
-                const day = profile.schedule.find((item) => item.id === dayId);
-                if (!day) return null;
-                return (
-                  <label className={styles.scheduleEditorDay} key={day.id}>
-                    <input
-                      type="checkbox"
-                      checked={scheduleDraft.enabledDays.includes(day.id)}
-                      onChange={() => toggleScheduleDraftDay(day.id)}
-                    />
-                    <span>{day.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <div className={styles.formGrid}>
-              <label className={styles.scheduleTimeField}>
-                <span>ساعت شروع</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  maxLength={5}
-                  placeholder="۰۹:۰۰"
-                  value={toPersianDigits(scheduleDraft.from)}
-                  onChange={(event) =>
-                    setScheduleDraft((previous) => ({ ...previous, from: normalizeTimeInput(event.target.value) }))
-                  }
-                  aria-label="ساعت شروع به قالب ساعت و دقیقه"
-                />
-              </label>
-              <label className={styles.scheduleTimeField}>
-                <span>ساعت پایان</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  dir="ltr"
-                  maxLength={5}
-                  placeholder="۱۸:۰۰"
-                  value={toPersianDigits(scheduleDraft.to)}
-                  onChange={(event) =>
-                    setScheduleDraft((previous) => ({ ...previous, to: normalizeTimeInput(event.target.value) }))
-                  }
-                  aria-label="ساعت پایان به قالب ساعت و دقیقه"
-                />
-              </label>
-            </div>
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryButton} onClick={() => setScheduleEditorGroup(null)}>انصراف</button>
-              <button type="button" className={styles.primaryButton} onClick={saveScheduleGroup}><Icon name="check" size={16} />ثبت زمان‌بندی</button>
-            </div>
-          </section>
-        </div>
-      )}
 
       {modalOpen && (
         <div className={styles.modalBackdrop}>
@@ -1078,14 +1555,14 @@ export default function UserSkillsPage() {
                 <h2 id="skill-modal-title">{editingSkillId ? "ویرایش مهارت" : "افزودن مهارت جدید"}</h2>
                 <p>مهارت را از فهرست موجود انتخاب کنید و سطح و سابقه کار را مشخص کنید.</p>
               </div>
-              <button type="button" className={styles.iconButton} onClick={() => setModalOpen(false)} aria-label="بستن پنجره" disabled={isSkillSaving}><Icon name="x" /></button>
+              <button type="button" className={styles.iconButton} onClick={closeSkillModal} aria-label="بستن پنجره" disabled={isSkillSaving}><Icon name="x" /></button>
             </div>
-            <form className={styles.skillForm} onSubmit={submitSkill}>
+            <div className={styles.skillForm}>
               <label>
                 <span>عنوان مهارت</span>
                 <select
                   value={draft.skillId}
-                  onChange={(event) => setDraft((previous) => ({ ...previous, skillId: event.target.value }))}
+                  onChange={(event) => updateSkillDraft((previous) => ({ ...previous, skillId: event.target.value }))}
                   disabled={Boolean(editingSkillId) || isSkillSaving || isSkillsLoading}
                   required
                 >
@@ -1106,7 +1583,7 @@ export default function UserSkillsPage() {
                   <span>سطح مهارت</span>
                   <select
                     value={draft.level}
-                    onChange={(event) => setDraft((previous) => ({ ...previous, level: event.target.value as SkillLevel }))}
+                    onChange={(event) => updateSkillDraft((previous) => ({ ...previous, level: event.target.value as SkillLevel }))}
                     disabled={isSkillSaving}
                   >
                     <option value="beginner">مبتدی</option>
@@ -1123,19 +1600,23 @@ export default function UserSkillsPage() {
                     max={60}
                     step={1}
                     value={draft.experienceYears}
-                    onChange={(event) => setDraft((previous) => ({ ...previous, experienceYears: event.target.value }))}
+                    onChange={(event) => updateSkillDraft((previous) => ({ ...previous, experienceYears: event.target.value }))}
                     inputMode="numeric"
                     disabled={isSkillSaving}
                   />
                 </label>
               </div>
               <div className={styles.modalActions}>
-                <button type="button" className={styles.secondaryButton} onClick={() => setModalOpen(false)} disabled={isSkillSaving}>انصراف</button>
-                <button type="submit" className={styles.primaryButton} disabled={isSkillSaving || !draft.skillId}>
-                  <Icon name="check" size={16} /> {isSkillSaving ? "در حال ذخیره..." : editingSkillId ? "ثبت ویرایش" : "افزودن مهارت"}
-                </button>
+                <span className={styles.helperText}>
+                  {isSkillSaving
+                    ? "در حال ذخیره خودکار..."
+                    : isSkillDraftTouched
+                      ? "تغییرات پس از توقف ویرایش خودکار ذخیره می‌شوند."
+                      : "ذخیره‌سازی خودکار فعال است."}
+                </span>
+                <button type="button" className={styles.secondaryButton} onClick={closeSkillModal} disabled={isSkillSaving}>بستن</button>
               </div>
-            </form>
+            </div>
           </section>
         </div>
       )}

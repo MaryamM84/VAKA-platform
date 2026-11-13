@@ -1448,3 +1448,55 @@
   }
 
 }
+
+/* API-backed multi-slot availability editor */
+.scheduleEditorList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  padding-inline: 2px;
+}
+
+.scheduleEditorDayBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: 14px;
+  background: var(--vaka-surface-muted);
+}
+
+.scheduleEditorDayBlock .scheduleEditorDay {
+  align-self: flex-start;
+  margin: 0;
+  background: var(--vaka-surface);
+}
+
+.scheduleSlotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-inline-start: 8px;
+}
+
+.scheduleSlotRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+  align-items: end;
+  gap: 8px;
+}
+
+.scheduleSlotRow .iconButton {
+  width: 34px;
+  height: 38px;
+}
+
+@media (max-width: 560px) {
+  .scheduleSlotRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;
+    gap: 5px;
+  }
+}

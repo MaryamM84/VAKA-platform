@@ -26,6 +26,7 @@ from drf_spectacular.utils import (
     OpenApiTypes,
     extend_schema,
     extend_schema_view,
+    OpenApiResponse,
 )
 
 from .choices import TaskStatus
@@ -39,8 +40,11 @@ from .serializers import (
     TaskCreateSerializer,
     TaskDiscoverySerializer,
     TaskReadSerializer,
+    TaskUpdateSerializer,
+    TaskActionResponseSerializer
 )
 
+from .task_management import cancel_employer_task
 from .services import publish_task
 
 
@@ -653,3 +657,136 @@ class CategoryTaskListView(TaskDiscoveryQueryMixin, ListAPIView):
         )
         queryset = self.discoverable_queryset().filter(category=category)
         return self.apply_discovery_filters(queryset, allow_category=False)
+
+class EmployerTaskDetailView(GenericAPIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+    ]
+
+    serializer_class = TaskUpdateSerializer
+
+    lookup_field = "task_id"
+    lookup_url_kwarg = "task_id"
+
+    def get_queryset(self):
+
+        return (
+            Task.objects.filter(
+                employer_user=self.request.user
+            )
+            .select_related("category")
+            .prefetch_related(
+                "required_skills__skill",
+                "locations",
+            )
+        )
+
+    @extend_schema(
+        tags=["Tasks"],
+        operation_id="employer_task_update",
+        summary="Update an employer task",
+        request=TaskUpdateSerializer,
+        responses={
+            200: TaskReadSerializer,
+            400: OpenApiResponse(
+                description="Invalid task data."
+            ),
+            401: OpenApiResponse(
+                description="Authentication required."
+            ),
+            403: OpenApiResponse(
+                description="Employer permission required."
+            ),
+            404: OpenApiResponse(
+                description="Task not found."
+            ),
+            409: OpenApiResponse(
+                description="Task cannot be edited."
+            ),
+        },
+    )
+    def patch(self, request, *args, **kwargs):
+
+        task = self.get_object()
+
+        serializer = self.get_serializer(
+            task,
+            data=request.data,
+            partial=True,
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        updated_task = serializer.save()
+
+        updated_task.refresh_from_db()
+
+        response_serializer = TaskReadSerializer(
+            updated_task,
+            context=self.get_serializer_context(),
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class EmployerTaskCancelView(GenericAPIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsEmployer,
+    ]
+
+    serializer_class = TaskActionResponseSerializer
+
+    lookup_field = "task_id"
+    lookup_url_kwarg = "task_id"
+
+    def get_queryset(self):
+
+        return Task.objects.filter(
+            employer_user=self.request.user
+        )
+
+    @extend_schema(
+        tags=["Tasks"],
+        operation_id="employer_task_cancel",
+        summary="Cancel an employer task",
+        request=None,
+        responses={
+            200: TaskActionResponseSerializer,
+            401: OpenApiResponse(
+                description="Authentication required."
+            ),
+            403: OpenApiResponse(
+                description="Employer permission required."
+            ),
+            404: OpenApiResponse(
+                description="Task not found."
+            ),
+            409: OpenApiResponse(
+                description="Task cannot be cancelled."
+            ),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+
+        task = self.get_object()
+
+        updated_task = cancel_employer_task(
+            task_id=task.task_id,
+            employer=request.user,
+        )
+
+        serializer = TaskActionResponseSerializer(
+            updated_task
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )

@@ -13,6 +13,8 @@ from .views import (
     TaskListCreateView,
     TaskPublishView,
     TaskSubcategoryListView,
+    EmployerTaskDetailView,
+    EmployerTaskCancelView,
 )
 
 urlpatterns = [
@@ -22,6 +24,18 @@ urlpatterns = [
         "tasks/<uuid:task_id>/publish/",
         TaskPublishView.as_view(),
         name="task-publish",
+    ),
+
+    path(
+        "tasks/<uuid:task_id>/cancel/",
+        EmployerTaskCancelView.as_view(),
+        name="task-cancel",
+    ),
+
+    path(
+        "tasks/<uuid:task_id>/",
+        EmployerTaskDetailView.as_view(),
+        name="task-detail-update",
     ),
 
     # Existing public catalog endpoints.

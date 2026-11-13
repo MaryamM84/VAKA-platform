@@ -13,6 +13,9 @@ from .models import (
 )
 from .services import create_task_draft
 
+from .task_management import update_employer_task
+from .choices import TaskStatus
+
 
 BIGINT_MAX = 2**63 - 1
 SMALLINT_MIN = -(2**15)
@@ -416,3 +419,223 @@ class TaskDiscoverySerializer(serializers.ModelSerializer):
 
         read_only_fields = fields
 
+class TaskUpdateSerializer(
+    RejectUnexpectedFieldsMixin,
+    serializers.ModelSerializer,
+):
+
+    category_id = serializers.PrimaryKeyRelatedField(
+        source="category",
+        queryset=TaskCategory.objects.filter(is_active=True),
+        required=False,
+    )
+
+    title = serializers.CharField(
+        max_length=180,
+        required=False,
+        allow_blank=False,
+    )
+
+    description = serializers.CharField(
+        required=False,
+        allow_blank=False,
+    )
+
+    estimated_duration_minutes = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=300,
+    )
+
+    wage_budget_amount = serializers.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=BIGINT_MAX,
+    )
+
+    item_cost_cap_amount = serializers.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=BIGINT_MAX,
+        allow_null=True,
+    )
+
+    receipt_required = serializers.BooleanField(
+        required=False,
+    )
+
+    execution_window_start_at = serializers.DateTimeField(
+        required=False,
+    )
+
+    execution_window_end_at = serializers.DateTimeField(
+        required=False,
+    )
+
+    deadline_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+    )
+
+    proposal_deadline_at = serializers.DateTimeField(
+        required=False,
+    )
+
+    delivery_criteria = serializers.CharField(
+        required=False,
+        allow_blank=False,
+    )
+
+    required_skills = RequiredSkillInputSerializer(
+        many=True,
+        required=False,
+        write_only=True,
+    )
+
+    locations = LocationInputSerializer(
+        many=True,
+        required=False,
+        write_only=True,
+    )
+
+    class Meta:
+        model = Task
+
+        fields = [
+            "category_id",
+            "title",
+            "description",
+            "estimated_duration_minutes",
+            "wage_budget_amount",
+            "item_cost_cap_amount",
+            "receipt_required",
+            "execution_window_start_at",
+            "execution_window_end_at",
+            "deadline_at",
+            "proposal_deadline_at",
+            "delivery_criteria",
+            "required_skills",
+            "locations",
+        ]
+
+    def validate_required_skills(self, values):
+
+        skill_ids = [
+            row["skill"].pk
+            for row in values
+        ]
+
+        if len(skill_ids) != len(set(skill_ids)):
+            raise serializers.ValidationError(
+                "A skill cannot appear more than once."
+            )
+
+        return values
+
+    def validate_locations(self, values):
+
+        orders = [
+            item["stop_order"]
+            for item in values
+        ]
+
+        if len(orders) != len(set(orders)):
+            raise serializers.ValidationError(
+                "Each stop_order must be unique."
+            )
+
+        if sorted(orders) != list(
+            range(1, len(orders) + 1)
+        ):
+            raise serializers.ValidationError(
+                "stop_order must start at 1 and be consecutive."
+            )
+
+        return values
+
+    def validate(self, attrs):
+
+        if not attrs:
+            raise serializers.ValidationError(
+                "At least one editable field is required."
+            )
+
+        instance = self.instance
+
+        category = attrs.get(
+            "category",
+            instance.category,
+        )
+
+        start_at = attrs.get(
+            "execution_window_start_at",
+            instance.execution_window_start_at,
+        )
+
+        end_at = attrs.get(
+            "execution_window_end_at",
+            instance.execution_window_end_at,
+        )
+
+        if end_at <= start_at:
+            raise serializers.ValidationError({
+                "execution_window_end_at": (
+                    "Execution end must be later than start."
+                )
+            })
+
+        submitted_skills = attrs.get("required_skills")
+
+        if submitted_skills is not None:
+            skills = [
+                row["skill"]
+                for row in submitted_skills
+            ]
+
+        elif "category" in attrs:
+            skills = [
+                relation.skill
+                for relation in instance.required_skills.select_related(
+                    "skill"
+                )
+            ]
+
+        else:
+            skills = []
+
+        for skill in skills:
+
+            if (
+                skill.category_id is not None
+                and skill.category_id != category.pk
+            ):
+                raise serializers.ValidationError({
+                    "required_skills": (
+                        f"Skill '{skill.name}' does not "
+                        "belong to the selected category."
+                    )
+                })
+
+        return attrs
+
+    def update(self, instance, validated_data):
+
+        request = self.context.get("request")
+
+        return update_employer_task(
+            task_id=instance.task_id,
+            employer=request.user,
+            data=validated_data,
+        )
+
+
+class TaskActionResponseSerializer(serializers.Serializer):
+
+    task_id = serializers.UUIDField(read_only=True)
+
+    status = serializers.ChoiceField(
+        choices=TaskStatus.choices,
+        read_only=True,
+    )
+
+    updated_at = serializers.DateTimeField(read_only=True)

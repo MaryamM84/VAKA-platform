@@ -160,20 +160,42 @@
 /* Back button */
 
 .detailBack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   align-self: flex-start;
-  padding: 7px 14px;
-  border: none;
-  border-radius: 20px;
-  background: var(--vaka-primary-soft);
+  gap: 7px;
+
+  padding: 8px 16px;
+
+  border: 1px solid var(--vaka-primary);
+  border-radius: 999px;
+
+  background: var(--vaka-surface);
   color: var(--vaka-primary);
+
   font-family: inherit;
   font-size: 11px;
+  font-weight: 800;
+
   cursor: pointer;
-  transition: 0.2s;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .detailBack:hover {
-  background: var(--vaka-primary-soft);
+  background: var(--vaka-primary);
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.detailBack:focus-visible {
+  outline: 2px solid var(--vaka-primary);
+  outline-offset: 3px;
 }
 
 /* Top section */
@@ -877,4 +899,287 @@
 .favoriteButton:disabled {
   cursor: not-allowed;
   opacity: 0.78;
+}
+
+/* =========================================
+   TYPOGRAPHY IMPROVEMENTS
+   Task Detail Page
+========================================= */
+
+/* دکمه بازگشت */
+.detailBack {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* برچسب‌های بالای جزئیات */
+.urgentTag,
+.negotiableTag {
+  font-size: 11px;
+}
+
+/* عنوان اصلی تسک */
+.detailText h1 {
+  font-size: 20px;
+}
+
+/* توضیحات زیر عنوان */
+.detailText > p {
+  font-size: 12px;
+  line-height: 2;
+}
+
+/* عنوان اطلاعات آماری */
+.statBox > div strong {
+  font-size: 11px;
+}
+
+/* مقدار دستمزد، مدت و تاریخ */
+.statBox > b {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* توضیحات کوچک زیر اطلاعات */
+.statBox > small {
+  font-size: 10px;
+}
+
+/* عنوان موقعیت مبدأ و مقصد */
+.routeHeading strong {
+  font-size: 13px;
+}
+
+/* آدرس کامل مبدأ و مقصد */
+.routeLocation p {
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+/* عنوان موقعیت تک‌مکانه */
+.singleLocationInfo strong {
+  font-size: 14px;
+}
+
+/* متن آدرس تک‌مکانه */
+.singleLocationInfo p {
+  font-size: 12px;
+}
+
+/* دکمه مشاهده روی نقشه */
+.mapButton {
+  font-size: 11px;
+}
+
+/* عنوان بخش شرح کامل کار */
+.descriptionHeading strong {
+  font-size: 13px;
+}
+
+/* متن شرح کامل کار */
+.descriptionBox > p {
+  font-size: 12px;
+  line-height: 2;
+}
+
+/* عنوان و متن معیارهای تحویل */
+.deliveryCriteria strong {
+  font-size: 12px;
+}
+
+.deliveryCriteria p {
+  font-size: 12px;
+  line-height: 2;
+}
+
+/* دکمه‌های ثبت پیشنهاد و اشتراک‌گذاری */
+.detailActions a,
+.detailActions button {
+  font-size: 12px;
+}
+
+/* عنوان سایدبار کارفرما */
+.employerTitle strong {
+  font-size: 15px;
+}
+
+/* نام کارفرما */
+.employerIdentity strong {
+  font-size: 14px;
+}
+
+/* تاریخ عضویت */
+.employerIdentity small {
+  font-size: 11px;
+}
+
+/* آمار کارفرما */
+.employerMetrics strong {
+  font-size: 16px;
+}
+
+.employerMetrics span {
+  font-size: 11px;
+}
+
+/* عنوان خدمات و پشتیبانی */
+.employerFeature strong {
+  font-size: 12px;
+}
+
+/* توضیحات خدمات و پشتیبانی */
+.employerFeature p {
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+/* =========================================
+   TABLET & MOBILE
+========================================= */
+
+@media (max-width: 1000px) {
+  .statBox > div strong {
+    font-size: 10px;
+  }
+
+  .detailActions a,
+  .detailActions button {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 760px) {
+  .detailText h1 {
+    font-size: 18px;
+  }
+
+  .detailText > p {
+    font-size: 12px;
+  }
+
+  .statBox > div strong {
+    font-size: 11px;
+  }
+
+  .routeHeading strong {
+    font-size: 12px;
+  }
+
+  .routeLocation p {
+    font-size: 11px;
+  }
+
+  .descriptionBox > p,
+  .deliveryCriteria p {
+    font-size: 12px;
+  }
+
+  .detailActions a,
+  .detailActions button {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .detailText h1 {
+    font-size: 16px;
+  }
+
+  .detailText > p {
+    font-size: 11px;
+  }
+
+  .statBox > b {
+    font-size: 12px;
+  }
+
+  .routeLocation p {
+    font-size: 11px;
+  }
+
+  .detailActions a,
+  .detailActions button {
+    font-size: 11px;
+  }
+}
+
+/* =========================================
+   TASK DETAIL LAYOUT SPACING
+========================================= */
+
+/* فاصله محتوای جزئیات از اطراف صفحه */
+.detailPage {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+  padding: 24px 32px 36px;
+  gap: 24px;
+}
+
+/* کارت اصلی جزئیات */
+.detailMain {
+  min-width: 0;
+}
+
+/* کمی جمع‌وجورتر شدن محتوای کارت */
+.detailCard {
+  padding: 22px 26px 26px;
+}
+
+/* سایدبار کارفرما */
+.employerSidebar {
+  flex: 0 0 230px;
+}
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 1000px) {
+  .detailPage {
+    padding: 18px 20px 30px;
+    gap: 16px;
+  }
+
+  .employerSidebar {
+    flex-basis: 210px;
+  }
+
+  .detailCard {
+    padding: 20px;
+  }
+}
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 760px) {
+  .detailPage {
+    flex-direction: column;
+    padding: 16px 14px 26px;
+    gap: 14px;
+  }
+
+  .detailCard {
+    padding: 18px 16px;
+  }
+
+  .employerSidebar {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+}
+
+/* =========================================
+   SMALL MOBILE
+========================================= */
+
+@media (max-width: 420px) {
+  .detailPage {
+    padding: 12px 10px 22px;
+  }
+
+  .detailCard {
+    padding: 15px 12px;
+  }
 }

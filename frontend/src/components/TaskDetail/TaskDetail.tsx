@@ -6,10 +6,6 @@ import { getAccessToken } from "@/lib/auth-api";
 import type { Task } from "@/components/TaskDetail/types";
 import styles from "./TaskDetail.module.css";
 
-/* ============================================
-   Types
-============================================ */
-
 type DiscoveryLocation = {
   task_location_id: string;
   location_type: string;
@@ -473,6 +469,7 @@ function TaskDetailView({ task, onBack, employer }: TaskDetailProps) {
               className={styles.detailBack}
               onClick={onBack}
             >
+              <span aria-hidden="true">→</span>
               بازگشت به کارها
             </button>
 

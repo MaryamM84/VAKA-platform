@@ -1,7 +1,6 @@
 .page {
   --home-green: var(--vaka-primary, #0a967e);
   --home-green-dark: #087c6c;
-
   position: relative;
   isolation: isolate;
   min-height: calc(100vh - 96px);
@@ -15,10 +14,6 @@
 .page * {
   box-sizing: border-box;
 }
-
-/* ======================================
-   HOME BACKGROUND - FIGMA
-====================================== */
 
 .homeDecorations {
   position: absolute;
@@ -101,10 +96,6 @@
   background: #edf9f4;
 }
 
-/* ======================================
-   MAIN LAYOUT
-====================================== */
-
 .layout {
   position: relative;
   display: flex;
@@ -125,10 +116,6 @@
   width: 100%;
   min-width: 0;
 }
-
-/* ======================================
-   CATEGORY SIDEBAR
-====================================== */
 
 .sidebar {
   order: 2;
@@ -243,10 +230,6 @@
   background: var(--home-green);
 }
 
-/* ======================================
-   HOME MAIN CONTENT
-====================================== */
-
 .mainContent {
   order: 1;
   direction: rtl;
@@ -278,10 +261,6 @@
   font-size: 10px;
   line-height: 1.8;
 }
-
-/* ======================================
-   TOOLBAR
-====================================== */
 
 .toolbar {
   display: flex;
@@ -395,10 +374,6 @@
   white-space: nowrap;
 }
 
-/* ======================================
-   TASK LIST AND TASK CARDS
-====================================== */
-
 .taskList {
   display: flex;
   flex-direction: column;
@@ -508,10 +483,6 @@
   line-height: 1.9;
 }
 
-/* ======================================
-   ROUTE: ORIGIN -> DESTINATION
-====================================== */
-
 .routeSummary {
   display: flex;
   direction: rtl;
@@ -560,10 +531,6 @@
   stroke-width: 2;
 }
 
-/* ======================================
-   TASK META
-====================================== */
-
 .metaRow {
   display: flex;
   align-items: center;
@@ -588,10 +555,6 @@
 .dateText {
   color: var(--vaka-text-muted, #85958f);
 }
-
-/* ======================================
-   TASK ACTIONS
-====================================== */
 
 .taskActions {
   display: flex;
@@ -650,10 +613,6 @@
   transform: translateY(-1px);
 }
 
-/* ======================================
-   GRID VIEW
-====================================== */
-
 .taskGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -698,10 +657,6 @@
   padding-top: 9px;
   border-top: 1px solid var(--vaka-border-soft, #e5ece9);
 }
-
-/* ======================================
-   EMPTY / LOADING / ERROR STATES
-====================================== */
 
 .emptyState,
 .apiState {
@@ -763,9 +718,7 @@
   cursor: wait;
 }
 
-/* ======================================
-   ADVANCED FILTER MODAL
-====================================== */
+/* ADVANCED FILTER MODAL */
 
 .advancedBackdrop {
   position: fixed;
@@ -1079,40 +1032,63 @@
   cursor: pointer;
 }
 
+/* FIXED FILTER FOOTER */
+
 .advancedFooter {
+  position: relative;
+  z-index: 5;
   display: flex;
-  justify-content: center;
   flex: 0 0 auto;
-  padding: 12px 20px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 20px;
   border-top: 1px solid var(--vaka-border-soft, #e3ece7);
   background: #fff;
 }
 
-.applyFilters {
+.advancedFooter .applyFilters {
   display: inline-flex;
+  visibility: visible;
+  opacity: 1;
+  position: relative;
+  z-index: 1;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 180px;
-  min-height: 40px;
-  padding: 0 22px;
+  gap: 9px;
+  width: min(100%, 260px);
+  min-height: 44px;
+  padding: 10px 22px;
   border: 0;
   border-radius: 999px;
-  background: var(--home-green);
+  background: var(--home-green, #0a967e);
   color: #fff;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 850;
+  line-height: 1.5;
   cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.applyFilters:hover {
-  background: var(--vaka-primary-hover, #087764);
+.advancedFooter .applyFilters:hover {
+  background: var(--home-green-dark, #087c6c);
+  transform: translateY(-1px);
 }
 
-/* ======================================
-   RESPONSIVE - TABLET
-====================================== */
+.advancedFooter .applyFilters:focus-visible {
+  outline: 2px solid var(--home-green, #0a967e);
+  outline-offset: 3px;
+}
+
+.advancedFooter .applyFilters svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
 
 @media (max-width: 1100px) {
   .page {
@@ -1148,10 +1124,6 @@
     flex-wrap: wrap;
   }
 }
-
-/* ======================================
-   RESPONSIVE - MOBILE
-====================================== */
 
 @media (max-width: 760px) {
   .page {
@@ -1325,5 +1297,337 @@
 
   .priceInputs {
     gap: 6px;
+  }
+
+  .advancedFooter {
+    min-height: 72px;
+    padding: 12px 14px;
+  }
+
+  .advancedFooter .applyFilters {
+    width: 100%;
+    font-size: 12px;
+  }
+}
+
+/* TYPOGRAPHY IMPROVEMENTS */
+
+.intro h1 {
+  font-size: 20px;
+}
+.intro p {
+  font-size: 12px;
+}
+.sidebarHeading {
+  font-size: 15px;
+}
+
+.allCategory,
+.categoryButton {
+  font-size: 12px;
+}
+
+.subCategory {
+  font-size: 11px;
+}
+.sortSelect select {
+  font-size: 12px;
+}
+.advancedFilter {
+  font-size: 12px;
+}
+.resultCount {
+  font-size: 11px;
+}
+
+.urgentTag,
+.locationTag {
+  font-size: 11px;
+}
+
+.taskInfo h2 {
+  font-size: 16px;
+}
+
+.description {
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.locationLine,
+.routeSummary {
+  font-size: 12px;
+}
+
+.metaRow {
+  font-size: 11px;
+  gap: 12px;
+}
+
+.price strong {
+  font-size: 14px;
+}
+.price span {
+  font-size: 11px;
+}
+.proposalButton {
+  font-size: 12px;
+}
+.taskGrid .taskInfo h2 {
+  font-size: 15px;
+}
+.advancedHeader h2 {
+  font-size: 17px;
+}
+
+.clearAll,
+.filterSectionTitle,
+.durationHeading {
+  font-size: 12px;
+}
+
+.priceInputs label,
+.priceInputs input,
+.locationFields label,
+.locationFields input,
+.checkLine,
+.durationOptions label {
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .intro h1 {
+    font-size: 18px;
+  }
+  .intro p {
+    font-size: 12px;
+  }
+  .sidebarHeading {
+    font-size: 14px;
+  }
+
+  .categoryButton,
+  .allCategory {
+    font-size: 12px;
+  }
+
+  .subCategory {
+    font-size: 11px;
+  }
+  .taskInfo h2 {
+    font-size: 15px;
+  }
+
+  .description {
+    font-size: 12px;
+    white-space: normal;
+  }
+
+  .locationLine,
+  .routeSummary {
+    font-size: 11px;
+  }
+
+  .metaRow {
+    font-size: 11px;
+    gap: 8px;
+  }
+
+  .proposalButton {
+    font-size: 12px;
+  }
+  .taskGrid .taskInfo h2 {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .taskInfo h2 {
+    font-size: 14px;
+  }
+  .description {
+    font-size: 11px;
+  }
+  .metaRow {
+    font-size: 11px;
+  }
+  .routeSummary {
+    font-size: 11px;
+  }
+  .advancedHeader h2 {
+    font-size: 14px;
+  }
+  .clearAll {
+    font-size: 10px;
+  }
+}
+
+/* =========================================
+   MARKETPLACE LAYOUT IMPROVEMENTS
+   Wider categories and balanced task cards
+========================================= */
+
+/* فاصله سایدبار از محتوای اصلی */
+.layout {
+  gap: 22px;
+}
+
+/* سایدبار دسته‌بندی‌ها */
+.sidebar {
+  flex: 0 0 210px;
+  width: 210px;
+  padding: 16px 14px 22px;
+}
+
+/* متن دسته‌بندی‌ها */
+.sidebarHeading {
+  font-size: 15px;
+}
+
+.categoryButton,
+.allCategory {
+  font-size: 12px;
+}
+
+.subCategory {
+  font-size: 12px;
+}
+
+/* فاصله از سمت راست و چپ کارت‌ها */
+.mainContent {
+  min-width: 0;
+  padding-inline: 16px;
+}
+
+/* فاصله بین کارت‌های تسک */
+.taskList {
+  gap: 15px;
+}
+
+/* اندازه کارت‌های تسک */
+.taskCard {
+  min-height: 168px;
+  padding: 20px 22px;
+  gap: 16px;
+}
+
+/* توضیحات کارت */
+.taskInfo {
+  gap: 2px;
+}
+
+/* فضای بیشتر برای نوشته‌ها */
+.taskInfo h2 {
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.description {
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+/* آدرس و زمان */
+.locationLine,
+.routeSummary {
+  font-size: 12px;
+}
+
+.metaRow {
+  font-size: 11px;
+}
+
+/* حالت نمایش شبکه‌ای */
+.taskGrid .taskCard {
+  min-height: 165px;
+}
+
+/* =========================================
+   TABLET
+========================================= */
+
+@media (max-width: 1100px) {
+  .layout {
+    gap: 16px;
+  }
+
+  .sidebar {
+    flex: 0 0 185px;
+    width: 185px;
+    padding: 14px 12px;
+  }
+
+  .mainContent {
+    padding-inline: 10px;
+  }
+
+  .taskCard {
+    min-height: 164px;
+    padding: 17px 15px;
+    grid-template-columns: 68px minmax(0, 1fr) 160px;
+    gap: 12px;
+  }
+}
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 760px) {
+  .layout {
+    gap: 15px;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .mainContent {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  .taskCard {
+    min-height: 165px;
+    grid-template-columns: 65px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    padding: 15px;
+    gap: 10px;
+  }
+
+  .taskGrid .taskCard {
+    min-height: 165px;
+  }
+
+  .taskList {
+    gap: 14px;
+  }
+}
+
+/* =========================================
+   SMALL MOBILE
+========================================= */
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 12px 10px;
+  }
+
+  .taskCard {
+    grid-template-columns: 52px minmax(0, 1fr);
+    min-height: 160px;
+    padding: 12px;
+    gap: 9px;
+  }
+
+  .taskInfo h2 {
+    font-size: 14px;
+  }
+
+  .taskGrid .taskCard {
+    min-height: 160px;
   }
 }

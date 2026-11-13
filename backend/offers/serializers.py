@@ -83,6 +83,13 @@ class BidSubmissionSerializer(
 class BidReadSerializer(serializers.ModelSerializer):
 
     task_id = serializers.UUIDField(read_only=True)
+    task_title = serializers.CharField(source="task.title", read_only=True)
+    employer_name = serializers.CharField(
+        source="task.employer_user.full_name", read_only=True
+    )
+    task_currency_code = serializers.CharField(
+        source="task.currency_code", read_only=True
+    )
 
     executor_profile_id = serializers.UUIDField(read_only=True)
 
@@ -92,6 +99,9 @@ class BidReadSerializer(serializers.ModelSerializer):
         fields = [
             "bid_id",
             "task_id",
+            "task_title",
+            "employer_name",
+            "task_currency_code",
             "executor_profile_id",
             "proposed_wage_amount",
             "proposed_duration_minutes",

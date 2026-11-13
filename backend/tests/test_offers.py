@@ -671,6 +671,19 @@ class MyBidsListAPITests(BidAPITestBase):
         )
         self.assertNotIn(str(other_bid.pk), returned_ids)
 
+    def test_list_includes_task_context_required_by_frontend(self):
+        bid = self.create_bid(profile=self.profile, task=self.task_one)
+
+        response = self.client.get(BIDS_URL)
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        item = response.data[0]
+        self.assertEqual(item["bid_id"], str(bid.pk))
+        self.assertEqual(item["task_title"], self.task_one.title)
+        self.assertEqual(item["employer_name"], self.employer.full_name)
+        self.assertEqual(item["task_currency_code"], self.task_one.currency_code)
+
     def test_list_returns_empty_array_when_executor_has_no_bids(self):
         response = self.client.get(BIDS_URL)
 

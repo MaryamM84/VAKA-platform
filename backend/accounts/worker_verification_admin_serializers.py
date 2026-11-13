@@ -1,13 +1,16 @@
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from .models import (
     User,
     ExecutorProfile,
 )
 
+from .worker_verification_services import identity_to_payload
 from .worker_verification_serializers import (
     WorkerVerificationDocumentReadSerializer,
+    WorkerVerificationIdentityReadSerializer,
 )
 
 
@@ -61,6 +64,15 @@ class AdminWorkerVerificationDetailSerializer(
         read_only=True,
     )
 
+    identity = serializers.SerializerMethodField()
+
+    @extend_schema_field(WorkerVerificationIdentityReadSerializer)
+    def get_identity(self, obj):
+        details = getattr(obj, "verification_identity", None)
+        if details is None:
+            return None
+        return WorkerVerificationIdentityReadSerializer(identity_to_payload(details)).data
+
     class Meta:
         model = ExecutorProfile
         fields = [
@@ -80,6 +92,7 @@ class AdminWorkerVerificationDetailSerializer(
             "approved_at",
             "rejection_reason",
             "documents",
+            "identity",
         ]
 
         read_only_fields = fields

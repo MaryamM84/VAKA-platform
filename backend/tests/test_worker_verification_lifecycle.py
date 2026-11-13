@@ -1,7 +1,16 @@
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+def new_test_png(name="national-card.png"):
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (3, 3), (123, 45, 67)).save(buf, "PNG")
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+
 from django.urls import reverse
 from django.utils import timezone
+from django.test import override_settings
 
 from rest_framework import status
 from rest_framework.test import APITestCase, APIClient
@@ -15,6 +24,13 @@ from accounts.models import (
 )
 
 
+TEST_FERNET = "e2NeeKHZKKOBso4UwLtFkyDfzvoDQ70zGwV4qEGfeEc="
+TEST_HMAC = "test-only-hmac-key-for-verification-tests-abcdefgh123456789"
+
+@override_settings(
+    VERIFICATION_PII_ENCRYPTION_KEY=TEST_FERNET,
+    VERIFICATION_PII_HASH_KEY=TEST_HMAC,
+)
 class WorkerVerificationLifecycleTests(APITestCase):
 
     def setUp(self):
@@ -67,6 +83,7 @@ class WorkerVerificationLifecycleTests(APITestCase):
             "profile:worker-verification-status"
         )
 
+        self.identity_url = reverse("profile:worker-verification-identity")
         self.submit_url = reverse(
             "profile:worker-verification-submit"
         )
@@ -79,20 +96,11 @@ class WorkerVerificationLifecycleTests(APITestCase):
             "worker_verification_admin:list"
         )
 
-        self.file_content = (
-            b"%PDF-1.4\n"
-            b"1 0 obj\n"
-            b"<< /Type /Catalog >>\n"
-            b"endobj\n"
-            b"%%EOF"
-        )
+        self.file_content = new_test_png().read()
 
     def make_pdf(self):
-
         return SimpleUploadedFile(
-            "identity.pdf",
-            self.file_content,
-            content_type="application/pdf",
+            "identity.png", self.file_content, content_type="image/png",
         )
 
     def tearDown(self):
@@ -128,28 +136,29 @@ class WorkerVerificationLifecycleTests(APITestCase):
 
         # 2. Upload verification document
 
-        response = self.applicant_client.post(
-            self.upload_url,
-            {
-                "document_type": "NATIONAL_ID",
-                "file": self.make_pdf(),
-            },
-            format="multipart",
-        )
+        identity_response = self.applicant_client.put(self.identity_url, {
+            "first_name": "Test", "last_name": "Applicant",
+            "national_code": "1234567891", "birth_date": "2000-01-15",
+            "iban": "IR820540102680020817909002",
+            "mobile": self.applicant.phone,
+        }, format="json")
+        self.assertEqual(identity_response.status_code, 200, identity_response.data)
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED,
-            response.data,
-        )
+        for kind in ("NATIONAL_CARD_FRONT", "NATIONAL_CARD_BACK"):
+            response = self.applicant_client.post(
+                self.upload_url,
+                {"document_type": kind, "file": self.make_pdf()},
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
 
         profile = ExecutorProfile.objects.get(
             user=self.applicant,
         )
 
-        document = WorkerVerificationDocument.objects.get(
+        document = WorkerVerificationDocument.objects.filter(
             executor_profile=profile,
-        )
+        ).first()
 
         # 3. Submit application
 
@@ -206,7 +215,7 @@ class WorkerVerificationLifecycleTests(APITestCase):
 
         self.assertEqual(
             len(response.data["documents"]),
-            1,
+            2,
         )
 
         # 6. Admin downloads document
@@ -400,7 +409,7 @@ class WorkerVerificationLifecycleTests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
         )
 
         # Final database state

@@ -72,6 +72,23 @@ class User(AbstractBaseUser):
         blank=True,
     )
 
+    birth_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    province_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
+
+    city_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
+
     account_status = models.CharField(
         max_length=16,
         choices=AccountStatus.choices,
@@ -509,6 +526,32 @@ class WorkerVerificationDocument(models.Model):
 
     def __str__(self):
         return f"{self.executor_profile.user_id} - {self.document_type}"
+
+
+class WorkerVerificationIdentity(models.Model):
+    """Private, persisted identity form for an executor verification application."""
+
+    identity_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    executor_profile = models.OneToOneField(
+        ExecutorProfile, on_delete=models.CASCADE, related_name="verification_identity",
+    )
+    first_name = models.CharField(max_length=80)
+    last_name = models.CharField(max_length=100)
+    birth_date = models.DateField()
+    mobile = models.CharField(max_length=11)
+    national_code_encrypted = models.TextField()
+    national_code_hash = models.CharField(max_length=64, unique=True)
+    national_code_last4 = models.CharField(max_length=4)
+    iban_encrypted = models.TextField()
+    iban_last4 = models.CharField(max_length=4)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "worker_verification_identity"
+
+    def __str__(self):
+        return f"Worker verification identity: {self.executor_profile_id}"
 
 
 class OTPChallenge(models.Model):

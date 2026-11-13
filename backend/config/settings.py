@@ -20,12 +20,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
+# Public profile images are stored separately from private verification files.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
 
 load_dotenv(BASE_DIR / ".env")
+
+VERIFICATION_PII_ENCRYPTION_KEY = os.getenv("VERIFICATION_PII_ENCRYPTION_KEY", "").strip()
+VERIFICATION_PII_HASH_KEY = os.getenv("VERIFICATION_PII_HASH_KEY", "").strip()
 
 FERZZ_API_TOKEN = os.getenv("FERZZ_API_TOKEN", "")
 FERZZ_API_URL = os.getenv(

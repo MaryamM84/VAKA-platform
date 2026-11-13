@@ -1,7 +1,16 @@
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+def new_test_png(name="national-card.png"):
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (3, 3), (123, 45, 67)).save(buf, "PNG")
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+
 from django.urls import reverse
 from django.utils import timezone
+from django.test import override_settings
 
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -13,6 +22,13 @@ from accounts.models import (
 )
 
 
+TEST_FERNET = "e2NeeKHZKKOBso4UwLtFkyDfzvoDQ70zGwV4qEGfeEc="
+TEST_HMAC = "test-only-hmac-key-for-verification-tests-abcdefgh123456789"
+
+@override_settings(
+    VERIFICATION_PII_ENCRYPTION_KEY=TEST_FERNET,
+    VERIFICATION_PII_HASH_KEY=TEST_HMAC,
+)
 class WorkerVerificationApplicationAPITests(APITestCase):
 
     def setUp(self):
@@ -32,6 +48,8 @@ class WorkerVerificationApplicationAPITests(APITestCase):
             "profile:worker-verification-status"
         )
 
+        self.identity_url = reverse("profile:worker-verification-identity")
+
         self.submit_url = reverse(
             "profile:worker-verification-submit"
         )
@@ -40,38 +58,25 @@ class WorkerVerificationApplicationAPITests(APITestCase):
             "profile:worker-verification-document-upload"
         )
 
-    def make_pdf(self):
-
-        return SimpleUploadedFile(
-            "identity.pdf",
-            (
-                b"%PDF-1.4\n"
-                b"1 0 obj\n"
-                b"<< /Type /Catalog >>\n"
-                b"endobj\n"
-                b"%%EOF"
-            ),
-            content_type="application/pdf",
-        )
+    def save_identity(self):
+        return self.client.put(self.identity_url, {
+            "first_name": "Test", "last_name": "Applicant",
+            "national_code": "1234567891", "birth_date": "2000-01-15",
+            "iban": "IR820540102680020817909002",
+            "mobile": self.user.phone,
+        }, format="json")
 
     def upload_document(self):
-
-        response = self.client.post(
-            self.upload_url,
-            {
-                "document_type": "NATIONAL_ID",
-                "file": self.make_pdf(),
-            },
-            format="multipart",
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_201_CREATED,
-            response.data,
-        )
-
-        return response
+        identity_response = self.save_identity()
+        self.assertEqual(identity_response.status_code, 200, identity_response.data)
+        responses = []
+        for kind in ("NATIONAL_CARD_FRONT", "NATIONAL_CARD_BACK"):
+            response = self.client.post(self.upload_url, {
+                "document_type": kind, "file": new_test_png(),
+            }, format="multipart")
+            self.assertEqual(response.status_code, 201, response.data)
+            responses.append(response)
+        return responses[0]
 
     def tearDown(self):
 
@@ -130,6 +135,7 @@ class WorkerVerificationApplicationAPITests(APITestCase):
         )
 
     def test_application_cannot_be_submitted_without_documents(self):
+        self.save_identity()
 
         response = self.client.post(
             self.submit_url,
@@ -194,12 +200,12 @@ class WorkerVerificationApplicationAPITests(APITestCase):
 
         self.assertEqual(
             len(response.data["documents"]),
-            1,
+            2,
         )
 
         self.assertEqual(
             response.data["documents"][0]["document_type"],
-            "NATIONAL_ID",
+            "NATIONAL_CARD_FRONT",
         )
 
         self.assertNotIn(
@@ -225,7 +231,7 @@ class WorkerVerificationApplicationAPITests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
         )
 
         profile.refresh_from_db()
@@ -253,7 +259,7 @@ class WorkerVerificationApplicationAPITests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
         )
 
     def test_rejected_application_can_be_resubmitted(self):
@@ -340,8 +346,8 @@ class WorkerVerificationApplicationAPITests(APITestCase):
         other_client.post(
             self.upload_url,
             {
-                "document_type": "NATIONAL_ID",
-                "file": self.make_pdf(),
+                "document_type": "NATIONAL_CARD_FRONT",
+                "file": new_test_png(),
             },
             format="multipart",
         )

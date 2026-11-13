@@ -30,6 +30,7 @@ class MyProfileView(APIView):
 
         serializer = MyProfileSerializer(
             instance=request.user,
+            context={"request": request},
         )
 
         return Response(
@@ -66,6 +67,7 @@ class MyProfileView(APIView):
 
         response_serializer = MyProfileSerializer(
             instance=request.user,
+            context={"request": request},
         )
 
         return Response(

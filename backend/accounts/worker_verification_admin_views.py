@@ -83,6 +83,7 @@ class AdminWorkerVerificationDetailView(APIView):
             .select_related(
                 "user",
                 "reviewed_by_user",
+                "verification_identity",
             )
             .prefetch_related("verification_documents"),
             pk=executor_profile_id,
@@ -108,10 +109,12 @@ class AdminWorkerVerificationDetailView(APIView):
             profile,
         )
 
-        return Response(
+        response = Response(
             serializer.data,
             status=status.HTTP_200_OK,
         )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class AdminWorkerVerificationApproveView(APIView):

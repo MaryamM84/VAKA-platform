@@ -766,6 +766,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/EmployerBidDetail'
           description: ''
+  /api/offers/employer/bids/{bid_id}/accept/:
+    post:
+      operationId: employer_bid_accept
+      summary: Accept an executor bid
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidDecisionResponse'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Bid not found.
+        '409':
+          description: Invalid bid or task state.
+  /api/offers/employer/bids/{bid_id}/reject/:
+    post:
+      operationId: employer_bid_reject
+      summary: Reject an executor bid
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidDecisionResponse'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Bid not found.
+        '409':
+          description: Invalid bid or task state.
   /api/offers/employer/tasks/{task_id}/bids/:
     get:
       operationId: employer_task_bids_list
@@ -975,6 +1037,96 @@ paths:
           description: Availability slot deleted successfully.
         '404':
           description: Availability slot not found.
+  /api/profile/me/avatar/:
+    get:
+      operationId: profile_me_avatar_retrieve
+      summary: Get current profile avatar
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAvatarRead'
+          description: ''
+    post:
+      operationId: profile_me_avatar_create
+      summary: Upload or replace the current profile avatar
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvatarUploadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvatarUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AvatarUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAvatarRead'
+          description: ''
+        '400':
+          description: Invalid image.
+        '401':
+          description: Authentication required.
+    patch:
+      operationId: profile_me_avatar_partial_update
+      summary: Select one of the predefined profile avatars
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarPresetSelectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarPresetSelectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarPresetSelectionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAvatarRead'
+          description: ''
+        '400':
+          description: Invalid avatar selection.
+        '401':
+          description: Authentication required.
+    delete:
+      operationId: profile_me_avatar_destroy
+      summary: Delete the current profile avatar
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Avatar deleted.
+        '401':
+          description: Authentication required.
   /api/profile/me/preferences/:
     get:
       operationId: profile_me_preferences_retrieve
@@ -1265,7 +1417,7 @@ paths:
   /api/profile/me/verification/:
     get:
       operationId: profile_me_verification_retrieve
-      summary: Get current worker verification status
+      summary: Read verification status and document metadata
       tags:
       - Worker Verification
       security:
@@ -1283,9 +1435,7 @@ paths:
   /api/profile/me/verification/documents/:
     post:
       operationId: profile_me_verification_documents_create
-      description: Upload a private identity verification document for the authenticated
-        user's executor profile.
-      summary: Upload worker verification document
+      summary: Upload front or back national card image
       tags:
       - Worker Verification
       requestBody:
@@ -1308,13 +1458,93 @@ paths:
                 $ref: '#/components/schemas/WorkerVerificationDocumentRead'
           description: ''
         '400':
-          description: Invalid document or verification status.
+          description: Unsupported image or invalid document type.
         '401':
           description: Authentication required.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/documents/{document_id}/:
+    delete:
+      operationId: profile_me_verification_documents_destroy
+      summary: Delete an uploaded document before submission
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Document deleted.
+        '401':
+          description: Authentication required.
+        '404':
+          description: Document not found.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/identity/:
+    get:
+      operationId: profile_me_verification_identity_retrieve
+      summary: Read saved identity form
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          description: ''
+        '401':
+          description: Authentication required.
+        '404':
+          description: Identity form has not been saved.
+    put:
+      operationId: profile_me_verification_identity_update
+      summary: Validate and save identity form
+      tags:
+      - Worker Verification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          description: ''
+        '400':
+          description: Invalid identity fields.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Verification is locked.
   /api/profile/me/verification/submit/:
     post:
       operationId: profile_me_verification_submit_create
-      summary: Submit worker verification application
+      summary: Submit saved identity and both documents
       tags:
       - Worker Verification
       security:
@@ -1328,9 +1558,34 @@ paths:
                 $ref: '#/components/schemas/WorkerVerificationStatus'
           description: ''
         '400':
-          description: Application cannot be submitted.
+          description: Missing saved identity or documents.
         '401':
           description: Authentication required.
+        '409':
+          description: Application already submitted.
+  /api/profiles/{profile_id}/:
+    get:
+      operationId: profiles_retrieve
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - profiles
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicWorkerProfile'
+          description: ''
   /api/skills/:
     get:
       operationId: skills_list
@@ -1549,6 +1804,81 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskCreate'
           description: ''
+  /api/tasks/{task_id}/:
+    patch:
+      operationId: employer_task_update
+      summary: Update an employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+          description: ''
+        '400':
+          description: Invalid task data.
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Task not found.
+        '409':
+          description: Task cannot be edited.
+  /api/tasks/{task_id}/cancel/:
+    post:
+      operationId: employer_task_cancel
+      summary: Cancel an employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskActionResponse'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Task not found.
+        '409':
+          description: Task cannot be cancelled.
   /api/tasks/{task_id}/publish/:
     post:
       operationId: task_publish
@@ -1649,6 +1979,10 @@ components:
           items:
             $ref: '#/components/schemas/WorkerVerificationDocumentRead'
           readOnly: true
+        identity:
+          allOf:
+          - $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          readOnly: true
       required:
       - applicant
       - application_submitted_at
@@ -1656,6 +1990,7 @@ components:
       - bio
       - documents
       - executor_profile_id
+      - identity
       - rejection_reason
       - reviewed_at
       - reviewed_by_user
@@ -1706,6 +2041,59 @@ components:
       - access
       - refresh
       - user
+    AvatarIdEnum:
+      enum:
+      - avatar_1
+      - avatar_2
+      - avatar_3
+      - avatar_4
+      - avatar_5
+      - avatar_6
+      type: string
+      description: |-
+        * `avatar_1` - avatar_1
+        * `avatar_2` - avatar_2
+        * `avatar_3` - avatar_3
+        * `avatar_4` - avatar_4
+        * `avatar_5` - avatar_5
+        * `avatar_6` - avatar_6
+    AvatarUploadRequest:
+      type: object
+      properties:
+        image:
+          type: string
+          format: binary
+      required:
+      - image
+    BidDecisionResponse:
+      type: object
+      properties:
+        bid_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status224Enum'
+          readOnly: true
+        task_status:
+          allOf:
+          - $ref: '#/components/schemas/TaskStatusEnum'
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bid_id
+      - status
+      - task_id
+      - task_status
+      - updated_at
     BidRead:
       type: object
       properties:
@@ -1716,6 +2104,15 @@ components:
         task_id:
           type: string
           format: uuid
+          readOnly: true
+        task_title:
+          type: string
+          readOnly: true
+        employer_name:
+          type: string
+          readOnly: true
+        task_currency_code:
+          type: string
           readOnly: true
         executor_profile_id:
           type: string
@@ -1750,13 +2147,16 @@ components:
       required:
       - bid_id
       - created_at
+      - employer_name
       - executor_profile_id
       - expires_at
       - message
       - proposed_duration_minutes
       - proposed_wage_amount
       - status
+      - task_currency_code
       - task_id
+      - task_title
       - updated_at
     BidSubmissionRequest:
       type: object
@@ -1828,6 +2228,14 @@ components:
           type: boolean
       required:
       - name
+    DocumentTypeEnum:
+      enum:
+      - NATIONAL_CARD_FRONT
+      - NATIONAL_CARD_BACK
+      type: string
+      description: |-
+        * `NATIONAL_CARD_FRONT` - NATIONAL_CARD_FRONT
+        * `NATIONAL_CARD_BACK` - NATIONAL_CARD_BACK
     EmployerBidDetail:
       type: object
       properties:
@@ -2093,10 +2501,43 @@ components:
             format: email
           - type: string
             maxLength: 0
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        province_id:
+          type: string
+          nullable: true
+          maxLength: 64
+        city_id:
+          type: string
+          nullable: true
+          maxLength: 64
         avatar_key:
           type: string
           readOnly: true
           nullable: true
+        avatar_type:
+          type: string
+          readOnly: true
+        avatar_id:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          readOnly: true
+        completed_tasks_count:
+          type: string
+          readOnly: true
+        active_tasks_count:
+          type: string
+          readOnly: true
+        average_rating:
+          type: string
+          readOnly: true
+        rating_count:
+          type: string
+          readOnly: true
         bio:
           type: string
           nullable: true
@@ -2112,9 +2553,16 @@ components:
           format: date-time
           readOnly: true
       required:
+      - active_tasks_count
+      - avatar_id
       - avatar_key
+      - avatar_type
+      - avatar_url
+      - average_rating
+      - completed_tasks_count
       - created_at
       - phone
+      - rating_count
       - updated_at
       - user_id
       - verification_status
@@ -2213,6 +2661,11 @@ components:
       required:
       - password
       - phone
+    PatchedAvatarPresetSelectionRequest:
+      type: object
+      properties:
+        avatar_id:
+          $ref: '#/components/schemas/AvatarIdEnum'
     PatchedBidUpdateRequest:
       type: object
       properties:
@@ -2261,9 +2714,77 @@ components:
             format: email
           - type: string
             maxLength: 0
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        province_id:
+          type: string
+          nullable: true
+          maxLength: 64
+        city_id:
+          type: string
+          nullable: true
+          maxLength: 64
         bio:
           type: string
           nullable: true
+    PatchedTaskUpdateRequest:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        description:
+          type: string
+          minLength: 1
+        estimated_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+          minLength: 1
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredSkillInputRequest'
+          writeOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationInputRequest'
+          writeOnly: true
     PatchedWorkerAvailabilityTimezoneRequest:
       type: object
       properties:
@@ -2361,6 +2882,117 @@ components:
         * `INTERMEDIATE` - Intermediate
         * `ADVANCED` - Advanced
         * `EXPERT` - Expert
+    ProfileAvatarRead:
+      type: object
+      properties:
+        avatar_key:
+          type: string
+          readOnly: true
+          nullable: true
+        avatar_type:
+          type: string
+          readOnly: true
+        avatar_id:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          readOnly: true
+      required:
+      - avatar_id
+      - avatar_key
+      - avatar_type
+      - avatar_url
+    PublicWorkerProfile:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        avatar_key:
+          type: string
+          readOnly: true
+          nullable: true
+        avatar_type:
+          type: string
+          readOnly: true
+        avatar_id:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          readOnly: true
+        bio:
+          type: string
+          readOnly: true
+          nullable: true
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicWorkerSkill'
+          readOnly: true
+        province:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        verification_status:
+          type: string
+          readOnly: true
+        completed_tasks_count:
+          type: string
+          readOnly: true
+        active_tasks_count:
+          type: string
+          readOnly: true
+        average_rating:
+          type: string
+          readOnly: true
+        rating_count:
+          type: string
+          readOnly: true
+      required:
+      - active_tasks_count
+      - avatar_id
+      - avatar_key
+      - avatar_type
+      - avatar_url
+      - average_rating
+      - bio
+      - city
+      - completed_tasks_count
+      - full_name
+      - profile_id
+      - province
+      - rating_count
+      - skills
+      - verification_status
+    PublicWorkerSkill:
+      type: object
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        proficiency_level:
+          type: string
+          readOnly: true
+        experience_years:
+          type: integer
+          readOnly: true
+      required:
+      - experience_years
+      - name
+      - proficiency_level
+      - skill_id
     PurposeEnum:
       enum:
       - REGISTER
@@ -2549,6 +3181,25 @@ components:
         * `COMPLETED` - Completed
         * `CANCELLED` - Cancelled
         * `EXPIRED` - Expired
+    TaskActionResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status7deEnum'
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - status
+      - task_id
+      - updated_at
     TaskCategory:
       type: object
       description: Read-only representation of a task category.
@@ -2985,6 +3636,34 @@ components:
       - skill_id
       - skill_name
       - source
+    TaskStatusEnum:
+      enum:
+      - DRAFT
+      - OPEN
+      - FUNDING_PENDING
+      - ASSIGNED
+      - IN_PROGRESS
+      - SUBMITTED
+      - APPROVED
+      - DISPUTED
+      - CANCELLATION_REVIEW
+      - COMPLETED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `OPEN` - Open
+        * `FUNDING_PENDING` - Funding pending
+        * `ASSIGNED` - Assigned
+        * `IN_PROGRESS` - In progress
+        * `SUBMITTED` - Submitted
+        * `APPROVED` - Approved
+        * `DISPUTED` - Disputed
+        * `CANCELLATION_REVIEW` - Cancellation review
+        * `COMPLETED` - Completed
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
     TokenRefreshRequestRequest:
       type: object
       properties:
@@ -3311,15 +3990,79 @@ components:
       type: object
       properties:
         document_type:
-          type: string
-          minLength: 1
-          maxLength: 40
+          $ref: '#/components/schemas/DocumentTypeEnum'
         file:
           type: string
           format: binary
       required:
       - document_type
       - file
+    WorkerVerificationIdentityRead:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 100
+        national_code:
+          type: string
+          maxLength: 32
+        birth_date:
+          type: string
+          format: date
+        iban:
+          type: string
+          maxLength: 40
+        mobile:
+          type: string
+          maxLength: 32
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - birth_date
+      - first_name
+      - iban
+      - last_name
+      - mobile
+      - national_code
+      - updated_at
+    WorkerVerificationIdentityRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        national_code:
+          type: string
+          minLength: 1
+          maxLength: 32
+        birth_date:
+          type: string
+          format: date
+        iban:
+          type: string
+          minLength: 1
+          maxLength: 40
+        mobile:
+          type: string
+          minLength: 1
+          maxLength: 32
+      required:
+      - birth_date
+      - first_name
+      - iban
+      - last_name
+      - mobile
+      - national_code
     WorkerVerificationRejectRequest:
       type: object
       properties:
@@ -3353,10 +4096,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WorkerVerificationDocumentRead'
+        identity_saved:
+          type: boolean
+        national_code_masked:
+          type: string
+          nullable: true
+        iban_masked:
+          type: string
+          nullable: true
       required:
       - application_submitted_at
       - approved_at
       - documents
+      - iban_masked
+      - identity_saved
+      - national_code_masked
       - rejection_reason
       - reviewed_at
       - verification_status

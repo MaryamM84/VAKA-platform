@@ -269,7 +269,7 @@ def get_executor_bids(*, user):
     return (
         Bid.objects
         .filter(executor_profile=profile)
-        .select_related("task")
+        .select_related("task", "task__employer_user")
         .order_by("-created_at")
     )
 
@@ -284,7 +284,7 @@ def get_executor_bid_detail(*, user, bid_id):
     try:
         return (
             Bid.objects
-            .select_related("task")
+            .select_related("task", "task__employer_user")
             .get(
                 bid_id=bid_id,
                 executor_profile=profile,

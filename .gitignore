@@ -124,3 +124,6 @@ Desktop.ini
 # ==========================================
 postgres_data/
 redis_data/
+
+# User uploaded private files
+/backend/private_media/

@@ -1,3 +1,10 @@
+def new_test_png(name="national-card.png"):
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (3, 3), (123, 45, 67)).save(buf, "PNG")
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -80,13 +87,13 @@ class WorkerVerificationUploadTests(APITestCase):
             content_type="image/png",
         )
 
-    def upload_document(self, file=None, document_type="NATIONAL_ID"):
+    def upload_document(self, file=None, document_type="NATIONAL_CARD_FRONT"):
 
         return self.client.post(
             self.url,
             {
                 "document_type": document_type,
-                "file": file or self.make_pdf(),
+                "file": file or new_test_png(),
             },
             format="multipart",
         )
@@ -103,7 +110,7 @@ class WorkerVerificationUploadTests(APITestCase):
 
         super().tearDown()
 
-    def test_user_can_upload_valid_pdf(self):
+    def test_user_can_upload_valid_png(self):
 
         response = self.upload_document()
 
@@ -117,12 +124,12 @@ class WorkerVerificationUploadTests(APITestCase):
 
         self.assertEqual(
             document.document_type,
-            "NATIONAL_ID",
+            "NATIONAL_CARD_FRONT",
         )
 
         self.assertEqual(
             document.mime_type,
-            "application/pdf",
+            "image/png",
         )
 
         self.assertTrue(
@@ -186,15 +193,11 @@ class WorkerVerificationUploadTests(APITestCase):
             0,
         )
 
-    def test_file_larger_than_10mb_is_rejected(self):
+    def test_file_larger_than_5mb_is_rejected(self):
 
-        content = (
-            b"%PDF-1.4\n"
-            + b"A" * (10 * 1024 * 1024)
-        )
-
-        oversized_file = self.make_pdf(
-            content=content,
+        oversized_file = SimpleUploadedFile(
+            "huge.png", new_test_png().read() + b"X" * (5 * 1024 * 1024),
+            content_type="image/png",
         )
 
         response = self.upload_document(
@@ -227,7 +230,7 @@ class WorkerVerificationUploadTests(APITestCase):
         response = self.client.post(
             self.url,
             {
-                "document_type": "NATIONAL_ID",
+                "document_type": "NATIONAL_CARD_FRONT",
                 "file": self.make_pdf(),
                 "executor_profile_id": "another-profile",
             },
@@ -252,7 +255,7 @@ class WorkerVerificationUploadTests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
         )
 
         self.assertEqual(
@@ -290,7 +293,7 @@ class WorkerVerificationUploadTests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
         )
 
         self.assertEqual(

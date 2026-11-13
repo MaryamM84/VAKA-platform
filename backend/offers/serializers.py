@@ -3,7 +3,8 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from tasks.models import Task
-from .models import Bid
+from .models import Bid, BidStatus
+from tasks.choices import TaskStatus
 
 
 BIGINT_MAX = (2 ** 63) - 1
@@ -298,3 +299,20 @@ class EmployerBidDetailSerializer(EmployerBidListSerializer):
         read_only_fields = fields
 
 
+class BidDecisionResponseSerializer(serializers.Serializer):
+
+    bid_id = serializers.UUIDField(read_only=True)
+
+    task_id = serializers.UUIDField(read_only=True)
+
+    status = serializers.ChoiceField(
+        choices=BidStatus.choices,
+        read_only=True,
+    )
+
+    task_status = serializers.ChoiceField(
+        choices=TaskStatus.choices,
+        read_only=True,
+    )
+
+    updated_at = serializers.DateTimeField(read_only=True)

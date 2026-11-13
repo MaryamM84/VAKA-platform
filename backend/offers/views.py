@@ -4,7 +4,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiResponse,
+)
+
+from .employer_bid_decisions import (
+    accept_employer_bid,
+    reject_employer_bid,
+)
 
 from .serializers import (
     BidSubmissionSerializer,
@@ -12,6 +20,7 @@ from .serializers import (
     BidUpdateSerializer,
     EmployerBidListSerializer,
     EmployerBidDetailSerializer,
+    BidDecisionResponseSerializer,
 )
 
 from .services import (
@@ -253,3 +262,97 @@ class EmployerBidDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+class EmployerBidAcceptView(APIView):
+
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Bidding"],
+        operation_id="employer_bid_accept",
+        summary="Accept an executor bid",
+        request=None,
+        responses={
+            200: BidDecisionResponseSerializer,
+            401: OpenApiResponse(
+                description="Authentication required."
+            ),
+            403: OpenApiResponse(
+                description="Employer permission required."
+            ),
+            404: OpenApiResponse(
+                description="Bid not found."
+            ),
+            409: OpenApiResponse(
+                description="Invalid bid or task state."
+            ),
+        },
+    )
+    def post(self, request, bid_id):
+
+        bid, task = accept_employer_bid(
+            user=request.user,
+            bid_id=bid_id,
+        )
+
+        payload = {
+            "bid_id": bid.pk,
+            "task_id": task.pk,
+            "status": bid.status,
+            "task_status": task.status,
+            "updated_at": bid.updated_at,
+        }
+
+        serializer = BidDecisionResponseSerializer(payload)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class EmployerBidRejectView(APIView):
+
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Bidding"],
+        operation_id="employer_bid_reject",
+        summary="Reject an executor bid",
+        request=None,
+        responses={
+            200: BidDecisionResponseSerializer,
+            401: OpenApiResponse(
+                description="Authentication required."
+            ),
+            403: OpenApiResponse(
+                description="Employer permission required."
+            ),
+            404: OpenApiResponse(
+                description="Bid not found."
+            ),
+            409: OpenApiResponse(
+                description="Invalid bid or task state."
+            ),
+        },
+    )
+    def post(self, request, bid_id):
+
+        bid, task = reject_employer_bid(
+            user=request.user,
+            bid_id=bid_id,
+        )
+
+        payload = {
+            "bid_id": bid.pk,
+            "task_id": task.pk,
+            "status": bid.status,
+            "task_status": task.status,
+            "updated_at": bid.updated_at,
+        }
+
+        serializer = BidDecisionResponseSerializer(payload)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )

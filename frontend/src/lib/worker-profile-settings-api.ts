@@ -23,6 +23,7 @@ export interface WorkerServiceAreaRecord {
   service_area_latitude: string | number | null;
   service_area_longitude: string | number | null;
   service_area_radius_km: number | null;
+  covers_entire_city: boolean;
 }
 
 export interface WorkerServiceAreaPayload {
@@ -31,6 +32,7 @@ export interface WorkerServiceAreaPayload {
   service_area_latitude?: number | null;
   service_area_longitude?: number | null;
   service_area_radius_km?: number | null;
+  covers_entire_city?: boolean;
 }
 
 export interface WorkerAvailabilitySlotRecord {

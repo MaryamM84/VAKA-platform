@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import CoverageMap from "./CoverageMap";
 import styles from "./UserSkillsPage.module.css";
 import {
@@ -294,7 +294,10 @@ function PreferredCategoriesSection() {
   const [notice, setNotice] = useState("");
   const selectedIdsRef = useRef(selectedIds);
   const lastAttemptedSignatureRef = useRef<string | null>(null);
-  selectedIdsRef.current = selectedIds;
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -429,6 +432,7 @@ type ServiceAreaDraft = {
   longitude: number | null;
   radiusKm: number;
   locationSelected: boolean;
+  coversEntireCity: boolean;
 };
 
 const emptyServiceArea: ServiceAreaDraft = {
@@ -438,6 +442,7 @@ const emptyServiceArea: ServiceAreaDraft = {
   longitude: null,
   radiusKm: 10,
   locationSelected: false,
+  coversEntireCity: false,
 };
 
 function serviceAreaFromApi(record: WorkerServiceAreaRecord): ServiceAreaDraft {
@@ -458,12 +463,14 @@ function serviceAreaFromApi(record: WorkerServiceAreaRecord): ServiceAreaDraft {
     longitude: locationSelected ? longitude : null,
     radiusKm: locationSelected ? radiusKm as number : 10,
     locationSelected,
+    coversEntireCity: record.covers_entire_city === true,
   };
 }
 
 function serviceAreaEqual(left: ServiceAreaDraft, right: ServiceAreaDraft): boolean {
   if (left.city.trim() !== right.city.trim() || left.region.trim() !== right.region.trim()) return false;
   if (left.locationSelected !== right.locationSelected) return false;
+  if (left.coversEntireCity !== right.coversEntireCity) return false;
   if (!left.locationSelected) return true;
   return left.latitude === right.latitude && left.longitude === right.longitude && left.radiusKm === right.radiusKm;
 }
@@ -473,6 +480,7 @@ function serviceAreaSignature(area: ServiceAreaDraft): string {
     city: area.city.trim(),
     region: area.region.trim(),
     locationSelected: area.locationSelected,
+    coversEntireCity: area.coversEntireCity,
     latitude: area.locationSelected ? area.latitude : null,
     longitude: area.locationSelected ? area.longitude : null,
     radiusKm: area.locationSelected ? area.radiusKm : null,
@@ -489,7 +497,10 @@ function ServiceAreaSection() {
   const [notice, setNotice] = useState("");
   const latestAreaRef = useRef(area);
   const lastAttemptedSignatureRef = useRef<string | null>(null);
-  latestAreaRef.current = area;
+
+  useEffect(() => {
+    latestAreaRef.current = area;
+  }, [area]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -504,7 +515,14 @@ function ServiceAreaSection() {
         }
       })
       .catch((loadError) => {
-        if (isCurrent) setError(getErrorText(loadError));
+        if (!isCurrent) return;
+
+        if (process.env.NODE_ENV === "development") {
+          setNotice("");
+          setError(null);
+        } else {
+          setError(getErrorText(loadError));
+        }
       })
       .finally(() => {
         if (isCurrent) setIsLoading(false);
@@ -513,8 +531,8 @@ function ServiceAreaSection() {
   }, []);
 
   const isDirty = !serviceAreaEqual(area, savedArea);
-  const mapLatitude = area.latitude ?? 32.4279;
-  const mapLongitude = area.longitude ?? 53.6880;
+  const mapLatitude = area.latitude ?? 35.6892;
+  const mapLongitude = area.longitude ?? 51.3890;
   const radiusMax = Math.max(35, Math.min(32767, area.radiusKm));
 
   const updateArea = useCallback((updater: (previous: ServiceAreaDraft) => ServiceAreaDraft) => {
@@ -522,12 +540,19 @@ function ServiceAreaSection() {
     setArea(updater);
   }, []);
 
-  const updateLocation = useCallback((latitude: number, longitude: number, selectedAddress: string) => {
+  const updateLocation = useCallback((
+    latitude: number,
+    longitude: number,
+    selectedAddress: string,
+    details?: { city?: string; region?: string; neighborhood?: string },
+  ) => {
     updateArea((previous) => ({
       ...previous,
       latitude,
       longitude,
       locationSelected: true,
+      city: details?.city || previous.city,
+      region: details?.region || previous.region,
     }));
     setAddress(selectedAddress);
   }, [updateArea]);
@@ -551,6 +576,7 @@ function ServiceAreaSection() {
     const payload: WorkerServiceAreaPayload = {
       service_area_city: snapshot.city.trim(),
       service_area_region: snapshot.region.trim(),
+      covers_entire_city: snapshot.coversEntireCity,
     };
     if (snapshot.locationSelected) {
       payload.service_area_latitude = snapshot.latitude;
@@ -609,6 +635,16 @@ function ServiceAreaSection() {
     setAddress("");
   }
 
+  function setCitywideCoverage(enabled: boolean) {
+    updateArea((previous) => ({
+      ...previous,
+      city: enabled ? "تهران" : previous.city,
+      region: enabled ? "استان تهران" : previous.region,
+      coversEntireCity: enabled,
+    }));
+    if (enabled) setAddress("تهران، استان تهران، ایران");
+  }
+
   return (
     <section className={styles.card} aria-labelledby="coverage-title">
       <div className={styles.sectionHeader}>
@@ -628,32 +664,53 @@ function ServiceAreaSection() {
           <div className={styles.formGrid}>
             <label className={styles.scheduleTimeField}>
               <span>شهر</span>
-              <input value={area.city} onChange={(event) => updateArea((previous) => ({ ...previous, city: event.target.value }))} maxLength={100} disabled={isSaving} />
+              <input value={area.city} onChange={(event) => updateArea((previous) => ({ ...previous, city: event.target.value }))} maxLength={100} disabled={isSaving || area.coversEntireCity} />
             </label>
             <label className={styles.scheduleTimeField}>
               <span>استان / منطقه</span>
-              <input value={area.region} onChange={(event) => updateArea((previous) => ({ ...previous, region: event.target.value }))} maxLength={120} disabled={isSaving} />
+              <input value={area.region} onChange={(event) => updateArea((previous) => ({ ...previous, region: event.target.value }))} maxLength={120} disabled={isSaving || area.coversEntireCity} />
             </label>
           </div>
           <div className={styles.areaSection}>
             <div className={styles.areaHeading}>
               <span>نقطه مبدأ فعالیت:</span>
-              {area.locationSelected ? (
+              {area.locationSelected && !area.coversEntireCity ? (
                 <button type="button" className={styles.secondaryButton} onClick={clearLocation} disabled={isSaving}>حذف نقطه مبدأ</button>
-              ) : <span className={styles.helperText}>برای ثبت مبدأ، روی نقشه انتخاب کنید.</span>}
+              ) : <span className={styles.helperText}>{area.coversEntireCity ? "مرز کل شهر تهران انتخاب شده است." : "برای ثبت مبدأ، روی نقشه انتخاب کنید."}</span>}
             </div>
             <CoverageMap
-              key={area.locationSelected ? "location-selected" : "location-empty"}
               latitude={mapLatitude}
               longitude={mapLongitude}
               radiusMeters={area.radiusKm * 1000}
               locationSelected={area.locationSelected}
+              coversEntireCity={area.coversEntireCity}
+              addressValue={address}
               onLocationChange={updateLocation}
             />
             <p className={styles.sectionSubtext}>
-              {area.locationSelected ? (address || "مختصات نقطه مبدأ انتخاب شده است.") : "هنوز نقطه مبدأیی ثبت نشده است؛ نقشه در مرکز ایران باز می‌شود."}
+              {area.coversEntireCity
+                ? "تمام محدوده شهر تهران انتخاب شده است."
+                : area.locationSelected
+                  ? (address || "مختصات نقطه مبدأ انتخاب شده است.")
+                  : "هنوز نقطه مبدأیی ثبت نشده است؛ می‌توانید محله یا آدرس را جست‌وجو کنید."}
             </p>
           </div>
+          <label className={styles.citywideRow}>
+            <span className={styles.citywideIcon}><Icon name="pin" size={19} /></span>
+            <span className={styles.citywideCopy}>
+              <strong>پذیرش کارهای سراسر تهران</strong>
+              <span>با فعال‌سازی، محدوده کل شهر تهران انتخاب می‌شود و شعاع نقطه‌ای غیرفعال خواهد شد.</span>
+            </span>
+            <input
+              className={styles.citywideCheckbox}
+              type="checkbox"
+              checked={area.coversEntireCity}
+              onChange={(event) => setCitywideCoverage(event.target.checked)}
+              disabled={isSaving}
+              aria-label="پذیرش کارهای سراسر تهران"
+            />
+            <span className={styles.citywideSwitch} aria-hidden="true" />
+          </label>
           <div className={styles.radiusSection}>
             <div className={styles.radiusHeading}>
               <label htmlFor="coverage-radius">شعاع جغرافیایی مجاز برای انجام کار:</label>
@@ -668,14 +725,16 @@ function ServiceAreaSection() {
               step={1}
               value={area.radiusKm}
               onChange={(event) => updateArea((previous) => ({ ...previous, radiusKm: Number(event.target.value) }))}
-              disabled={!area.locationSelected || isSaving}
+              disabled={!area.locationSelected || area.coversEntireCity || isSaving}
               aria-valuetext={`${toPersianDigits(area.radiusKm)} کیلومتر`}
             />
-            <div className={styles.rangeLabels}>
+            <div
+              className={styles.rangeLabels}
+              style={{ "--ten-position": `${((10 - 1) / (radiusMax - 1)) * 100}%` } as CSSProperties}
+            >
               <span>۱ کیلومتر</span><span>۱۰ کیلومتر</span><span>حداکثر {toPersianDigits(radiusMax)} کیلومتر</span>
             </div>
           </div>
-          <p className={styles.sectionSubtext}>اطلاعاتی که API فعلی ذخیره می‌کند شامل شهر، استان، مختصات مبدأ و شعاع است؛ فهرست محله‌ها و گزینه «پذیرش سراسر شهر» در مدل فعلی Backend وجود ندارد.</p>
           <p className={styles.helperText}>
             {isSaving
               ? "در حال ذخیره خودکار..."
@@ -778,9 +837,19 @@ function AvailabilitySection() {
   const [notice, setNotice] = useState("");
   const [scheduleEditorGroup, setScheduleEditorGroup] = useState<ScheduleGroup | null>(null);
   const [scheduleDraft, setScheduleDraft] = useState<AvailabilityDraft>({});
+  const [savedDraftSignature, setSavedDraftSignature] = useState<string | null>(null);
   const savedDraftSignatureRef = useRef<string | null>(null);
   const lastAttemptedDraftSignatureRef = useRef<string | null>(null);
   const closeAfterSaveRef = useRef(false);
+
+  const updateSavedDraftSignature = useCallback((signature: string) => {
+    savedDraftSignatureRef.current = signature;
+    setSavedDraftSignature(signature);
+  }, []);
+
+  const scheduleValidationError = scheduleEditorGroup
+    ? getAvailabilityDraftError(scheduleEditorGroup, scheduleDraft)
+    : null;
 
   useEffect(() => {
     let isCurrent = true;
@@ -802,7 +871,7 @@ function AvailabilitySection() {
   function openScheduleEditor(group: ScheduleGroup) {
     const nextDraft = availabilityDraftFromSlots(group, slots);
     setScheduleDraft(nextDraft);
-    savedDraftSignatureRef.current = JSON.stringify(nextDraft);
+    updateSavedDraftSignature(JSON.stringify(nextDraft));
     lastAttemptedDraftSignatureRef.current = null;
     closeAfterSaveRef.current = false;
     setScheduleEditorGroup(group);
@@ -930,7 +999,7 @@ function AvailabilitySection() {
       setTimezone(refreshed.availability_timezone || "UTC");
       setSlots(refreshedSlots);
       setScheduleDraft(normalizedDraft);
-      savedDraftSignatureRef.current = JSON.stringify(normalizedDraft);
+      updateSavedDraftSignature(JSON.stringify(normalizedDraft));
       lastAttemptedDraftSignatureRef.current = JSON.stringify(normalizedDraft);
       setNotice("تغییرات برنامه کاری به‌صورت خودکار ذخیره شد.");
 
@@ -947,7 +1016,7 @@ function AvailabilitySection() {
         setTimezone(refreshed.availability_timezone || "UTC");
         setSlots(refreshedSlots);
         setScheduleDraft(refreshedDraft);
-        savedDraftSignatureRef.current = JSON.stringify(refreshedDraft);
+        updateSavedDraftSignature(JSON.stringify(refreshedDraft));
         lastAttemptedDraftSignatureRef.current = JSON.stringify(refreshedDraft);
         refreshedSuccessfully = true;
       } catch {
@@ -964,7 +1033,7 @@ function AvailabilitySection() {
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving]);
+  }, [isSaving, updateSavedDraftSignature]);
 
   useEffect(() => {
     if (!scheduleEditorGroup || isLoading || error || isSaving) return;
@@ -974,11 +1043,7 @@ function AvailabilitySection() {
       return;
     }
 
-    const validationError = getAvailabilityDraftError(scheduleEditorGroup, scheduleDraft);
-    if (validationError) {
-      setNotice(validationError);
-      return;
-    }
+    if (scheduleValidationError) return;
 
     const draftSnapshot = scheduleDraft;
     const baselineSlots = slots;
@@ -987,7 +1052,7 @@ function AvailabilitySection() {
     }, 700);
 
     return () => window.clearTimeout(timeout);
-  }, [scheduleEditorGroup, scheduleDraft, slots, isLoading, error, isSaving, persistScheduleGroup]);
+  }, [scheduleEditorGroup, scheduleDraft, slots, isLoading, error, isSaving, persistScheduleGroup, scheduleValidationError]);
 
   function closeScheduleEditor() {
     if (!scheduleEditorGroup || isSaving) return;
@@ -1120,11 +1185,14 @@ function AvailabilitySection() {
                 );
               })}
             </div>
+            {scheduleValidationError && (
+              <div className={styles.toast} role="alert">{scheduleValidationError}</div>
+            )}
             <div className={styles.modalActions}>
               <span className={styles.helperText}>
                 {isSaving
                   ? "در حال ذخیره خودکار..."
-                  : JSON.stringify(scheduleDraft) !== savedDraftSignatureRef.current
+                  : JSON.stringify(scheduleDraft) !== savedDraftSignature
                     ? "تغییرات در انتظار ذخیره خودکار..."
                     : "ذخیره‌سازی خودکار فعال است."}
               </span>
@@ -1148,11 +1216,9 @@ export default function UserSkillsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SkillDraft>(emptyDraft);
-  const skillDraftRef = useRef(draft);
   const lastSavedSkillDraftSignatureRef = useRef<string | null>(null);
   const lastAttemptedSkillDraftSignatureRef = useRef<string | null>(null);
   const closeSkillModalAfterSaveRef = useRef(false);
-  skillDraftRef.current = draft;
 
   useEffect(() => {
     let isCurrent = true;

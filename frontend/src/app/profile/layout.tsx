@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from "react";
@@ -19,32 +20,36 @@ export default function ProfileLayout({
     <div className={styles.pageWrapper}>
       <header className={styles.pageHeader}>
         <div>
-        <h1>
-  {isEditPage
-    ? "ویرایش پروفایل"
-    : isVerificationPage
-      ? "احراز هویت"
-      : "پروفایل من"}
-</h1>
+          <h1>
+            {isVerificationPage
+              ? "احراز هویت"
+              : isEditPage
+                ? "ویرایش پروفایل"
+                : "پروفایل من"}
+          </h1>
 
-<p>
-  {isEditPage
-    ? "اطلاعات شخصی و مشخصات حساب کاربری خود را ویرایش کنید."
-    : isVerificationPage
-      ? "اطلاعات هویتی خود را برای فعالیت به‌عنوان مجری تکمیل کنید."
-      : "اطلاعات شخصی و وضعیت حساب کاربری شما"}
-</p>
+          <p>
+            {isVerificationPage
+              ? "اطلاعات هویتی خود را برای تکمیل فرایند احراز هویت وارد کنید."
+              : isEditPage
+                ? "اطلاعات شخصی و مشخصات حساب کاربری خود را ویرایش کنید."
+                : "اطلاعات شخصی و وضعیت حساب کاربری شما"}
+          </p>
         </div>
 
-        {!isEditPage && (
+        {!isVerificationPage && !isEditPage && (
           <Link href="/profile/edit" className={styles.editButton}>
-            <span>✎</span>
+            <span aria-hidden="true">✎</span>
             ویرایش پروفایل
           </Link>
         )}
       </header>
 
-      <div className={styles.profileLayout}>
+      <div
+        className={`${styles.profileLayout} ${
+          isEditPage ? styles.editPageLayout : ""
+        }`}
+      >
         <div className={styles.sidebarColumn}>
           <ProfileSidebar />
         </div>

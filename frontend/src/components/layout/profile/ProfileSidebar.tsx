@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -6,6 +5,7 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getMyProfile, type MyProfile } from "@/lib/profile-api";
 import styles from "./ProfileSidebar.module.css";
 
 const avatars = [
@@ -41,34 +41,34 @@ const avatars = [
   },
 ];
 
-const menuItems = [
+const baseMenuItems = [
   {
     label: "پروفایل من",
     href: "/profile",
     icon: "user-round",
   },
   {
-    label: "ویرایش پروفایل",
-    href: "/profile/edit",
-    icon: "user-pen",
-  },
-  {
-    label: "تسک‌های من",
+    label: "کارهای من",
     href: "/employer/tasks",
     icon: "clipboard-list",
   },
   {
     label: "پیشنهادهای دریافتی",
-    href: "/worker/bids",
+    href: "/employer/bids",
     icon: "messages-square",
-    badge: "۲ جدید",
   },
   {
-    label: "احراز هویت و امنیت",
+    label: "احراز هویت",
     href: "/profile/verification",
     icon: "shield-check",
   },
 ];
+
+const workerMenuItem = {
+  label: "پیشنهادهای من",
+  href: "/worker/bids",
+  icon: "messages-square",
+};
 
 function MenuIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
@@ -76,14 +76,6 @@ function MenuIcon({ name }: { name: string }) {
       <>
         <circle cx="12" cy="8" r="4" />
         <path d="M5 21a7 7 0 0 1 14 0" />
-      </>
-    ),
-
-    "user-pen": (
-      <>
-        <circle cx="10" cy="8" r="4" />
-        <path d="M3 21a7 7 0 0 1 12-5" />
-        <path d="m16 19 5-5 2 2-5 5-3 1z" />
       </>
     ),
 
@@ -127,8 +119,40 @@ function MenuIcon({ name }: { name: string }) {
   );
 }
 
+function getVerificationLabel(status?: string) {
+  switch (status?.toUpperCase()) {
+    case "VERIFIED":
+    case "APPROVED":
+      return "احراز هویت تأیید شده";
+
+    case "PENDING":
+    case "SUBMITTED":
+    case "UNDER_REVIEW":
+      return "در حال بررسی";
+
+    case "REJECTED":
+      return "احراز هویت رد شده";
+
+    case "NOT_SUBMITTED":
+    case "UNVERIFIED":
+      return "احراز هویت تکمیل نشده";
+
+    default:
+      return "وضعیت نامشخص";
+  }
+}
+
+function isVerified(status?: string) {
+  return ["VERIFIED", "APPROVED"].includes(
+    status?.toUpperCase() ?? ""
+  );
+}
+
 export default function ProfileSidebar() {
   const pathname = usePathname();
+
+  const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const [selectedAvatar, setSelectedAvatar] = useState("avatar-04");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -141,6 +165,42 @@ export default function ProfileSidebar() {
     uploadedImage ||
     avatars.find((avatar) => avatar.id === selectedAvatar)?.src ||
     avatars[3].src;
+
+  const verificationLabel = getVerificationLabel(
+    profile?.verification_status
+  );
+
+  const verified = isVerified(profile?.verification_status);
+  const menuItems = verified
+    ? [...baseMenuItems.slice(0, 3), workerMenuItem, baseMenuItems[3]]
+    : baseMenuItems;
+
+  // دریافت اطلاعات پروفایل از API
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfile() {
+      try {
+        const data = await getMyProfile();
+
+        if (isMounted) {
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error("Failed to load sidebar profile:", error);
+      } finally {
+        if (isMounted) {
+          setProfileLoading(false);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // بستن پنجره انتخاب آواتار با کلید Escape
   useEffect(() => {
@@ -185,9 +245,7 @@ export default function ProfileSidebar() {
     };
 
     reader.onerror = () => {
-      setUploadError(
-        "خواندن تصویر با خطا مواجه شد. دوباره تلاش کنید."
-      );
+      setUploadError("خواندن تصویر با خطا مواجه شد. دوباره تلاش کنید.");
     };
 
     reader.readAsDataURL(file);
@@ -221,10 +279,7 @@ export default function ProfileSidebar() {
             unoptimized={!!uploadedImage}
           />
 
-          <span
-            className={styles.avatarBadge}
-            aria-hidden="true"
-          >
+          <span className={styles.avatarBadge} aria-hidden="true">
             <svg
               viewBox="0 0 24 24"
               width="17"
@@ -241,48 +296,26 @@ export default function ProfileSidebar() {
           </span>
         </button>
 
-        <h2 className={styles.name}>مریم احمدی</h2>
+        <h2 className={styles.name}>
+          {profileLoading
+            ? "در حال دریافت..."
+            : profile?.full_name?.trim() || "نام کاربر ثبت نشده"}
+        </h2>
 
-        <div className={styles.roleBadges}>
-          <span className={styles.secondaryBadge}>
-            کارفرما و مجری
-          </span>
-
-          <span className={styles.primaryBadge}>
-            مجری فعال
-          </span>
-        </div>
-
-        {/* Statistics */}
-        <div className={styles.stats}>
-          <div className={styles.stat}>
-            <strong>۱۲ تسک</strong>
-            <span>انجام موفق</span>
+        {/* وضعیت احراز هویت از API */}
+        {!profileLoading && (
+          <div className={styles.roleBadges}>
+            <span
+              className={
+                verified
+                  ? styles.primaryBadge
+                  : styles.secondaryBadge
+              }
+            >
+              {verificationLabel}
+            </span>
           </div>
-
-          <div className={styles.statDivider} />
-
-          <div className={styles.stat}>
-            <strong className={styles.rating}>★ ۴.۸</strong>
-            <span>امتیاز کاربران</span>
-          </div>
-        </div>
-
-        {/* Profile Completion */}
-        <div className={styles.completion}>
-          <div className={styles.completionHeader}>
-            <span>تکمیل پروفایل</span>
-            <span>۸۵٪</span>
-          </div>
-
-          <div className={styles.progressTrack}>
-            <div className={styles.progressValue} />
-          </div>
-
-          <p>
-            با تکمیل پروفایل، اعتماد بیشتری بسازید.
-          </p>
-        </div>
+        )}
 
         {/* Navigation */}
         <nav
@@ -309,12 +342,6 @@ export default function ProfileSidebar() {
                 <span className={styles.menuLabel}>
                   {item.label}
                 </span>
-
-                {item.badge && (
-                  <span className={styles.menuBadge}>
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             );
           })}
@@ -339,13 +366,9 @@ export default function ProfileSidebar() {
           >
             <div className={styles.modalHeader}>
               <div>
-                <h3 id="avatar-modal-title">
-                  تصویر پروفایل
-                </h3>
+                <h3 id="avatar-modal-title">تصویر پروفایل</h3>
 
-                <p>
-                  تصویر دلخواه خود را انتخاب کنید.
-                </p>
+                <p>تصویر دلخواه خود را انتخاب کنید.</p>
               </div>
 
               <button
@@ -371,36 +394,27 @@ export default function ProfileSidebar() {
                 }}
               />
 
-              <span
-                className={styles.uploadIcon}
-                aria-hidden="true"
-              >
+              <span className={styles.uploadIcon} aria-hidden="true">
                 ↑
               </span>
 
-              <strong>
-                بارگذاری تصویر از دستگاه
-              </strong>
+              <strong>بارگذاری تصویر از دستگاه</strong>
 
+              <span>فرمت تصویری، حداکثر ۵ مگابایت</span>
               <span>
-                فرمت تصویری، حداکثر ۵ مگابایت
+                توجه: API فعلی واکا بارگذاری تصویر را پشتیبانی نمی‌کند؛ این تغییر فعلاً فقط در همین نشست نمایش داده می‌شود.
               </span>
             </label>
 
             {uploadError && (
-              <p
-                className={styles.uploadError}
-                role="alert"
-              >
+              <p className={styles.uploadError} role="alert">
                 {uploadError}
               </p>
             )}
 
             {/* Default Avatars */}
             <div className={styles.avatarModalDivider}>
-              <span>
-                یا یکی از آواتارهای زیر را انتخاب کنید
-              </span>
+              <span>یا یکی از آواتارهای زیر را انتخاب کنید</span>
             </div>
 
             <div className={styles.modalAvatarGrid}>

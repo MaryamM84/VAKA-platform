@@ -1,192 +1,193 @@
 
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
+import {
+  EmployerBidListApi,
+  EmployerTaskApi,
+  getEmployerTasks,
+  getTaskBids,
+} from "@/lib/employer-api";
 import styles from "./Proposals.module.css";
 
-type ProposalStatus = "pending" | "accepted" | "rejected";
-
-type Proposal = {
-  id: number;
-  workerId: number;
-  workerName: string;
-  specialty: string;
-  rating: number;
-  completedTasks: number;
-  description: string;
-  duration: number;
-  sentAt: string;
-  status: ProposalStatus;
-};
-
-const taskData: Record<
-  number,
-  {
-    title: string;
-    category: string;
-    status: string;
-    statusLabel: string;
-  }
-> = {
-  1: {
-    title: "طراحی رابط کاربری اپلیکیشن فروشگاهی",
-    category: "طراحی رابط کاربری",
-    status: "pending",
-    statusLabel: "در انتظار پذیرش مجری",
-  },
-  2: {
-    title: "تدوین ویدیو معرفی محصول",
-    category: "تدوین ویدیو",
-    status: "inProgress",
-    statusLabel: "در حال انجام",
-  },
-  3: {
-    title: "توسعه بخش پرداخت وب‌سایت",
-    category: "برنامه‌نویسی",
-    status: "completed",
-    statusLabel: "تکمیل‌شده",
-  },
-  4: {
-    title: "طراحی بنر کمپین پاییزه",
-    category: "طراحی گرافیک",
-    status: "pending",
-    statusLabel: "در انتظار پذیرش مجری",
-  },
-  5: {
-    title: "تولید محتوای شبکه‌های اجتماعی",
-    category: "تولید محتوا",
-    status: "rejected",
-    statusLabel: "لغوشده",
-  },
-};
-
-const initialProposals: Proposal[] = [
-  {
-    id: 1,
-    workerId: 1,
-    workerName: "سارا محمدی",
-    specialty: "طراح رابط کاربری",
-    rating: 4.9,
-    completedTasks: 78,
-    description:
-      "سلام، تجربه طراحی چند اپلیکیشن فروشگاهی را دارم و با توجه به توضیحات پروژه، می‌توانم یک رابط کاربری مدرن و ساده طراحی کنم.",
-    duration: 12,
-    sentAt: "امروز، ۱۰:۳۰",
-    status: "pending",
-  },
-  {
-    id: 2,
-    workerId: 2,
-    workerName: "مریم محمدی",
-    specialty: "طراح رابط کاربری",
-    rating: 4.8,
-    completedTasks: 64,
-    description:
-      "سلام، در زمینه طراحی رابط کاربری و تجربه کاربری فعالیت می‌کنم. نمونه‌کارهای مرتبط دارم و می‌توانم پروژه را با دقت و کیفیت مناسب انجام دهم.",
-    duration: 14,
-    sentAt: "امروز، ۰۹:۱۵",
-    status: "pending",
-  },
-  {
-    id: 3,
-    workerId: 3,
-    workerName: "آرش کریمی",
-    specialty: "طراح UI/UX",
-    rating: 4.7,
-    completedTasks: 52,
-    description:
-      "با بررسی نیازمندی‌های پروژه، پیشنهاد می‌کنم ابتدا ساختار صفحات و مسیرهای اصلی کاربر مشخص شود و سپس طراحی رابط کاربری انجام شود.",
-    duration: 15,
-    sentAt: "دیروز، ۱۸:۲۰",
-    status: "pending",
-  },
-];
+type SortOrder = "newest" | "duration";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("fa-IR").format(value);
 }
 
-function getStatusLabel(status: ProposalStatus) {
-  switch (status) {
-    case "accepted":
-      return "پذیرفته‌شده";
-    case "rejected":
-      return "ردشده";
-    default:
-      return "در انتظار بررسی";
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
   }
+
+  return new Intl.DateTimeFormat("fa-IR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function getBidStatusLabel(status: EmployerBidListApi["status"]) {
+  switch (status) {
+    case "ACCEPTED":
+      return "پذیرفته‌شده";
+    case "REJECTED":
+      return "ردشده";
+    case "WITHDRAWN":
+      return "پس‌گرفته‌شده";
+    case "EXPIRED":
+      return "منقضی‌شده";
+    default:
+      return "در انتظار بررسی کارفرما";
+  }
+}
+
+function getTaskStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    DRAFT: "پیش‌نویس",
+    OPEN: "در انتظار پذیرش کارفرما",
+    FUNDING_PENDING: "در انتظار تأمین اعتبار",
+    ASSIGNED: "مجری انتخاب شده",
+    IN_PROGRESS: "در حال انجام",
+    SUBMITTED: "ارسال‌شده برای بررسی",
+    APPROVED: "تأییدشده",
+    DISPUTED: "دارای اختلاف",
+    CANCELLATION_REVIEW: "در حال بررسی لغو",
+    COMPLETED: "تکمیل‌شده",
+    CANCELLED: "لغوشده",
+    EXPIRED: "منقضی‌شده",
+  };
+
+  return labels[status] ?? status;
 }
 
 function ReceivedProposalsContent() {
   const params = useParams<{ taskId: string }>();
-  const taskId = Number(params.taskId);
+  const taskId = params.taskId;
 
-  const task = taskData[taskId];
+  const [task, setTask] = useState<EmployerTaskApi | null>(null);
+  const [proposals, setProposals] = useState<EmployerBidListApi[]>([]);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
+  const [actionNotices, setActionNotices] = useState<
+    Record<string, string>
+  >({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [proposals, setProposals] =
-    useState<Proposal[]>(initialProposals);
+  useEffect(() => {
+    if (!taskId) return;
 
-  const [sortOrder, setSortOrder] = useState("newest");
-  const [expandedProposal, setExpandedProposal] =
-    useState<number | null>(null);
+    let cancelled = false;
+
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [tasks, bids] = await Promise.all([
+          getEmployerTasks(),
+          getTaskBids(taskId),
+        ]);
+
+        if (cancelled) return;
+
+        const currentTask = tasks.find((item) => item.task_id === taskId);
+
+        if (!currentTask) {
+          setTask(null);
+          setProposals([]);
+          setError("کار موردنظر در فهرست کارهای شما پیدا نشد.");
+          return;
+        }
+
+        setTask(currentTask);
+        setProposals(bids);
+      } catch (err) {
+        if (cancelled) return;
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "دریافت پیشنهادها با خطا مواجه شد."
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId]);
 
   const visibleProposals = useMemo(() => {
     const result = [...proposals];
 
-    if (sortOrder === "rating") {
-      result.sort((a, b) => b.rating - a.rating);
-    } else if (sortOrder === "duration") {
-      result.sort((a, b) => a.duration - b.duration);
+    if (sortOrder === "duration") {
+      result.sort(
+        (a, b) => a.proposed_duration_minutes - b.proposed_duration_minutes
+      );
     } else {
-      result.sort((a, b) => b.id - a.id);
+      result.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      );
     }
 
     return result;
   }, [proposals, sortOrder]);
 
-  const pendingCount = proposals.filter(
-    (proposal) => proposal.status === "pending"
+  const activeCount = proposals.filter(
+    (proposal) => proposal.status === "ACTIVE"
   ).length;
 
-  function handleProposalAction(
-    id: number,
-    status: "accepted" | "rejected"
-  ) {
-    setProposals((previous) =>
-      previous.map((proposal) => {
-        if (proposal.id === id) {
-          return { ...proposal, status };
-        }
+  function showActionNotice(bidId: string, action: "accept" | "reject") {
+    const message =
+      action === "accept"
+        ? "عملیات پذیرش پیشنهاد هنوز به API متصل نشده است."
+        : "عملیات رد پیشنهاد هنوز به API متصل نشده است.";
 
-        if (status === "accepted" && proposal.status === "pending") {
-          return { ...proposal, status: "rejected" };
-        }
+    setActionNotices((previous) => ({
+      ...previous,
+      [bidId]: message,
+    }));
+  }
 
-        return proposal;
-      })
+  if (loading) {
+    return (
+      <DashboardLayout
+        title="پیشنهادهای دریافتی"
+        description="مشاهده و بررسی پیشنهادهای مجریان"
+      >
+        <div className={styles.emptyState}>در حال دریافت پیشنهادها...</div>
+      </DashboardLayout>
     );
   }
 
-  if (!task) {
+  if (error || !task) {
     return (
       <DashboardLayout
         title="پیشنهادهای دریافتی"
         description="مشاهده و بررسی پیشنهادهای مجریان"
       >
         <div className={styles.emptyState}>
-          <strong>کار موردنظر پیدا نشد.</strong>
-          <Link href="/employer/tasks">
-            بازگشت به کارهای من
-          </Link>
+          <strong>{error ?? "کار موردنظر پیدا نشد."}</strong>
+          <Link href="/employer/tasks">بازگشت به کارهای من</Link>
         </div>
       </DashboardLayout>
     );
   }
 
-  const canReviewProposals = task.status === "pending";
+  const canReviewProposals = task.status === "OPEN";
 
   return (
     <DashboardLayout
@@ -200,206 +201,189 @@ function ReceivedProposalsContent() {
           <span>پیشنهادهای دریافتی</span>
         </div>
 
-        {/* خلاصه کار */}
         <section className={styles.taskSummary}>
           <div className={styles.taskSummaryContent}>
             <span className={styles.taskStatus}>
-              {task.statusLabel}
+              {getTaskStatusLabel(task.status)}
             </span>
 
             <h2>{task.title}</h2>
 
             <span className={styles.taskCategory}>
-              {task.category}
+              {task.category_name}
             </span>
           </div>
 
-          {canReviewProposals && (
-            <div className={styles.taskProposalCount}>
-              <strong>{formatNumber(proposals.length)}</strong>
-              <span>پیشنهاد دریافتی</span>
-            </div>
-          )}
+          <div className={styles.taskProposalCount}>
+            <strong>{formatNumber(proposals.length)}</strong>
+            <span>پیشنهاد دریافتی</span>
+          </div>
         </section>
 
-        {!canReviewProposals ? (
+        {!canReviewProposals && (
           <div className={styles.notice}>
-            <strong>امکان بررسی پیشنهاد جدید وجود ندارد.</strong>
-
+            <strong>این کار در وضعیت دریافت پیشنهاد نیست.</strong>
             <p>
-              وضعیت این کار «{task.statusLabel}» است و در حال حاضر
-              امکان انتخاب مجری جدید برای آن وجود ندارد.
+              وضعیت فعلی کار «{getTaskStatusLabel(task.status)}» است. در این
+              صفحه می‌توانید پیشنهادهای ثبت‌شده را مشاهده کنید.
             </p>
-
-            <Link href="/employer/tasks">
-              بازگشت به کارهای من
-            </Link>
           </div>
-        ) : (
-          <>
-            {/* عنوان و مرتب‌سازی */}
-            <div className={styles.sectionToolbar}>
-              <div className={styles.sectionTitle}>
-                <h2>پیشنهادهای مجریان</h2>
+        )}
 
-                <span>
-                  {formatNumber(pendingCount)} پیشنهاد در انتظار بررسی
-                </span>
-              </div>
+        <div className={styles.sectionToolbar}>
+          <div className={styles.sectionTitle}>
+            <h2>پیشنهادهای مجریان</h2>
 
-              <label className={styles.sortControl}>
-                مرتب‌سازی بر اساس:
+            <span>
+              {formatNumber(activeCount)} پیشنهاد فعال
+            </span>
+          </div>
 
-                <select
-                  value={sortOrder}
-                  onChange={(event) => setSortOrder(event.target.value)}
+          <label className={styles.sortControl}>
+            مرتب‌سازی بر اساس:
+
+            <select
+              value={sortOrder}
+              onChange={(event) =>
+                setSortOrder(event.target.value as SortOrder)
+              }
+            >
+              <option value="newest">جدیدترین</option>
+              <option value="duration">کمترین زمان انجام</option>
+            </select>
+          </label>
+        </div>
+
+        {visibleProposals.length > 0 ? (
+          <div className={styles.proposalList}>
+            {visibleProposals.map((proposal) => {
+              const durationDays = Math.ceil(
+                proposal.proposed_duration_minutes / 1440
+              );
+
+              return (
+                <article
+                  className={styles.proposalCard}
+                  key={proposal.bid_id}
                 >
-                  <option value="newest">جدیدترین</option>
-                  <option value="rating">بالاترین امتیاز</option>
-                  <option value="duration">کمترین زمان انجام</option>
-                </select>
-              </label>
-            </div>
-
-            {visibleProposals.length > 0 ? (
-              <div className={styles.proposalList}>
-                {visibleProposals.map((proposal) => (
-                  <article
-                    className={styles.proposalCard}
-                    key={proposal.id}
-                  >
-                    {/* اطلاعات مجری */}
-                    <div className={styles.proposalHeader}>
-                      <div className={styles.workerInfo}>
-                        <div className={styles.workerAvatar}>
-                          {proposal.workerName.charAt(0)}
-                        </div>
-
-                        <div>
-                          <h3>{proposal.workerName}</h3>
-
-                          <span>{proposal.specialty}</span>
-
-                          <div className={styles.workerRating}>
-                            <span>★</span>
-                            {formatNumber(proposal.rating)}
-
-                            <span className={styles.completedTasks}>
-                              ({formatNumber(proposal.completedTasks)} کار تکمیل‌شده)
-                            </span>
-                          </div>
-                        </div>
+                  <div className={styles.proposalHeader}>
+                    <div className={styles.workerInfo}>
+                      <div className={styles.workerAvatar}>
+                        {(proposal.executor_name || "م").charAt(0)}
                       </div>
 
-                      <span
-                        className={`${styles.statusBadge} ${
-                          styles[proposal.status]
-                        }`}
-                      >
-                        {getStatusLabel(proposal.status)}
-                      </span>
+                      <div>
+                        <h3>{proposal.executor_name || "مجری"}</h3>
+                      </div>
                     </div>
 
-                    {/* متن پیشنهاد */}
+                    <span
+                      className={`${styles.statusBadge} ${
+                        styles[
+                          proposal.status === "ACTIVE"
+                            ? "pending"
+                            : proposal.status === "ACCEPTED"
+                              ? "accepted"
+                              : "rejected"
+                        ]
+                      }`}
+                    >
+                      {getBidStatusLabel(proposal.status)}
+                    </span>
+                  </div>
+
+                  {proposal.message && (
                     <div className={styles.proposalDescription}>
                       <p>
-                        {expandedProposal === proposal.id
-                          ? proposal.description
-                          : proposal.description.length > 145
-                            ? `${proposal.description.slice(0, 145)}...`
-                            : proposal.description}
+                        {expandedProposal === proposal.bid_id
+                          ? proposal.message
+                          : proposal.message.length > 145
+                            ? `${proposal.message.slice(0, 145)}...`
+                            : proposal.message}
                       </p>
 
-                      {proposal.description.length > 145 && (
+                      {proposal.message.length > 145 && (
                         <button
                           type="button"
                           onClick={() =>
                             setExpandedProposal(
-                              expandedProposal === proposal.id
+                              expandedProposal === proposal.bid_id
                                 ? null
-                                : proposal.id
+                                : proposal.bid_id
                             )
                           }
                         >
-                          {expandedProposal === proposal.id
+                          {expandedProposal === proposal.bid_id
                             ? "نمایش کمتر"
                             : "مشاهده متن کامل"}
                         </button>
                       )}
                     </div>
+                  )}
 
-                    {/* اطلاعات زمانی */}
-                    <div className={styles.proposalMeta}>
-                      <div>
-                        <span>زمان پیشنهادی انجام:</span>
-
-                        <strong>
-                          {formatNumber(proposal.duration)} روز
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>تاریخ ارسال:</span>
-
-                        <strong>{proposal.sentAt}</strong>
-                      </div>
+                  <div className={styles.proposalMeta}>
+                    <div>
+                      <span>زمان پیشنهادی انجام:</span>
+                      <strong>
+                        {formatNumber(durationDays)} روز
+                      </strong>
                     </div>
 
-                    {/* عملیات */}
-                    <div className={styles.proposalActions}>
-                      <Link
-                        href={`/worker/${proposal.workerId}`}
-                        className={styles.profileButton}
-                      >
-                        مشاهده پروفایل مجری
-                        <span>←</span>
-                      </Link>
-
-                      {proposal.status === "pending" && (
-                        <div className={styles.actionButtons}>
-                          <button
-                            type="button"
-                            className={styles.rejectButton}
-                            onClick={() =>
-                              handleProposalAction(
-                                proposal.id,
-                                "rejected"
-                              )
-                            }
-                          >
-                            رد پیشنهاد
-                          </button>
-
-                          <button
-                            type="button"
-                            className={styles.acceptButton}
-                            onClick={() =>
-                              handleProposalAction(
-                                proposal.id,
-                                "accepted"
-                              )
-                            }
-                          >
-                            انتخاب به‌عنوان مجری
-                          </button>
-                        </div>
-                      )}
+                    <div>
+                      <span>تاریخ ارسال:</span>
+                      <strong>{formatDate(proposal.created_at)}</strong>
                     </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.emptyState}>
-                <strong>
-                  هنوز پیشنهادی برای این کار ثبت نشده است.
-                </strong>
+                  </div>
 
-                <p>
-                  پس از ارسال پیشنهاد توسط مجریان، آن‌ها را اینجا می‌بینید.
-                </p>
-              </div>
-            )}
-          </>
+                  <div className={styles.proposalActions}>
+                    <Link
+                      href={`/worker/${proposal.executor_profile_id}`}
+                      className={styles.profileButton}
+                    >
+                      مشاهده پروفایل مجری
+                    </Link>
+
+                    {proposal.status === "ACTIVE" && (
+                      <div className={styles.actionButtons}>
+                        <button
+                          type="button"
+                          className={styles.rejectButton}
+                          onClick={() =>
+                            showActionNotice(proposal.bid_id, "reject")
+                          }
+                        >
+                          رد پیشنهاد
+                        </button>
+
+                        <button
+                          type="button"
+                          className={styles.acceptButton}
+                          onClick={() =>
+                            showActionNotice(proposal.bid_id, "accept")
+                          }
+                        >
+                          پذیرش پیشنهاد
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {actionNotices[proposal.bid_id] && (
+                    <p className={styles.actionNotice} role="status">
+                      {actionNotices[proposal.bid_id]}
+                    </p>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <strong>هنوز پیشنهادی برای این کار ثبت نشده است.</strong>
+            <p>
+              پس از ارسال پیشنهاد توسط مجریان، آن‌ها را اینجا می‌بینید.
+            </p>
+          </div>
         )}
       </section>
     </DashboardLayout>

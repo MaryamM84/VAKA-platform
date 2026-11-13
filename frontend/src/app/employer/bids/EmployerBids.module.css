@@ -1,0 +1,380 @@
+
+.bidsPage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+  color: var(--vaka-text);
+
+  /* بالا بردن عنوان داخلی و کارت‌های پیشنهاد */
+  transform: translateY(-80px);
+}
+
+@media (max-width: 900px) {
+  .bidsPage {
+    transform: none;
+  }
+}
+
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.listHeader h2 {
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.listHeader p {
+  margin: 5px 0 0;
+  color: var(--vaka-text-muted);
+  font-size: 11px;
+}
+
+.bidList {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.bidCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-card);
+}
+
+.bidHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.executorInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.executorAvatar {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  border: 3px solid var(--vaka-primary-soft);
+  border-radius: 50%;
+  background: var(--vaka-primary-pale);
+  color: var(--vaka-primary);
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.executorDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.executorDetails h3 {
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.taskLink {
+  color: var(--vaka-text-muted);
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.taskLink:hover {
+  color: var(--vaka-primary);
+}
+
+.statusBadge {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: var(--vaka-radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* در انتظار بررسی: نارنجی */
+.pending {
+  background: rgb(200 121 37 / 11%);
+  color: var(--vaka-warning);
+}
+
+/* پذیرفته‌شده: سبز */
+.accepted {
+  background: var(--vaka-primary-soft);
+  color: var(--vaka-success);
+}
+
+/* ردشده: قرمز */
+.rejected {
+  background: rgb(217 83 83 / 10%);
+  color: var(--vaka-danger);
+}
+
+/* پس‌گرفته‌شده: رنگ خنثی متمایل به نارنجی */
+.withdrawn {
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-warning);
+}
+
+/* منقضی‌شده: خنثی */
+.expired {
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-muted);
+}
+
+.bidDescription {
+  padding: 13px 15px;
+  border-radius: var(--vaka-radius-lg);
+  background: var(--vaka-surface-muted);
+}
+
+.bidDescription p {
+  margin: 0;
+  color: var(--vaka-text-secondary);
+  font-size: 12px;
+  line-height: 2.1;
+  overflow-wrap: anywhere;
+}
+
+.bidDescription button {
+  margin-top: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vaka-primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bidMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-lg);
+  background: var(--vaka-surface-muted);
+}
+
+.bidMeta div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+}
+
+.bidMeta div span {
+  color: var(--vaka-text-muted);
+}
+
+.bidMeta div strong {
+  color: var(--vaka-text);
+  font-weight: 700;
+}
+
+.bidActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.profileButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--vaka-danger);
+  border-radius: var(--vaka-radius-md);
+  background: transparent;
+  color: var(--vaka-danger);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: 150ms ease;
+}
+
+.profileButton:hover {
+  background: var(--vaka-danger);
+  color: white;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actionButtons button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: var(--vaka-radius-md);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 150ms ease;
+}
+
+.rejectButton {
+  border: 1px solid var(--vaka-border);
+  background: var(--vaka-surface);
+  color: var(--vaka-danger);
+}
+
+.rejectButton:hover {
+  background: rgb(217 83 83 / 8%);
+  border-color: var(--vaka-danger);
+}
+
+.acceptButton {
+  border: 1px solid var(--vaka-primary);
+  background: var(--vaka-primary);
+  color: white;
+}
+
+.acceptButton:hover {
+  background: var(--vaka-primary-hover);
+}
+
+.actionNotice {
+  margin: -5px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--vaka-radius-md);
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+.emptyState,
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 22px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-card);
+  text-align: center;
+}
+
+.emptyState strong,
+.errorState strong {
+  color: var(--vaka-text);
+  font-size: 14px;
+}
+
+.emptyState p,
+.errorState p {
+  margin: 0;
+  color: var(--vaka-text-muted);
+  font-size: 12px;
+  line-height: 2;
+}
+
+.emptyState a {
+  margin-top: 5px;
+  color: var(--vaka-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.errorState {
+  border-color: rgb(217 83 83 / 20%);
+}
+
+.errorState strong {
+  color: var(--vaka-danger);
+}
+
+.retryButton {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--vaka-radius-md);
+  background: var(--vaka-primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  background: var(--vaka-primary-hover);
+}
+
+@media (max-width: 700px) {
+  .bidCard {
+    padding: 18px;
+  }
+
+  .bidMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .bidActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profileButton {
+    width: 100%;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+
+  .actionButtons button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .bidHeader {
+    flex-direction: column;
+  }
+
+  .statusBadge {
+    align-self: flex-start;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+  }
+
+  .actionButtons button {
+    width: 100%;
+  }
+}

@@ -3,35 +3,38 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
+  width: 100%;
   min-width: 0;
 }
 
 .intro {
-  margin-bottom: 2px;
+  margin: 0 0 2px;
 }
 
 .intro h2 {
   margin: 0;
   color: #253747;
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 800;
 }
 
 .intro p {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   color: #91a2b4;
   font-size: 12px;
+  line-height: 1.9;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
+  width: 100%;
 }
 
 .card {
   min-width: 0;
-  padding: 24px;
+  padding: 26px;
   border: 1px solid #edf2ef;
   border-radius: 22px;
   background: #fff;
@@ -43,7 +46,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 25px;
 }
 
 .sectionHeading h3 {
@@ -54,19 +57,17 @@
 }
 
 .sectionHeading p {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   color: #91a2b4;
   font-size: 11px;
+  line-height: 1.8;
 }
-
-
-/* Form fields */
 
 .fieldsGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 22px 20px;
+  margin-bottom: 22px;
 }
 
 .field {
@@ -83,17 +84,18 @@
 }
 
 .required {
-  color: #d9534f;
   margin-right: 2px;
+  color: #d9534f;
 }
 
 .field input,
 .field select,
 .field textarea,
 .datePickerInput {
+  box-sizing: border-box;
   width: 100%;
-  min-height: 46px;
-  padding: 10px 13px;
+  min-height: 48px;
+  padding: 11px 13px;
   border: 1px solid #dce8e2;
   border-radius: 11px;
   outline: none;
@@ -101,10 +103,7 @@
   color: #34485a;
   font-family: inherit;
   font-size: 12px;
-  transition:
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    background 150ms ease;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .field input::placeholder,
@@ -132,7 +131,7 @@
 }
 
 .field textarea {
-  min-height: 120px;
+  min-height: 125px;
   resize: none;
   line-height: 2;
 }
@@ -140,17 +139,18 @@
 .fieldHint {
   color: #91a2b4;
   font-size: 10px;
-  line-height: 1.8;
+  line-height: 1.9;
 }
 
 .readOnlyInput {
+  direction: ltr;
   background: #f3f6f4 !important;
   color: #75847c !important;
   cursor: not-allowed;
-  direction: ltr;
 }
 
 .datePickerContainer {
+  display: block;
   width: 100%;
 }
 
@@ -168,13 +168,19 @@
   box-shadow: 0 0 0 3px rgb(217 83 79 / 9%) !important;
 }
 
-.fieldError {
+.fieldError,
+.locationError {
   color: #d9534f;
-  font-size: 10px;
-  line-height: 1.8;
+  font-size: 11px;
+  line-height: 1.9;
 }
 
-/* Success feedback */
+.locationError {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff8f6;
+}
 
 .successMessage {
   padding: 13px 16px;
@@ -186,11 +192,20 @@
   line-height: 1.9;
 }
 
-/* Actions */
+.errorMessage {
+  padding: 13px 16px;
+  border: 1px solid #f0d2d0;
+  border-radius: 12px;
+  background: #fff8f7;
+  color: #c44742;
+  font-size: 12px;
+  line-height: 1.9;
+}
 
 .actions {
   display: flex;
   align-items: center;
+  /* در صفحه RTL، انتهای محور اصلی سمت چپ صفحه است. */
   justify-content: flex-end;
   gap: 12px;
 }
@@ -201,7 +216,7 @@
   align-items: center;
   justify-content: center;
   min-width: 135px;
-  min-height: 44px;
+  min-height: 45px;
   padding: 0 20px;
   border-radius: 12px;
   font-family: inherit;
@@ -209,9 +224,7 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  transition:
-    background 150ms ease,
-    transform 150ms ease;
+  transition: background 150ms ease, transform 150ms ease;
 }
 
 .saveButton {
@@ -224,15 +237,9 @@
   background: #075749;
 }
 
-.saveButton:active,
-.cancelButton:active {
-  transform: translateY(1px);
-}
-
-.saveButton:focus-visible,
-.cancelButton:focus-visible {
-  outline: 3px solid rgb(8 113 95 / 25%);
-  outline-offset: 3px;
+.saveButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .cancelButton {
@@ -245,7 +252,32 @@
   background: #f0f8f5;
 }
 
-/* Responsive */
+.saveButton:active,
+.cancelButton:active {
+  transform: translateY(1px);
+}
+
+.loadingState,
+.errorState {
+  padding: 25px;
+  border: 1px solid #edf2ef;
+  border-radius: 18px;
+  background: #fff;
+  color: #34485a;
+  font-size: 13px;
+  line-height: 2;
+}
+
+.errorState button {
+  margin-top: 12px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #08715f;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+}
 
 @media (max-width: 700px) {
   .card {
@@ -254,7 +286,7 @@
 
   .fieldsGrid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 17px;
   }
 }
 

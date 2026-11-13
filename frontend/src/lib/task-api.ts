@@ -1,8 +1,16 @@
-import { getAccessToken } from "./auth-api";
+
+import {
+  getAccessToken,
+  refreshAccessToken,
+  type AuthResponse,
+  type TokenRefreshResponse,
+} from "./auth-api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   ?.trim()
   .replace(/\/+$/, "");
+
+const AUTH_STORAGE_KEY = "vaka.auth";
 
 export interface TaskCategory {
   category_id: string;
@@ -80,7 +88,7 @@ function getErrorMessage(payload: unknown, status: number): string {
   }
 
   if (status === 403) {
-    return "اجازه ایجاد تسک را ندارید.";
+    return "اجازه انجام این درخواست را ندارید.";
   }
 
   if (status === 404) {
@@ -88,56 +96,158 @@ function getErrorMessage(payload: unknown, status: number): string {
   }
 
   if (status === 400) {
-    return "اطلاعات ارسالی معتبر نیست. لطفاً اطلاعات فرم را بررسی کنید.";
+    return "اطلاعات ارسالی معتبر نیست. لطفاً فرم را بررسی کنید.";
   }
 
   if (status >= 500) {
-    return "خطایی در سرور رخ داده است. لطفاً دوباره تلاش کنید.";
+    return "در سرور مشکلی پیش آمده است. لطفاً دوباره تلاش کنید.";
   }
 
-  return "ثبت درخواست با خطا مواجه شد.";
+  return "انجام درخواست با خطا مواجه شد.";
 }
 
-async function apiRequest<T>(
+function getStoredAuth(): AuthResponse | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw =
+      localStorage.getItem(AUTH_STORAGE_KEY) ??
+      sessionStorage.getItem(AUTH_STORAGE_KEY);
+
+    if (!raw) return null;
+
+    const auth = JSON.parse(raw) as Partial<AuthResponse>;
+
+    if (
+      typeof auth.access !== "string" ||
+      typeof auth.refresh !== "string" ||
+      !auth.user
+    ) {
+      return null;
+    }
+
+    return auth as AuthResponse;
+  } catch {
+    return null;
+  }
+}
+
+function saveRefreshedTokens(
+  tokens: TokenRefreshResponse,
+  previousAuth: AuthResponse
+): void {
+  if (typeof window === "undefined") return;
+
+  const updatedAuth: AuthResponse = {
+    ...previousAuth,
+    access: tokens.access,
+    refresh: tokens.refresh ?? previousAuth.refresh,
+  };
+
+  const storage = localStorage.getItem(AUTH_STORAGE_KEY)
+    ? localStorage
+    : sessionStorage;
+
+  storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedAuth));
+}
+
+async function parseResponse(response: Response): Promise<unknown> {
+  const responseText = await response.text();
+
+  if (!responseText) return null;
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return responseText;
+  }
+}
+
+let refreshPromise: Promise<string> | null = null;
+
+async function getValidAccessToken(): Promise<string | null> {
+  const auth = getStoredAuth();
+
+  if (!auth) {
+    return getAccessToken();
+  }
+
+  if (!auth.refresh) {
+    return auth.access || null;
+  }
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const tokens = await refreshAccessToken(auth.refresh);
+
+      if (!tokens.access) {
+        throw new Error("سرور توکن دسترسی جدیدی برنگرداند.");
+      }
+
+      saveRefreshedTokens(tokens, auth);
+
+      return tokens.access;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
+async function sendRequest(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit,
+  token: string | null
+): Promise<Response> {
+  return fetch(getApiUrl(path), {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+    cache: "no-store",
+  });
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {}
 ): Promise<T> {
+  const method = (options.method ?? "GET").toUpperCase();
+
   const token = getAccessToken();
 
-  if (!token && options.method !== "GET") {
-    throw new Error("برای ایجاد تسک ابتدا باید وارد حساب کاربری شوید.");
+  if (!token && method !== "GET") {
+    throw new Error("برای انجام این عملیات ابتدا وارد حساب کاربری شوید.");
   }
 
   let response: Response;
 
   try {
-    response = await fetch(getApiUrl(path), {
-      ...options,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-      cache: "no-store",
-    });
-  } catch {
+    response = await sendRequest(path, options, token);
+
+    // Only retry once after refreshing an expired access token.
+    if (response.status === 401 && getStoredAuth()?.refresh) {
+      const newToken = await getValidAccessToken();
+
+      if (newToken) {
+        response = await sendRequest(path, options, newToken);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+
     throw new Error(
-      "ارتباط با سرور برقرار نشد. اتصال اینترنت و آدرس API را بررسی کنید.",
+      "ارتباط با سرور برقرار نشد. اتصال اینترنت و آدرس API را بررسی کنید."
     );
   }
 
-  const responseText = await response.text();
-
-  let payload: unknown = null;
-
-  if (responseText) {
-    try {
-      payload = JSON.parse(responseText);
-    } catch {
-      payload = responseText;
-    }
-  }
+  const payload = await parseResponse(response);
 
   if (!response.ok) {
     throw new Error(getErrorMessage(payload, response.status));
@@ -153,7 +263,9 @@ export function getTaskCategories(): Promise<TaskCategory[]> {
   });
 }
 
-export function createTask(payload: TaskCreatePayload): Promise<CreatedTask> {
+export function createTask(
+  payload: TaskCreatePayload
+): Promise<CreatedTask> {
   return apiRequest<CreatedTask>("/api/tasks/", {
     method: "POST",
     body: JSON.stringify(payload),

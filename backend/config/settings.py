@@ -20,6 +20,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
+# Public profile images are stored separately from private verification files.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

@@ -48,6 +48,10 @@ class ProfileAPITests(APITestCase):
         )
 
         self.assertIsNone(response.data["bio"])
+        self.assertEqual(response.data["completed_tasks_count"], 0)
+        self.assertEqual(response.data["active_tasks_count"], 0)
+        self.assertIsNone(response.data["average_rating"])
+        self.assertIsNone(response.data["rating_count"])
 
         self.assertEqual(
             response.data["verification_status"],

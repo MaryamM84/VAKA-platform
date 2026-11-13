@@ -3,6 +3,12 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
 from .models import User, ExecutorProfile
+from .profile_metrics import get_executor_profile_metrics
+from .profile_avatar_serializers import (
+    get_avatar_id,
+    get_avatar_type,
+    get_avatar_url,
+)
 
 
 @extend_schema_field(
@@ -66,6 +72,14 @@ class MyProfileSerializer(serializers.Serializer):
         read_only=True,
         allow_null=True,
     )
+    avatar_type = serializers.SerializerMethodField()
+    avatar_id = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+
+    completed_tasks_count = serializers.SerializerMethodField()
+    active_tasks_count = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
 
     bio = ExecutorBioField(
         source="*",
@@ -117,6 +131,35 @@ class MyProfileSerializer(serializers.Serializer):
             )
 
         return value
+
+    def get_avatar_type(self, user):
+        return get_avatar_type(user)
+
+    def get_avatar_id(self, user):
+        return get_avatar_id(user)
+
+    def get_avatar_url(self, user):
+        return get_avatar_url(user, self.context.get("request"))
+
+    def _profile_metrics(self, user):
+        if not hasattr(self, "_profile_metrics_cache"):
+            profile = getattr(user, "executor_profile", None)
+            self._profile_metrics_cache = get_executor_profile_metrics(
+                profile=profile
+            )
+        return self._profile_metrics_cache
+
+    def get_completed_tasks_count(self, user):
+        return self._profile_metrics(user)["completed_tasks_count"]
+
+    def get_active_tasks_count(self, user):
+        return self._profile_metrics(user)["active_tasks_count"]
+
+    def get_average_rating(self, user):
+        return self._profile_metrics(user)["average_rating"]
+
+    def get_rating_count(self, user):
+        return self._profile_metrics(user)["rating_count"]
 
     def get_verification_status(self, user):
 

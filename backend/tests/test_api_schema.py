@@ -15,6 +15,8 @@ class APISchemaTests(APITestCase):
         self.assertIn("/api/task-categories/", schema["paths"])
         self.assertIn("/api/skills/", schema["paths"])
         self.assertIn("/api/profile/me/", schema["paths"])
+        self.assertIn("/api/profile/me/avatar/", schema["paths"])
+        self.assertIn("/api/profiles/{profile_id}/", schema["paths"])
         self.assertIn("/api/profile/me/skills/", schema["paths"])
         self.assertIn("/api/profile/me/skills/{worker_skill_id}/", schema["paths"])
         self.assertIn("/api/profile/me/preferences/", schema["paths"])

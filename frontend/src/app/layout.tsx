@@ -1,4 +1,6 @@
+
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 import SiteHeaderGate from "@/components/layout/SiteHeaderGate";
@@ -21,7 +23,10 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl">
       <body className={`${vazirmatn.className} antialiased`}>
-        <SiteHeaderGate />
+        <Suspense fallback={null}>
+          <SiteHeaderGate />
+        </Suspense>
+
         {children}
       </body>
     </html>

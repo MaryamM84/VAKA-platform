@@ -64,6 +64,12 @@ const baseMenuItems = [
   },
 ];
 
+const skillsMenuItem = {
+  label: "مهارت‌ها و شرایط فعالیت",
+  href: "/profile/skills",
+  icon: "briefcase-business",
+};
+
 const workerMenuItem = {
   label: "پیشنهادهای من",
   href: "/worker/bids",
@@ -76,6 +82,13 @@ function MenuIcon({ name }: { name: string }) {
       <>
         <circle cx="12" cy="8" r="4" />
         <path d="M5 21a7 7 0 0 1 14 0" />
+      </>
+    ),
+
+    "briefcase-business": (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" />
       </>
     ),
 
@@ -172,7 +185,13 @@ export default function ProfileSidebar() {
 
   const verified = isVerified(profile?.verification_status);
   const menuItems = verified
-    ? [...baseMenuItems.slice(0, 3), workerMenuItem, baseMenuItems[3]]
+    ? [
+        baseMenuItems[0],
+        skillsMenuItem,
+        ...baseMenuItems.slice(1, 3),
+        workerMenuItem,
+        baseMenuItems[3],
+      ]
     : baseMenuItems;
 
   // دریافت اطلاعات پروفایل از API

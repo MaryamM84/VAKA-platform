@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import UserPanelLayout from "./UserPanelLayout";
 import CoverageMap from "./CoverageMap";
 import styles from "./UserSkillsPage.module.css";
 import {
@@ -28,7 +27,6 @@ import {
   type WorkerServiceAreaPayload,
   type WorkerServiceAreaRecord,
 } from "@/lib/worker-profile-settings-api";
-import { getMyProfileSummary } from "@/lib/worker-profile-summary-api";
 
 type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert";
 type SkillIcon = "delivery" | "cleaning" | "admin" | "general";
@@ -1146,8 +1144,6 @@ export default function UserSkillsPage() {
   const [skillProfileLoadError, setSkillProfileLoadError] = useState<string | null>(null);
   const [isSkillSaving, setIsSkillSaving] = useState(false);
   const [isSkillDraftTouched, setIsSkillDraftTouched] = useState(false);
-  const [profileName, setProfileName] = useState("کاربر واکا");
-  const [isVerified, setIsVerified] = useState<boolean | null>(null);
   const [toast, setToast] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSkillId, setEditingSkillId] = useState<string | null>(null);
@@ -1157,33 +1153,6 @@ export default function UserSkillsPage() {
   const lastAttemptedSkillDraftSignatureRef = useRef<string | null>(null);
   const closeSkillModalAfterSaveRef = useRef(false);
   skillDraftRef.current = draft;
-
-  useEffect(() => {
-    let isCurrent = true;
-
-    async function loadProfileSummary() {
-      try {
-        const summary = await getMyProfileSummary();
-        if (!isCurrent) return;
-
-        setProfileName(summary.full_name?.trim() || "کاربر واکا");
-        setIsVerified(summary.verification_status === "APPROVED");
-      } catch (error) {
-        if (!isCurrent) return;
-
-        setProfileName("کاربر واکا");
-        // Keep the verification indicator unknown when the API request fails.
-        setIsVerified(null);
-        const message = error instanceof Error ? error.message : "دریافت اطلاعات پروفایل از سرور ناموفق بود.";
-        setToast((previous) => [previous, `اطلاعات پروفایل: ${message}`].filter(Boolean).join(" "));
-      }
-    }
-
-    void loadProfileSummary();
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1447,11 +1416,7 @@ export default function UserSkillsPage() {
   }
 
   return (
-    <UserPanelLayout
-      profileName={profileName}
-      activePage="skills"
-      isVerified={isVerified === true}
-    >
+    <>
       <div className={styles.contentStack}>
         <section className={`${styles.card} ${styles.pageHeading}`}>
           <div className={styles.headingCopy}>
@@ -1620,6 +1585,6 @@ export default function UserSkillsPage() {
           </section>
         </div>
       )}
-    </UserPanelLayout>
+    </>
   );
 }

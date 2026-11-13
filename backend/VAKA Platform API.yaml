@@ -1417,7 +1417,7 @@ paths:
   /api/profile/me/verification/:
     get:
       operationId: profile_me_verification_retrieve
-      summary: Get current worker verification status
+      summary: Read verification status and document metadata
       tags:
       - Worker Verification
       security:
@@ -1435,9 +1435,7 @@ paths:
   /api/profile/me/verification/documents/:
     post:
       operationId: profile_me_verification_documents_create
-      description: Upload a private identity verification document for the authenticated
-        user's executor profile.
-      summary: Upload worker verification document
+      summary: Upload front or back national card image
       tags:
       - Worker Verification
       requestBody:
@@ -1460,13 +1458,93 @@ paths:
                 $ref: '#/components/schemas/WorkerVerificationDocumentRead'
           description: ''
         '400':
-          description: Invalid document or verification status.
+          description: Unsupported image or invalid document type.
         '401':
           description: Authentication required.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/documents/{document_id}/:
+    delete:
+      operationId: profile_me_verification_documents_destroy
+      summary: Delete an uploaded document before submission
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Document deleted.
+        '401':
+          description: Authentication required.
+        '404':
+          description: Document not found.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/identity/:
+    get:
+      operationId: profile_me_verification_identity_retrieve
+      summary: Read saved identity form
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          description: ''
+        '401':
+          description: Authentication required.
+        '404':
+          description: Identity form has not been saved.
+    put:
+      operationId: profile_me_verification_identity_update
+      summary: Validate and save identity form
+      tags:
+      - Worker Verification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          description: ''
+        '400':
+          description: Invalid identity fields.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Verification is locked.
   /api/profile/me/verification/submit/:
     post:
       operationId: profile_me_verification_submit_create
-      summary: Submit worker verification application
+      summary: Submit saved identity and both documents
       tags:
       - Worker Verification
       security:
@@ -1480,9 +1558,11 @@ paths:
                 $ref: '#/components/schemas/WorkerVerificationStatus'
           description: ''
         '400':
-          description: Application cannot be submitted.
+          description: Missing saved identity or documents.
         '401':
           description: Authentication required.
+        '409':
+          description: Application already submitted.
   /api/profiles/{profile_id}/:
     get:
       operationId: profiles_retrieve
@@ -1899,6 +1979,10 @@ components:
           items:
             $ref: '#/components/schemas/WorkerVerificationDocumentRead'
           readOnly: true
+        identity:
+          allOf:
+          - $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          readOnly: true
       required:
       - applicant
       - application_submitted_at
@@ -1906,6 +1990,7 @@ components:
       - bio
       - documents
       - executor_profile_id
+      - identity
       - rejection_reason
       - reviewed_at
       - reviewed_by_user
@@ -2143,6 +2228,14 @@ components:
           type: boolean
       required:
       - name
+    DocumentTypeEnum:
+      enum:
+      - NATIONAL_CARD_FRONT
+      - NATIONAL_CARD_BACK
+      type: string
+      description: |-
+        * `NATIONAL_CARD_FRONT` - NATIONAL_CARD_FRONT
+        * `NATIONAL_CARD_BACK` - NATIONAL_CARD_BACK
     EmployerBidDetail:
       type: object
       properties:
@@ -3897,15 +3990,79 @@ components:
       type: object
       properties:
         document_type:
-          type: string
-          minLength: 1
-          maxLength: 40
+          $ref: '#/components/schemas/DocumentTypeEnum'
         file:
           type: string
           format: binary
       required:
       - document_type
       - file
+    WorkerVerificationIdentityRead:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 100
+        national_code:
+          type: string
+          maxLength: 32
+        birth_date:
+          type: string
+          format: date
+        iban:
+          type: string
+          maxLength: 40
+        mobile:
+          type: string
+          maxLength: 32
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - birth_date
+      - first_name
+      - iban
+      - last_name
+      - mobile
+      - national_code
+      - updated_at
+    WorkerVerificationIdentityRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        national_code:
+          type: string
+          minLength: 1
+          maxLength: 32
+        birth_date:
+          type: string
+          format: date
+        iban:
+          type: string
+          minLength: 1
+          maxLength: 40
+        mobile:
+          type: string
+          minLength: 1
+          maxLength: 32
+      required:
+      - birth_date
+      - first_name
+      - iban
+      - last_name
+      - mobile
+      - national_code
     WorkerVerificationRejectRequest:
       type: object
       properties:
@@ -3939,10 +4096,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WorkerVerificationDocumentRead'
+        identity_saved:
+          type: boolean
+        national_code_masked:
+          type: string
+          nullable: true
+        iban_masked:
+          type: string
+          nullable: true
       required:
       - application_submitted_at
       - approved_at
       - documents
+      - iban_masked
+      - identity_saved
+      - national_code_masked
       - rejection_reason
       - reviewed_at
       - verification_status

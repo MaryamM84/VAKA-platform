@@ -4,8 +4,15 @@
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
+import VakaDialog from "@/components/ui/VakaDialog";
 import styles from "./MyTasks.module.css";
-import { getEmployerTasks, getEmployerBids, type EmployerTaskApi } from "@/lib/employer-api";
+import {
+  getEmployerTasks,
+  getEmployerBids,
+  cancelEmployerTask,
+  updateEmployerTask,
+  type EmployerTaskApi,
+} from "@/lib/employer-api";
 
 type TaskStatus = "pending" | "inProgress" | "completed" | "rejected";
 
@@ -18,6 +25,7 @@ type Task = {
   date: string;
   createdAt: number;
   proposals: number;
+  raw: EmployerTaskApi;
 };
 
 function mapTaskStatus(status: string): TaskStatus {
@@ -55,6 +63,7 @@ function mapEmployerTask(task: EmployerTaskApi, proposalCount: number): Task {
     date: new Date(task.created_at).toLocaleDateString("fa-IR"),
     createdAt: Number.isNaN(createdAt) ? 0 : createdAt,
     proposals: proposalCount,
+    raw: task,
   };
 }
 
@@ -133,6 +142,11 @@ export default function MyTasksPage() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [cancelTaskId, setCancelTaskId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   // محاسبه آمار کارها
   const taskStatistics = useMemo(
@@ -184,9 +198,44 @@ export default function MyTasksPage() {
     (task) => task.id === cancelTaskId
   );
 
-  function handleConfirmCancel() {
-    setCancelTaskId(null);
-    alert("در مستندات فعلی API، سرویس لغو کار تعریف نشده است؛ بنابراین وضعیت کار تغییر نکرد.");
+  async function handleConfirmCancel() {
+    if (!cancelTaskId) return;
+    setIsCancelling(true);
+    setActionError(null);
+    try {
+      await cancelEmployerTask(cancelTaskId);
+      setTaskItems((previous) => previous.map((task) =>
+        task.id === cancelTaskId ? { ...task, status: "rejected" } : task
+      ));
+      setCancelTaskId(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "لغو کار انجام نشد.");
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
+  function openEditTask(task: Task) {
+    setEditingTask(task);
+    setEditedTitle(task.raw.title);
+    setActionError(null);
+  }
+
+  async function handleEditTask() {
+    if (!editingTask || !editedTitle.trim()) return;
+    setIsEditing(true);
+    setActionError(null);
+    try {
+      const updated = await updateEmployerTask(editingTask.id, { title: editedTitle.trim() });
+      setTaskItems((previous) => previous.map((item) =>
+        item.id === editingTask.id ? { ...item, title: updated.title, raw: updated } : item
+      ));
+      setEditingTask(null);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "ویرایش کار انجام نشد.");
+    } finally {
+      setIsEditing(false);
+    }
   }
 
   function handleCloseModal() {
@@ -358,13 +407,9 @@ export default function MyTasksPage() {
                             <button
                               type="button"
                               className={styles.editButton}
-                              onClick={() =>
-                                alert(
-                                  "ویرایش کار در مرحله بعد پیاده‌سازی می‌شود."
-                                )
-                              }
+                              onClick={() => openEditTask(task)}
                             >
-                              ویرایش
+                              ویرایش عنوان
                             </button>
 
                             <button
@@ -489,10 +534,8 @@ export default function MyTasksPage() {
             <h2 id="cancel-modal-title">لغو کار</h2>
 
             <p id="cancel-modal-description">
-              در نسخه فعلی API، endpoint لغو کارفرما تعریف نشده است.
-              <span>
-                امکان لغو این کار تا زمان اضافه‌شدن سرویس مربوطه وجود ندارد.
-              </span>
+              آیا مطمئن هستید که می‌خواهید این کار را لغو کنید؟
+              {actionError && <span role="alert">{actionError}</span>}
             </p>
 
             <div className={styles.modalActions}>
@@ -500,6 +543,7 @@ export default function MyTasksPage() {
                 type="button"
                 className={styles.keepTaskButton}
                 onClick={handleCloseModal}
+                disabled={isCancelling}
               >
                 انصراف
               </button>
@@ -507,14 +551,27 @@ export default function MyTasksPage() {
               <button
                 type="button"
                 className={styles.confirmCancelButton}
-                onClick={handleConfirmCancel}
+                onClick={() => void handleConfirmCancel()}
+                disabled={isCancelling}
               >
-                متوجه شدم
+                {isCancelling ? "در حال لغو..." : "لغو کار"}
               </button>
             </div>
           </section>
         </div>
       )}
+      <VakaDialog
+        open={!!editingTask}
+        title="ویرایش عنوان کار"
+        description={actionError || "عنوان جدید کار را وارد کنید."}
+        inputValue={editedTitle}
+        inputPlaceholder="عنوان کار"
+        onInputChange={setEditedTitle}
+        confirmLabel="ذخیره تغییرات"
+        busy={isEditing}
+        onCancel={() => setEditingTask(null)}
+        onConfirm={() => void handleEditTask()}
+      />
     </DashboardLayout>
   );
 }

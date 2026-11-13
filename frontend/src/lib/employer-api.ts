@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/task-api";
 
+/** Task representation returned by GET /api/tasks/. */
 export interface EmployerTaskApi {
   task_id: string;
   employer_user_id: string;
@@ -40,21 +41,83 @@ export interface EmployerBidListApi {
   created_at: string;
 }
 
+/** Fields accepted by PatchedTaskUpdateRequest in the OpenAPI spec. */
+export type EmployerTaskUpdate = Partial<Pick<
+  EmployerTaskApi,
+  | "category_id"
+  | "title"
+  | "description"
+  | "estimated_duration_minutes"
+  | "wage_budget_amount"
+  | "item_cost_cap_amount"
+  | "receipt_required"
+  | "execution_window_start_at"
+  | "execution_window_end_at"
+  | "deadline_at"
+  | "proposal_deadline_at"
+  | "delivery_criteria"
+>>;
+
+export interface EmployerBidActionResponse {
+  bid_id?: string;
+  status?: string;
+  detail?: string;
+}
+
+export interface EmployerTaskCancelResponse {
+  task_id?: string;
+  status?: string;
+  detail?: string;
+}
+
 export function getEmployerTasks(): Promise<EmployerTaskApi[]> {
-  return apiRequest<EmployerTaskApi[]>("/api/tasks/", {
-    method: "GET",
+  return apiRequest<EmployerTaskApi[]>("/api/tasks/");
+}
+
+export function updateEmployerTask(
+  taskId: string,
+  payload: EmployerTaskUpdate
+): Promise<EmployerTaskApi> {
+  return apiRequest<EmployerTaskApi>(`/api/tasks/${encodeURIComponent(taskId)}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 
+export function cancelEmployerTask(taskId: string): Promise<EmployerTaskCancelResponse> {
+  return apiRequest<EmployerTaskCancelResponse>(
+    `/api/tasks/${encodeURIComponent(taskId)}/cancel/`,
+    { method: "POST" }
+  );
+}
+
+export function publishEmployerTask(taskId: string): Promise<EmployerTaskApi> {
+  return apiRequest<EmployerTaskApi>(
+    `/api/tasks/${encodeURIComponent(taskId)}/publish/`,
+    { method: "POST" }
+  );
+}
+
 export function getEmployerBids(): Promise<EmployerBidListApi[]> {
-  return apiRequest<EmployerBidListApi[]>("/api/offers/employer/bids/", {
-    method: "GET",
-  });
+  return apiRequest<EmployerBidListApi[]>("/api/offers/employer/bids/");
 }
 
 export function getTaskBids(taskId: string): Promise<EmployerBidListApi[]> {
   return apiRequest<EmployerBidListApi[]>(
-    `/api/offers/employer/tasks/${taskId}/bids/`,
-    { method: "GET" }
+    `/api/offers/employer/tasks/${encodeURIComponent(taskId)}/bids/`
+  );
+}
+
+export function acceptEmployerBid(bidId: string): Promise<EmployerBidActionResponse> {
+  return apiRequest<EmployerBidActionResponse>(
+    `/api/offers/employer/bids/${encodeURIComponent(bidId)}/accept/`,
+    { method: "POST" }
+  );
+}
+
+export function rejectEmployerBid(bidId: string): Promise<EmployerBidActionResponse> {
+  return apiRequest<EmployerBidActionResponse>(
+    `/api/offers/employer/bids/${encodeURIComponent(bidId)}/reject/`,
+    { method: "POST" }
   );
 }

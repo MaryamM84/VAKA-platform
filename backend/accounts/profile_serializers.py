@@ -1,7 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-
+from django.utils import timezone
 from .models import User, ExecutorProfile
 from .profile_metrics import get_executor_profile_metrics
 from .profile_avatar_serializers import (
@@ -68,6 +68,25 @@ class MyProfileSerializer(serializers.Serializer):
         allow_blank=True,
     )
 
+    birth_date = serializers.DateField(
+        required=False,
+        allow_null=True,
+    )
+
+    province_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=64,
+    )
+
+    city_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=64,
+    )
+
     avatar_key = serializers.CharField(
         read_only=True,
         allow_null=True,
@@ -97,6 +116,9 @@ class MyProfileSerializer(serializers.Serializer):
             "full_name",
             "email",
             "bio",
+            "birth_date",
+            "province_id",
+            "city_id",
         }
 
         if hasattr(data, "keys"):
@@ -131,6 +153,50 @@ class MyProfileSerializer(serializers.Serializer):
             )
 
         return value
+
+    def validate_birth_date(self, value):
+        if value is not None and value > timezone.localdate():
+            raise serializers.ValidationError(
+                "Birth date cannot be in the future."
+            )
+
+        return value
+
+    def validate_province_id(self, value):
+        if value is None:
+            return None
+
+        return value.strip() or None
+
+    def validate_city_id(self, value):
+        if value is None:
+            return None
+
+        return value.strip() or None
+
+    def validate(self, attrs):
+        province_id = attrs.get(
+            "province_id",
+            getattr(self.instance, "province_id", None),
+        )
+
+        city_id = attrs.get(
+            "city_id",
+            getattr(self.instance, "city_id", None),
+        )
+
+        if (
+            "city_id" in attrs
+            and city_id is not None
+            and province_id is None
+        ):
+            raise serializers.ValidationError({
+                "city_id": (
+                    "A province must be selected before a city."
+                )
+            })
+
+        return attrs
 
     def get_avatar_type(self, user):
         return get_avatar_type(user)
@@ -174,6 +240,13 @@ class MyProfileSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
 
         bio = validated_data.pop("bio", serializers.empty)
+
+        if (
+            "province_id" in validated_data
+            and validated_data["province_id"] != instance.province_id
+            and "city_id" not in validated_data
+        ):
+            validated_data["city_id"] = None
 
         changed_fields = []
 

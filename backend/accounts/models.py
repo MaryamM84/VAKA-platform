@@ -72,6 +72,23 @@ class User(AbstractBaseUser):
         blank=True,
     )
 
+    birth_date = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    province_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
+
+    city_id = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+    )
+
     account_status = models.CharField(
         max_length=16,
         choices=AccountStatus.choices,

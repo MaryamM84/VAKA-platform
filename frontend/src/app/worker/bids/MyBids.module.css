@@ -1,3 +1,4 @@
+
 .bidPage {
   display: flex;
   flex-direction: column;
@@ -238,17 +239,6 @@
   line-height: 1.9;
 }
 
-.bidTitleGroup p {
-  margin: 5px 0 0;
-  color: var(--vaka-text-muted);
-  font-size: 12px;
-}
-
-.bidTitleGroup p strong {
-  color: var(--vaka-text-secondary);
-  font-weight: 700;
-}
-
 .statusBadge {
   display: inline-flex;
   align-items: center;
@@ -315,33 +305,55 @@
 .bidActions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
 }
 
-.detailsButton {
+.detailsButton,
+.withdrawButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--vaka-border);
+  min-height: 40px;
+  padding: 0 17px;
   border-radius: var(--vaka-radius-md);
-  background: var(--vaka-primary-soft);
-  color: var(--vaka-primary);
+  font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   text-decoration: none;
-  transition: background 150ms ease;
+  cursor: pointer;
+  transition: 150ms ease;
+}
+
+.detailsButton {
+  border: 1px solid var(--vaka-primary);
+  background: var(--vaka-primary);
+  color: white;
 }
 
 .detailsButton:hover {
-  background: color-mix(in srgb, var(--vaka-primary) 14%, transparent);
+  background: var(--vaka-primary-hover);
 }
 
-.detailsButton span {
-  font-size: 17px;
+.withdrawButton {
+  border: 1px solid var(--vaka-danger);
+  background: transparent;
+  color: var(--vaka-danger);
+}
+
+.withdrawButton:hover {
+  background: color-mix(in srgb, var(--vaka-danger) 8%, transparent);
+}
+
+.actionNotice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--vaka-radius-md);
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  line-height: 1.9;
 }
 
 /* Empty state */
@@ -417,6 +429,141 @@
   cursor: pointer;
 }
 
+/* Details modal */
+
+.modalOverlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(15 35 32 / 45%);
+  backdrop-filter: blur(3px);
+}
+
+.detailsModal {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(560px, 100%);
+  max-height: min(85vh, 720px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: var(--vaka-radius-xl);
+  background: var(--vaka-surface);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 18%);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  color: var(--vaka-text);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.modalHeader button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--vaka-border);
+  border-radius: 50%;
+  background: var(--vaka-surface);
+  color: var(--vaka-text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.detailsModal h3 {
+  margin: 0;
+  color: var(--vaka-primary);
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+.modalDescription {
+  margin: 0;
+  color: var(--vaka-text-secondary);
+  font-size: 12px;
+  line-height: 2.1;
+  white-space: pre-wrap;
+}
+
+.modalMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--vaka-radius-lg);
+  background: var(--vaka-surface-muted);
+}
+
+.modalMeta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.modalMeta span {
+  color: var(--vaka-text-muted);
+}
+
+.modalMeta strong {
+  color: var(--vaka-text);
+  line-height: 1.8;
+}
+
+.deliveryCriteria {
+  padding-top: 14px;
+  border-top: 1px solid var(--vaka-border-soft);
+}
+
+.deliveryCriteria strong {
+  color: var(--vaka-text);
+  font-size: 12px;
+}
+
+.deliveryCriteria p {
+  margin: 8px 0 0;
+  color: var(--vaka-text-secondary);
+  font-size: 12px;
+  line-height: 2;
+  white-space: pre-wrap;
+}
+
+.modalUnavailable {
+  margin: 0;
+  color: var(--vaka-text-muted);
+  font-size: 12px;
+  line-height: 2;
+}
+
+.modalCloseButton {
+  align-self: flex-start;
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius-md);
+  background: var(--vaka-surface);
+  color: var(--vaka-text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* Responsive */
 
 @media (max-width: 900px) {
@@ -489,21 +636,40 @@
   }
 
   .bidActions {
-    justify-content: stretch;
+    align-items: stretch;
   }
 
-  .detailsButton {
-    width: 100%;
+  .detailsButton,
+  .withdrawButton {
+    flex: 1;
+    padding: 0 10px;
   }
 
   .panelFooter {
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .modalMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .detailsModal {
+    padding: 18px;
+  }
 }
 
 @media (max-width: 380px) {
   .statistics {
     grid-template-columns: 1fr;
+  }
+
+  .bidActions {
+    flex-direction: column;
+  }
+
+  .detailsButton,
+  .withdrawButton {
+    width: 100%;
   }
 }

@@ -1,87 +1,215 @@
+"use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./ProfilePage.module.css";
+import { getMyProfile, type MyProfile } from "@/lib/profile-api";
+
+function getVerificationLabel(status?: string) {
+  switch (status?.toUpperCase()) {
+    case "VERIFIED":
+    case "APPROVED":
+      return "تأیید شده";
+
+    case "PENDING":
+    case "SUBMITTED":
+    case "UNDER_REVIEW":
+      return "در حال بررسی";
+
+    case "REJECTED":
+      return "رد شده";
+
+    case "NOT_SUBMITTED":
+    case "UNVERIFIED":
+      return "تکمیل‌نشده";
+
+    default:
+      return "نامشخص";
+  }
+}
+
+function isVerified(status?: string) {
+  return ["VERIFIED", "APPROVED"].includes(
+    status?.toUpperCase() ?? ""
+  );
+}
 
 export default function ProfilePage() {
+  const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadProfile() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getMyProfile();
+      setProfile(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "دریافت اطلاعات پروفایل ناموفق بود."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchProfile() {
+      try {
+        const data = await getMyProfile();
+
+        if (isMounted) {
+          setProfile(data);
+          setError("");
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "دریافت اطلاعات پروفایل ناموفق بود."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className={styles.profileContent} role="status">
+        در حال دریافت اطلاعات پروفایل...
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className={styles.profileContent} role="alert">
+        <p>{error || "اطلاعات پروفایل دریافت نشد."}</p>
+
+        <button type="button" onClick={loadProfile}>
+          تلاش مجدد
+        </button>
+      </div>
+    );
+  }
+
+  const verificationLabel = getVerificationLabel(
+    profile.verification_status
+  );
+
+  const verified = isVerified(profile.verification_status);
+
   return (
     <div className={styles.profileContent}>
-      {/* Profile summary */}
       <section className={styles.summaryCard}>
-
         <div className={styles.summaryHeader}>
           <div>
             <h2>
-              مریم احمدی
-              <span className={styles.verified}>✓</span>
-            </h2>
-            <p>عضو واکا از اردیبهشت ۱۴۰۳</p>
-          </div>
+              {profile.full_name?.trim() || "نام کاربر ثبت نشده"}
 
+              {verified && (
+                <span
+                  className={styles.verified}
+                  aria-label="حساب تأیید شده"
+                >
+                  ✓
+                </span>
+              )}
+            </h2>
+
+            <p>
+              {profile.bio?.trim() ||
+                "هنوز توضیحی برای پروفایل ثبت نشده است."}
+            </p>
+          </div>
         </div>
 
         <div className={styles.summaryDivider} />
-
-        <div className={styles.statistics}>
-          <div className={styles.statItem}>
-            <strong>۱۲</strong>
-            <span>تسک تکمیل‌شده</span>
-          </div>
-
-          <div className={styles.statItem}>
-            <strong>۸</strong>
-            <span>تسک ناتمام</span>
-          </div>
-
-          <div className={styles.statItem}>
-            <strong className={styles.rating}>★ ۴.۸</strong>
-            <span>امتیاز کارفرما</span>
-          </div>
-        </div>
       </section>
 
-      {/* Account information and verification */}
       <div className={styles.bottomCards}>
         <section className={styles.accountCard}>
           <h3>اطلاعات حساب</h3>
 
           <div className={styles.infoRow}>
             <span>شماره موبایل</span>
-            <div>
-              <strong className={styles.phoneNumber}>
-                ۰۹۱۲ ۳۴۵ ۶۷۸۹
-              </strong>
-              <span className={styles.confirmedBadge}>تأییدشده</span>
-            </div>
+
+            <strong className={styles.phoneNumber} dir="ltr">
+              {profile.phone || "ثبت نشده"}
+            </strong>
+          </div>
+
+          <div className={styles.infoRow}>
+            <span>ایمیل</span>
+
+            <strong dir="ltr">
+              {profile.email || "ثبت نشده"}
+            </strong>
           </div>
 
           <div className={styles.infoRow}>
             <span>وضعیت احراز هویت</span>
-            <span className={styles.pendingBadge}>تکمیل‌نشده</span>
-          </div>
 
-          <div className={styles.infoRow}>
-            <span>نوع حساب</span>
-            <strong>کارفرما</strong>
+            <span
+              className={
+                verified
+                  ? styles.confirmedBadge
+                  : styles.pendingBadge
+              }
+            >
+              {verificationLabel}
+            </span>
           </div>
         </section>
 
         <section className={styles.verificationCard}>
-          <span className={styles.warningBadge}>نیازمند تکمیل</span>
+          <span
+            className={
+              verified
+                ? styles.confirmedBadge
+                : styles.warningBadge
+            }
+          >
+            {verificationLabel}
+          </span>
 
-          <h3>به‌عنوان مجری فعالیت کنید</h3>
+          <h3>
+            {verified
+              ? "احراز هویت حساب شما تأیید شده است"
+              : "برای شروع فعالیت، احراز هویت خود را تکمیل کنید"}
+          </h3>
 
           <p>
-            با تکمیل احراز هویت، می‌توانید برای تسک‌ها پیشنهاد ارسال
-            کنید و درآمد داشته باشید.
+            وضعیت احراز هویت بر اساس اطلاعات حساب شما دریافت شده است.
+            برای مشاهده یا ادامه فرایند احراز هویت از بخش مربوطه استفاده کنید.
           </p>
 
-          <Link
-            href="/profile/verification"
-            className={styles.verificationButton}
-          >
-            شروع احراز هویت
-            <span>←</span>
-          </Link>
+          {!verified && (
+            <Link
+              href="/profile/verification"
+              className={styles.verificationButton}
+            >
+              شروع احراز هویت
+              <span>←</span>
+            </Link>
+          )}
         </section>
       </div>
     </div>

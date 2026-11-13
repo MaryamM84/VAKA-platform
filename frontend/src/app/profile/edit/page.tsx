@@ -1,65 +1,57 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import DatePicker from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import Link from "next/link";
 import styles from "./EditProfile.module.css";
 
-const provinces = [
-  { value: "tehran", label: "تهران" },
-  { value: "alborz", label: "البرز" },
-  { value: "ardabil", label: "اردبیل" },
-  { value: "azarbaijan-east", label: "آذربایجان شرقی" },
-  { value: "azarbaijan-west", label: "آذربایجان غربی" },
-  { value: "bushehr", label: "بوشهر" },
-  { value: "chaharmahal", label: "چهارمحال و بختیاری" },
-  { value: "south-khorasan", label: "خراسان جنوبی" },
-  { value: "razavi-khorasan", label: "خراسان رضوی" },
-  { value: "north-khorasan", label: "خراسان شمالی" },
-  { value: "khuzestan", label: "خوزستان" },
-  { value: "zanjan", label: "زنجان" },
-  { value: "semnan", label: "سمنان" },
-  { value: "sistan", label: "سیستان و بلوچستان" },
-  { value: "fars", label: "فارس" },
-  { value: "qazvin", label: "قزوین" },
-  { value: "qom", label: "قم" },
-  { value: "kurdistan", label: "کردستان" },
-  { value: "kerman", label: "کرمان" },
-  { value: "kermanshah", label: "کرمانشاه" },
-  { value: "kohgiluyeh", label: "کهگیلویه و بویراحمد" },
-  { value: "golestan", label: "گلستان" },
-  { value: "gilan", label: "گیلان" },
-  { value: "lorestan", label: "لرستان" },
-  { value: "mazandaran", label: "مازندران" },
-  { value: "markazi", label: "مرکزی" },
-  { value: "hormozgan", label: "هرمزگان" },
-  { value: "hamadan", label: "همدان" },
-  { value: "yazd", label: "یزد" },
-  { value: "isfahan", label: "اصفهان" },
-  { value: "ilam", label: "ایلام" },
-];
+import {
+  getMyProfile,
+  updateMyProfile,
+  type MyProfile,
+} from "@/lib/profile-api";
 
-const tehranCities = [
-  { value: "tehran", label: "تهران" },
-  { value: "rey", label: "ری" },
-  { value: "shemiranat", label: "شمیرانات" },
-];
+import {
+  getProvinces,
+  getCitiesByProvince,
+} from "@/lib/locations-api";
 
-const initialFormValues = {
-  firstName: "مریم",
-  lastName: "احمدی",
-  phone: "09123456789",
-  birthDate: "۱۳۸۳/۰۱/۰۱",
-  province: "tehran",
-  city: "tehran",
+type FormValues = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  birthDate: string;
+  province: string;
+  city: string;
+  about: string;
+};
+
+type FormErrors = Partial<Record<keyof FormValues, string>>;
+
+const emptyFormValues: FormValues = {
+  firstName: "",
+  lastName: "",
+  phone: "",
+  email: "",
+  birthDate: "",
+  province: "",
+  city: "",
   about: "",
 };
 
-type FormValues = typeof initialFormValues;
-type FormErrors = Partial<Record<keyof FormValues, string>>;
+function getFullNameParts(fullName: string | null | undefined) {
+  const parts = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
+
+  return {
+    firstName: parts[0] ?? "",
+    lastName: parts.slice(1).join(" "),
+  };
+}
 
 function validateForm(values: FormValues): FormErrors {
   const errors: FormErrors = {};
@@ -72,38 +64,100 @@ function validateForm(values: FormValues): FormErrors {
     errors.lastName = "لطفاً نام خانوادگی خود را وارد کنید.";
   }
 
-  if (!values.birthDate.trim()) {
-    errors.birthDate = "لطفاً تاریخ تولد خود را انتخاب کنید.";
+  if (
+    values.email.trim() &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
+  ) {
+    errors.email = "لطفاً یک نشانی ایمیل معتبر وارد کنید.";
   }
 
-  if (!values.province) {
-    errors.province = "لطفاً استان خود را انتخاب کنید.";
-  }
-
-  if (!values.city) {
-    errors.city = "لطفاً شهر خود را انتخاب کنید.";
-  }
-
-  if (!values.about.trim()) {
-    errors.about = "لطفاً بخش درباره من را تکمیل کنید.";
-  } else if (values.about.trim().length < 10) {
-    errors.about = "توضیحات باید حداقل ۱۰ کاراکتر داشته باشد.";
+  if (values.about.trim().length > 500) {
+    errors.about = "توضیحات نباید بیشتر از ۵۰۰ کاراکتر باشد.";
   }
 
   return errors;
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "عملیات ناموفق بود. لطفاً دوباره تلاش کنید.";
+}
+
 export default function EditProfilePage() {
   const [formValues, setFormValues] =
-    useState<FormValues>(initialFormValues);
+    useState<FormValues>(emptyFormValues);
+
+  const [initialValues, setInitialValues] =
+    useState<FormValues>(emptyFormValues);
+
   const [errors, setErrors] = useState<FormErrors>({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [saveError, setSaveError] = useState("");
 
-  const isDirty =
-    JSON.stringify(formValues) !== JSON.stringify(initialFormValues);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const cities = formValues.province === "tehran" ? tehranCities : [];
+  // دریافت اطلاعات استان‌ها از فایل JSON محلی
+  const provinces = useMemo(() => getProvinces(), []);
 
+  // دریافت شهرهای استان انتخاب‌شده از فایل JSON محلی
+  const cities = useMemo(
+    () => getCitiesByProvince(formValues.province),
+    [formValues.province]
+  );
+
+  const isDirty = useMemo(
+    () => JSON.stringify(formValues) !== JSON.stringify(initialValues),
+    [formValues, initialValues]
+  );
+
+  // دریافت اطلاعات پروفایل کاربر
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfile() {
+      try {
+        setLoading(true);
+        setPageError("");
+
+        const profile: MyProfile = await getMyProfile();
+
+        if (!isMounted) return;
+
+        const nameParts = getFullNameParts(profile.full_name);
+
+        const loadedValues: FormValues = {
+          ...emptyFormValues,
+          firstName: nameParts.firstName,
+          lastName: nameParts.lastName,
+          phone: profile.phone ?? "",
+          email: profile.email ?? "",
+          about: profile.bio ?? "",
+        };
+
+        setFormValues(loadedValues);
+        setInitialValues(loadedValues);
+      } catch (error) {
+        if (isMounted) {
+          setPageError(getErrorMessage(error));
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // هشدار هنگام خروج با تغییرات ذخیره‌نشده
   useEffect(() => {
     if (!isDirty) return;
 
@@ -119,20 +173,25 @@ export default function EditProfilePage() {
     };
   }, [isDirty]);
 
-  function handleChange(field: keyof FormValues, value: string) {
-    setFormValues((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+  const handleChange = useCallback(
+    (field: keyof FormValues, value: string) => {
+      setFormValues((previous) => ({
+        ...previous,
+        [field]: value,
+      }));
 
-    setErrors((previous) => ({
-      ...previous,
-      [field]: undefined,
-    }));
+      setErrors((previous) => ({
+        ...previous,
+        [field]: undefined,
+      }));
 
-    setSuccessMessage("");
-  }
+      setSuccessMessage("");
+      setSaveError("");
+    },
+    []
+  );
 
+  // با تغییر استان، شهر قبلی پاک می‌شود
   function handleProvinceChange(value: string) {
     setFormValues((previous) => ({
       ...previous,
@@ -147,25 +206,69 @@ export default function EditProfilePage() {
     }));
 
     setSuccessMessage("");
+    setSaveError("");
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const validationErrors = validateForm(formValues);
+
     setErrors(validationErrors);
+    setSuccessMessage("");
+    setSaveError("");
 
-    if (Object.keys(validationErrors).length > 0) {
-      setSuccessMessage("");
-      return;
+    if (Object.keys(validationErrors).length > 0) return;
+
+    const fullName =
+      `${formValues.firstName.trim()} ${formValues.lastName.trim()}`.trim();
+
+    try {
+      setSaving(true);
+
+      const updatedProfile = await updateMyProfile({
+        full_name: fullName,
+        email: formValues.email.trim() || null,
+        bio: formValues.about.trim() || null,
+      });
+
+      const savedName = getFullNameParts(
+        updatedProfile.full_name || fullName
+      );
+
+      const savedValues: FormValues = {
+        ...formValues,
+        firstName: savedName.firstName,
+        lastName: savedName.lastName,
+        phone: updatedProfile.phone ?? formValues.phone,
+        email: updatedProfile.email ?? "",
+        about: updatedProfile.bio ?? "",
+      };
+
+      setFormValues(savedValues);
+
+      // فقط فیلدهایی که API پشتیبانی می‌کند به‌عنوان ذخیره‌شده ثبت می‌شوند.
+      // تاریخ تولد، استان و شهر در API فعلی ذخیره دائمی نمی‌شوند.
+      setInitialValues((previous) => ({
+        ...previous,
+        firstName: savedValues.firstName,
+        lastName: savedValues.lastName,
+        phone: savedValues.phone,
+        email: savedValues.email,
+        about: savedValues.about,
+      }));
+
+      setSuccessMessage(
+        "نام، ایمیل و درباره من با موفقیت ذخیره شدند. تاریخ تولد، استان و شهر فعلاً در API اصلی پشتیبانی نمی‌شوند و فقط در همین فرم باقی می‌مانند."
+      );
+    } catch (error) {
+      setSaveError(getErrorMessage(error));
+    } finally {
+      setSaving(false);
     }
-
-    setSuccessMessage(
-      "اطلاعات در پیش‌نمایش ثبت شد. برای ذخیره دائمی، اتصال به سرور لازم است."
-    );
   }
 
-  function handleCancel(event: React.MouseEvent<HTMLAnchorElement>) {
+  function handleCancel(event: MouseEvent<HTMLAnchorElement>) {
     if (
       isDirty &&
       !window.confirm(
@@ -176,16 +279,36 @@ export default function EditProfilePage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className={styles.loadingState} role="status">
+        در حال دریافت اطلاعات پروفایل...
+      </div>
+    );
+  }
+
+  if (pageError) {
+    return (
+      <div className={styles.errorState} role="alert">
+        <p>{pageError}</p>
+
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+        >
+          تلاش مجدد
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.editProfile}>
-      <div className={styles.intro}>
-        <h2>ویرایش اطلاعات شخصی</h2>
-        <p>
-          اطلاعات پروفایل خود را تکمیل کنید تا دیگران بهتر با شما آشنا شوند.
-        </p>
-      </div>
-
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      <form
+        className={styles.form}
+        onSubmit={handleSubmit}
+        noValidate
+      >
         <section className={styles.card}>
           <div className={styles.sectionHeading}>
             <div>
@@ -195,13 +318,14 @@ export default function EditProfilePage() {
           </div>
 
           <div className={styles.fieldsGrid}>
+            {/* نام */}
             <div className={styles.field}>
               <label htmlFor="firstName">
                 نام <span className={styles.required}>*</span>
               </label>
+
               <input
                 id="firstName"
-                name="firstName"
                 type="text"
                 autoComplete="given-name"
                 value={formValues.firstName}
@@ -209,26 +333,27 @@ export default function EditProfilePage() {
                   handleChange("firstName", event.target.value)
                 }
                 placeholder="نام خود را وارد کنید"
-                maxLength={50}
+                maxLength={80}
                 required
                 aria-invalid={!!errors.firstName}
-                aria-describedby={errors.firstName ? "firstName-error" : undefined}
                 className={errors.firstName ? styles.inputError : ""}
               />
+
               {errors.firstName && (
-                <span id="firstName-error" className={styles.fieldError}>
+                <span className={styles.fieldError}>
                   {errors.firstName}
                 </span>
               )}
             </div>
 
+            {/* نام خانوادگی */}
             <div className={styles.field}>
               <label htmlFor="lastName">
                 نام خانوادگی <span className={styles.required}>*</span>
               </label>
+
               <input
                 id="lastName"
-                name="lastName"
                 type="text"
                 autoComplete="family-name"
                 value={formValues.lastName}
@@ -236,171 +361,210 @@ export default function EditProfilePage() {
                   handleChange("lastName", event.target.value)
                 }
                 placeholder="نام خانوادگی خود را وارد کنید"
-                maxLength={50}
+                maxLength={80}
                 required
                 aria-invalid={!!errors.lastName}
-                aria-describedby={errors.lastName ? "lastName-error" : undefined}
                 className={errors.lastName ? styles.inputError : ""}
               />
+
               {errors.lastName && (
-                <span id="lastName-error" className={styles.fieldError}>
+                <span className={styles.fieldError}>
                   {errors.lastName}
                 </span>
               )}
             </div>
 
+            {/* شماره تلفن */}
             <div className={styles.field}>
               <label htmlFor="phone">شماره تلفن همراه</label>
+
               <input
                 id="phone"
-                name="phone"
                 type="tel"
                 dir="ltr"
                 value={formValues.phone}
                 readOnly
-                aria-describedby="phone-hint"
                 className={styles.readOnlyInput}
               />
-              <span id="phone-hint" className={styles.fieldHint}>
-                این شماره تأیید شده است و از این قسمت قابل تغییر نیست.
+
+              <span className={styles.fieldHint}>
+                این شماره از حساب شما دریافت شده و قابل تغییر نیست.
               </span>
             </div>
 
+            {/* ایمیل */}
             <div className={styles.field}>
-              <label htmlFor="birthDate">
-                تاریخ تولد <span className={styles.required}>*</span>
-              </label>
+              <label htmlFor="email">ایمیل</label>
+
+              <input
+                id="email"
+                type="email"
+                dir="ltr"
+                autoComplete="email"
+                value={formValues.email}
+                onChange={(event) =>
+                  handleChange("email", event.target.value)
+                }
+                placeholder="name@example.com"
+                maxLength={254}
+                aria-invalid={!!errors.email}
+                className={errors.email ? styles.inputError : ""}
+              />
+
+              {errors.email ? (
+                <span className={styles.fieldError}>
+                  {errors.email}
+                </span>
+              ) : (
+                <span className={styles.fieldHint}>
+                  ایمیل از طریق API پروفایل ذخیره می‌شود.
+                </span>
+              )}
+            </div>
+
+            {/* تاریخ تولد */}
+            <div className={styles.field}>
+              <label htmlFor="birthDate">تاریخ تولد</label>
+
               <DatePicker
                 id="birthDate"
                 calendar={persian}
                 locale={persian_fa}
                 calendarPosition="bottom-right"
                 value={formValues.birthDate}
-                onChange={(date) => {
-                  if (date) {
-                    handleChange("birthDate", date.format("YYYY/MM/DD"));
-                  }
-                }}
+                onChange={(date) =>
+                  handleChange(
+                    "birthDate",
+                    date ? date.format("YYYY/MM/DD") : ""
+                  )
+                }
                 format="YYYY/MM/DD"
-                inputClass={`${styles.datePickerInput} ${
-                  errors.birthDate ? styles.inputError : ""
-                }`}
+                inputClass={styles.datePickerInput}
                 containerClassName={styles.datePickerContainer}
                 placeholder="انتخاب تاریخ تولد"
-                required
-                aria-describedby={errors.birthDate ? "birthDate-error" : undefined}
               />
-              {errors.birthDate ? (
-                <span id="birthDate-error" className={styles.fieldError}>
-                  {errors.birthDate}
-                </span>
-              ) : (
-                <span className={styles.fieldHint}>
-                  تاریخ تولد را از تقویم انتخاب کنید.
-                </span>
-              )}
+
+              <span className={styles.fieldHint}>
+                این فیلد در API فعلی وجود ندارد و فعلاً ذخیره دائمی نمی‌شود.
+              </span>
             </div>
 
+            {/* استان */}
             <div className={styles.field}>
-              <label htmlFor="province">
-                استان <span className={styles.required}>*</span>
-              </label>
+              <label htmlFor="province">استان</label>
+
               <select
                 id="province"
-                name="province"
                 value={formValues.province}
                 onChange={(event) =>
                   handleProvinceChange(event.target.value)
                 }
-                required
-                aria-invalid={!!errors.province}
-                className={errors.province ? styles.inputError : ""}
-              >
-                <option value="">استان خود را انتخاب کنید</option>
-                {provinces.map((province) => (
-                  <option key={province.value} value={province.value}>
-                    {province.label}
-                  </option>
-                ))}
-              </select>
-              {errors.province && (
-                <span className={styles.fieldError}>{errors.province}</span>
-              )}
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="city">
-                شهر <span className={styles.required}>*</span>
-              </label>
-              <select
-                id="city"
-                name="city"
-                value={formValues.city}
-                onChange={(event) => handleChange("city", event.target.value)}
-                disabled={!formValues.province || cities.length === 0}
-                required
-                aria-invalid={!!errors.city}
-                className={errors.city ? styles.inputError : ""}
+                disabled={provinces.length === 0}
               >
                 <option value="">
-                  {formValues.province
-                    ? "شهر خود را انتخاب کنید"
-                    : "ابتدا استان را انتخاب کنید"}
+                  استان خود را انتخاب کنید
                 </option>
-                {cities.map((city) => (
-                  <option key={city.value} value={city.value}>
-                    {city.label}
+
+                {provinces.map((province) => (
+                  <option
+                    key={province.id}
+                    value={String(province.id)}
+                  >
+                    {province.name}
                   </option>
                 ))}
               </select>
-              {errors.city ? (
-                <span className={styles.fieldError}>{errors.city}</span>
-              ) : (
-                <span className={styles.fieldHint}>
-                  {cities.length === 0
-                    ? "فهرست شهرهای این استان پس از اتصال به بک‌اند فعال می‌شود."
-                    : "شهر محل سکونت خود را انتخاب کنید."}
-                </span>
-              )}
+
+              <span className={styles.fieldHint}>
+                {provinces.length
+                  ? `${provinces.length} استان در دسترس است.`
+                  : "فهرست استان‌ها خالی است."}
+              </span>
+            </div>
+
+            {/* شهر */}
+            <div className={styles.field}>
+              <label htmlFor="city">شهر</label>
+
+              <select
+                id="city"
+                value={formValues.city}
+                onChange={(event) =>
+                  handleChange("city", event.target.value)
+                }
+                disabled={!formValues.province || cities.length === 0}
+              >
+                <option value="">
+                  {!formValues.province
+                    ? "ابتدا استان را انتخاب کنید"
+                    : cities.length
+                      ? "شهر خود را انتخاب کنید"
+                      : "شهری برای نمایش وجود ندارد"}
+                </option>
+
+                {cities.map((city) => (
+                  <option
+                    key={city.id}
+                    value={String(city.id)}
+                  >
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+
+              <span className={styles.fieldHint}>
+                {cities.length
+                  ? `${cities.length} شهر در این استان وجود دارد.`
+                  : "انتخاب شهر فعلاً ذخیره دائمی نمی‌شود."}
+              </span>
             </div>
           </div>
 
+          {/* درباره من */}
           <div className={styles.field}>
-            <label htmlFor="about">
-              درباره من <span className={styles.required}>*</span>
-            </label>
+            <label htmlFor="about">درباره من</label>
+
             <textarea
               id="about"
-              name="about"
               rows={5}
               maxLength={500}
               value={formValues.about}
-              onChange={(event) => handleChange("about", event.target.value)}
+              onChange={(event) =>
+                handleChange("about", event.target.value)
+              }
               placeholder="کمی درباره خودتان، مهارت‌ها و تجربه‌هایتان بنویسید..."
-              required
               aria-invalid={!!errors.about}
-              aria-describedby={errors.about ? "about-error" : "about-hint"}
               className={errors.about ? styles.inputError : ""}
+              style={{ resize: "none" }}
             />
+
             {errors.about ? (
-              <span id="about-error" className={styles.fieldError}>
+              <span className={styles.fieldError}>
                 {errors.about}
               </span>
             ) : (
-              <span id="about-hint" className={styles.fieldHint}>
-                توضیح کوتاهی درباره خودتان بنویسید تا کارفرمایان بیشتر با شما
-                آشنا شوند.
+              <span className={styles.fieldHint}>
+                این توضیحات در پروفایل شما ذخیره می‌شود.
               </span>
             )}
           </div>
         </section>
 
+        {/* پیام موفقیت */}
         {successMessage && (
           <div className={styles.successMessage} role="status">
             {successMessage}
           </div>
         )}
 
+        {/* پیام خطا */}
+        {saveError && (
+          <div className={styles.errorMessage} role="alert">
+            {saveError}
+          </div>
+        )}
+
+        {/* دکمه‌ها */}
         <div className={styles.actions}>
           <Link
             href="/profile"
@@ -410,8 +574,12 @@ export default function EditProfilePage() {
             انصراف
           </Link>
 
-          <button type="submit" className={styles.saveButton}>
-            ذخیره تغییرات
+          <button
+            type="submit"
+            className={styles.saveButton}
+            disabled={saving}
+          >
+            {saving ? "در حال ذخیره..." : "ذخیره تغییرات"}
           </button>
         </div>
       </form>

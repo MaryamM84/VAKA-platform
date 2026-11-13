@@ -1,73 +1,62 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
 import styles from "./MyTasks.module.css";
+import { getEmployerTasks, getEmployerBids, type EmployerTaskApi } from "@/lib/employer-api";
 
 type TaskStatus = "pending" | "inProgress" | "completed" | "rejected";
 
 type Task = {
-  id: number;
+  id: string;
   title: string;
   description: string;
   status: TaskStatus;
   budget: number;
   date: string;
+  createdAt: number;
   proposals: number;
 };
 
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    title: "طراحی رابط کاربری اپلیکیشن فروشگاهی",
-    description:
-      "طراحی کامل صفحات اپلیکیشن موبایل با تمرکز بر تجربه کاربری مدرن و ساده",
-    status: "pending",
-    budget: 18000000,
-    date: "۱۴۰۵/۰۳/۲۵",
-    proposals: 8,
-  },
-  {
-    id: 2,
-    title: "تدوین ویدیو معرفی محصول",
-    description:
-      "تدوین و آماده‌سازی ویدیوی معرفی محصول برای انتشار در شبکه‌های اجتماعی",
-    status: "inProgress",
-    budget: 3500000,
-    date: "۱۴۰۵/۰۳/۱۸",
-    proposals: 5,
-  },
-  {
-    id: 3,
-    title: "توسعه بخش پرداخت وب‌سایت",
-    description:
-      "پیاده‌سازی درگاه پرداخت و اتصال آن به بخش سفارش‌های وب‌سایت",
-    status: "completed",
-    budget: 12000000,
-    date: "۱۴۰۵/۰۳/۱۰",
-    proposals: 6,
-  },
-  {
-    id: 4,
-    title: "طراحی بنر کمپین پاییزه",
-    description: "طراحی بنرهای تبلیغاتی برای کمپین پاییزه فروشگاه",
-    status: "pending",
-    budget: 5000000,
-    date: "۱۴۰۵/۰۳/۰۵",
-    proposals: 4,
-  },
-  {
-    id: 5,
-    title: "تولید محتوای شبکه‌های اجتماعی",
-    description: "تهیه محتوای متنی و تصویری برای صفحه اینستاگرام برند",
-    status: "rejected",
-    budget: 2500000,
-    date: "۱۴۰۵/۰۲/۲۸",
-    proposals: 3,
-  },
-];
+function mapTaskStatus(status: string): TaskStatus {
+  switch (status) {
+    case "DRAFT":
+    case "OPEN":
+    case "FUNDING_PENDING":
+      return "pending";
+    case "ASSIGNED":
+    case "IN_PROGRESS":
+    case "SUBMITTED":
+    case "DISPUTED":
+    case "CANCELLATION_REVIEW":
+      return "inProgress";
+    case "APPROVED":
+    case "COMPLETED":
+      return "completed";
+    case "CANCELLED":
+    case "EXPIRED":
+      return "rejected";
+    default:
+      return "pending";
+  }
+}
+
+function mapEmployerTask(task: EmployerTaskApi, proposalCount: number): Task {
+  const createdAt = new Date(task.created_at).getTime();
+
+  return {
+    id: task.task_id,
+    title: task.title,
+    description: task.description,
+    status: mapTaskStatus(task.status),
+    budget: task.currency_code === "IRR" ? task.wage_budget_amount / 10 : task.wage_budget_amount,
+    date: new Date(task.created_at).toLocaleDateString("fa-IR"),
+    createdAt: Number.isNaN(createdAt) ? 0 : createdAt,
+    proposals: proposalCount,
+  };
+}
 
 const statusLabels: Record<TaskStatus, string> = {
   pending: "در انتظار پذیرش",
@@ -89,12 +78,61 @@ function formatPrice(price: number) {
 }
 
 export default function MyTasksPage() {
-  const [taskItems, setTaskItems] = useState<Task[]>(initialTasks);
+  const [taskItems, setTaskItems] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadTasks() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const [tasks, bids] = await Promise.all([
+          getEmployerTasks(),
+          getEmployerBids(),
+        ]);
+
+        if (!isActive) return;
+
+        const proposalCounts = new Map<string, number>();
+        for (const bid of bids) {
+          proposalCounts.set(
+            bid.task_id,
+            (proposalCounts.get(bid.task_id) ?? 0) + 1,
+          );
+        }
+
+        setTaskItems(
+          tasks.map((task) =>
+            mapEmployerTask(task, proposalCounts.get(task.task_id) ?? 0),
+          ),
+        );
+      } catch (error) {
+        if (!isActive) return;
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "دریافت کارها با خطا مواجه شد.",
+        );
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    }
+
+    void loadTasks();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
   const [activeTab, setActiveTab] = useState<"all" | TaskStatus>("all");
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
-  const [expandedTask, setExpandedTask] = useState<number | null>(null);
-  const [cancelTaskId, setCancelTaskId] = useState<number | null>(null);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [cancelTaskId, setCancelTaskId] = useState<string | null>(null);
 
   // محاسبه آمار کارها
   const taskStatistics = useMemo(
@@ -130,9 +168,9 @@ export default function MyTasksPage() {
     }
 
     if (sortOrder === "newest") {
-      result.sort((a, b) => b.id - a.id);
+      result.sort((a, b) => b.createdAt - a.createdAt);
     } else if (sortOrder === "oldest") {
-      result.sort((a, b) => a.id - b.id);
+      result.sort((a, b) => a.createdAt - b.createdAt);
     } else if (sortOrder === "highest") {
       result.sort((a, b) => b.budget - a.budget);
     } else if (sortOrder === "lowest") {
@@ -147,18 +185,8 @@ export default function MyTasksPage() {
   );
 
   function handleConfirmCancel() {
-    if (cancelTaskId === null) return;
-
-    setTaskItems((previous) =>
-      previous.map((task) =>
-        task.id === cancelTaskId
-          ? { ...task, status: "rejected" }
-          : task
-      )
-    );
-
     setCancelTaskId(null);
-    setExpandedTask(null);
+    alert("در مستندات فعلی API، سرویس لغو کار تعریف نشده است؛ بنابراین وضعیت کار تغییر نکرد.");
   }
 
   function handleCloseModal() {
@@ -252,7 +280,19 @@ export default function MyTasksPage() {
 
           {/* فهرست کارها */}
           <div className={styles.taskList}>
-            {visibleTasks.length > 0 ? (
+            {isLoading ? (
+              <div className={styles.emptyState}>
+                <strong>در حال دریافت کارها...</strong>
+              </div>
+            ) : loadError ? (
+              <div className={styles.emptyState}>
+                <strong>دریافت اطلاعات ناموفق بود</strong>
+                <p>{loadError}</p>
+                <button type="button" onClick={() => window.location.reload()}>
+                  تلاش مجدد
+                </button>
+              </div>
+            ) : visibleTasks.length > 0 ? (
               visibleTasks.map((task) => (
                 <article className={styles.taskCard} key={task.id}>
                   <div className={styles.taskHeader}>
@@ -272,9 +312,9 @@ export default function MyTasksPage() {
 
                   {expandedTask === task.id && (
                     <div className={styles.expandedDetails}>
-                      این بخش فعلاً اطلاعات نمایشی بیشتری از کار را نشان
-                      می‌دهد. در نسخه متصل به بک‌اند، جزئیات واقعی کار
-                      در این قسمت قرار می‌گیرد.
+                      <p>شرح کار: {task.description}</p>
+                      <p>تاریخ ثبت: {task.date}</p>
+                      <p>تعداد پیشنهادهای ثبت‌شده: {formatPrice(task.proposals)}</p>
                     </div>
                   )}
 
@@ -351,22 +391,47 @@ export default function MyTasksPage() {
                   </div>
                 </article>
               ))
-            ) : (
-              <div className={styles.emptyState}>
-                <span aria-hidden="true">⌕</span>
-                <strong>کاری پیدا نشد</strong>
-                <p>عبارت جست‌وجو یا فیلتر انتخاب‌شده را تغییر دهید.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch("");
-                    setActiveTab("all");
-                  }}
-                >
-                  پاک کردن فیلترها
-                </button>
-              </div>
-            )}
+            
+) : taskItems.length === 0 ? (
+  <div className={styles.emptyState}>
+    <span aria-hidden="true">▤</span>
+
+    <strong>هنوز کاری ثبت نکرده‌اید.</strong>
+
+    <p>
+      برای شروع، اولین کار خود را ثبت کنید.
+      پس از ثبت کار، اطلاعات آن در این قسمت نمایش داده می‌شود.
+    </p>
+
+    <Link
+      href="/employer/tasks/create"
+      className={styles.createButton}
+    >
+      + ثبت کار جدید
+    </Link>
+  </div>
+    ) : (
+      <div className={styles.emptyState}>
+        <span aria-hidden="true">⌕</span>
+    
+        <strong>کاری با این مشخصات پیدا نشد.</strong>
+    
+        <p>
+          هیچ کاری با عبارت جست‌وجو یا فیلتر انتخاب‌شده مطابقت ندارد.
+        </p>
+    
+        <button
+          type="button"
+          onClick={() => {
+            setSearch("");
+            setActiveTab("all");
+          }}
+        >
+              پاک کردن فیلترها
+            </button>
+          </div>
+        )
+        }
           </div>
 
           {/* مرتب‌سازی و تعداد کارهای نمایش‌داده‌شده */}
@@ -424,9 +489,9 @@ export default function MyTasksPage() {
             <h2 id="cancel-modal-title">لغو کار</h2>
 
             <p id="cancel-modal-description">
-              آیا از لغو کار «{selectedTask.title}» مطمئن هستید؟
+              در نسخه فعلی API، endpoint لغو کارفرما تعریف نشده است.
               <span>
-                پس از تأیید، وضعیت این کار به لغوشده تغییر می‌کند.
+                امکان لغو این کار تا زمان اضافه‌شدن سرویس مربوطه وجود ندارد.
               </span>
             </p>
 
@@ -444,7 +509,7 @@ export default function MyTasksPage() {
                 className={styles.confirmCancelButton}
                 onClick={handleConfirmCancel}
               >
-                بله، لغو شود
+                متوجه شدم
               </button>
             </div>
           </section>

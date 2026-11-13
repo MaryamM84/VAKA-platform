@@ -1,9 +1,9 @@
-
 .proposalsPage {
   display: flex;
   flex-direction: column;
   gap: 22px;
   min-width: 0;
+  margin-top: -38px;
   color: var(--vaka-text);
 }
 
@@ -190,32 +190,6 @@
   font-weight: 800;
 }
 
-.workerInfo > div:last-child > span {
-  color: var(--vaka-text-muted);
-  font-size: 11px;
-}
-
-.workerRating {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-  color: var(--vaka-text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.workerRating > span:first-child {
-  color: var(--vaka-warning);
-  font-size: 14px;
-}
-
-.completedTasks {
-  color: var(--vaka-text-muted);
-  font-weight: 400;
-}
-
 .statusBadge {
   flex-shrink: 0;
   padding: 6px 11px;
@@ -300,13 +274,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
   min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--vaka-border);
+  padding: 0 16px;
+  border: 1px solid var(--vaka-danger);
   border-radius: var(--vaka-radius-md);
-  background: var(--vaka-surface);
-  color: var(--vaka-text-secondary);
+  background: transparent;
+  color: var(--vaka-danger);
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
@@ -315,8 +288,8 @@
 }
 
 .profileButton:hover {
-  border-color: var(--vaka-primary);
-  color: var(--vaka-primary);
+  background: var(--vaka-danger);
+  color: white;
 }
 
 .profileButton span {
@@ -359,6 +332,16 @@
 
 .acceptButton:hover {
   background: var(--vaka-primary-hover);
+}
+
+.actionNotice {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--vaka-radius-md);
+  background: var(--vaka-surface-muted);
+  color: var(--vaka-text-secondary);
+  font-size: 11px;
+  line-height: 1.9;
 }
 
 .notice,

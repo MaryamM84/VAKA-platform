@@ -195,6 +195,13 @@ async function getValidAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
+export class ApiRequestError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 async function sendRequest(
   path: string,
   options: RequestInit,
@@ -204,7 +211,9 @@ async function sendRequest(
     ...options,
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      ...(typeof FormData !== "undefined" && options.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -250,7 +259,7 @@ export async function apiRequest<T>(
   const payload = await parseResponse(response);
 
   if (!response.ok) {
-    throw new Error(getErrorMessage(payload, response.status));
+    throw new ApiRequestError(getErrorMessage(payload, response.status), response.status);
   }
 
   return payload as T;

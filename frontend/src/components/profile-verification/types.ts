@@ -1,14 +1,10 @@
-
-export type VerificationStatus =
-  | "not_submitted"
-  | "pending"
-  | "approved"
-  | "rejected";
+export type VerificationStatus = "not_submitted" | "pending" | "approved" | "rejected";
 
 export interface IdentityFormData {
   firstName: string;
   lastName: string;
   nationalCode: string;
+  /** Persian calendar date in YYYY/MM/DD format. */
   birthDate: string;
   iban: string;
   mobile: string;

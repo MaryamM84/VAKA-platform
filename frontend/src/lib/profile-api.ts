@@ -8,6 +8,7 @@ export interface MyProfile {
   avatar_key: string | null;
   bio: string | null;
   verification_status: string;
+  role_codes?: string[];
   created_at: string;
   updated_at: string;
 }

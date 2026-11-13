@@ -184,15 +184,17 @@ export default function ProfileSidebar() {
   );
 
   const verified = isVerified(profile?.verification_status);
-  const menuItems = verified
-    ? [
-        baseMenuItems[0],
-        skillsMenuItem,
-        ...baseMenuItems.slice(1, 3),
-        workerMenuItem,
-        baseMenuItems[3],
-      ]
-    : baseMenuItems;
+  const previewExecutorAccess =
+    process.env.NODE_ENV === "development" && !profileLoading && profile === null;
+  const hasExecutorRole =
+    profile?.role_codes?.includes("EXECUTOR") === true || previewExecutorAccess;
+  const menuItems = [
+    baseMenuItems[0],
+    ...(hasExecutorRole ? [skillsMenuItem] : []),
+    ...baseMenuItems.slice(1, 3),
+    ...(verified ? [workerMenuItem] : []),
+    baseMenuItems[3],
+  ];
 
   // دریافت اطلاعات پروفایل از API
   useEffect(() => {

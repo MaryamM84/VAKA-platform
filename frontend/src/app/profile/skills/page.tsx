@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import UserSkillsPage from "@/components/user-panel/UserSkillsPage";
+import ExecutorSkillsAccess from "@/components/user-panel/ExecutorSkillsAccess";
 
 export const metadata: Metadata = {
   title: "مدیریت مهارت‌ها و شرایط فعالیت | واکا",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ProfileSkillsRoute() {
-  return <UserSkillsPage />;
+  return (
+    <ExecutorSkillsAccess>
+      <UserSkillsPage />
+    </ExecutorSkillsAccess>
+  );
 }

@@ -195,19 +195,28 @@ export default function SiteHeader() {
           </div>
 
           {user ? (
-            <details className={styles.profileDetails}>
-              <summary className={styles.profileButton} aria-label={`حساب ${displayName}`}>
+            <div className={styles.profileDetails}>
+              <Link
+                href="/profile"
+                className={styles.profileButton}
+                aria-label={`مشاهده پروفایل ${displayName}`}
+                title="پروفایل من"
+              >
                 <span className={styles.avatar}>{avatarInitial}</span>
-                <Icon name="chevron" size={14} />
-              </summary>
-              <div className={`${styles.dropdown} ${styles.profileDropdown}`}>
-                <p className={styles.dropdownTitle}>{displayName}</p>
-                {user.phone && <p className={styles.dropdownNote} dir="ltr">{user.phone}</p>}
-                <button className={styles.logoutButton} type="button" onClick={logout}>
-                  <Icon name="logout" size={17} /> خروج از حساب
-                </button>
-              </div>
-            </details>
+              </Link>
+              <details className={styles.profileMenu}>
+                <summary className={styles.profileMenuToggle} aria-label="باز کردن منوی حساب کاربری">
+                  <Icon name="chevron" size={14} />
+                </summary>
+                <div className={`${styles.dropdown} ${styles.profileDropdown}`}>
+                  <p className={styles.dropdownTitle}>{displayName}</p>
+                  {user.phone && <p className={styles.dropdownNote} dir="ltr">{user.phone}</p>}
+                  <button className={styles.logoutButton} type="button" onClick={logout}>
+                    <Icon name="logout" size={17} /> خروج از حساب
+                  </button>
+                </div>
+              </details>
+            </div>
           ) : (
             <Link href="/login" className={styles.loginLink}>
               <Icon name="user" size={17} /><span>ورود</span>

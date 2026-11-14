@@ -1,15 +1,17 @@
-
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
+import VakaDialog from "@/components/ui/VakaDialog";
 import {
   EmployerBidListApi,
   EmployerTaskApi,
   getEmployerTasks,
   getTaskBids,
+  acceptEmployerBid,
+  rejectEmployerBid,
 } from "@/lib/employer-api";
 import styles from "./Proposals.module.css";
 
@@ -74,9 +76,9 @@ function ReceivedProposalsContent() {
   const [proposals, setProposals] = useState<EmployerBidListApi[]>([]);
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
-  const [actionNotices, setActionNotices] = useState<
-    Record<string, string>
-  >({});
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
+  const [pendingAction, setPendingAction] = useState<{ bidId: string; action: "accept" | "reject" } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,16 +152,22 @@ function ReceivedProposalsContent() {
     (proposal) => proposal.status === "ACTIVE"
   ).length;
 
-  function showActionNotice(bidId: string, action: "accept" | "reject") {
-    const message =
-      action === "accept"
-        ? "عملیات پذیرش پیشنهاد هنوز به API متصل نشده است."
-        : "عملیات رد پیشنهاد هنوز به API متصل نشده است.";
-
-    setActionNotices((previous) => ({
-      ...previous,
-      [bidId]: message,
-    }));
+  async function handleBidAction(bidId: string, action: "accept" | "reject") {
+    setActionLoading((previous) => ({ ...previous, [bidId]: true }));
+    setActionErrors((previous) => ({ ...previous, [bidId]: "" }));
+    try {
+      if (action === "accept") await acceptEmployerBid(bidId);
+      else await rejectEmployerBid(bidId);
+      const refreshed = await getTaskBids(taskId);
+      setProposals(refreshed);
+    } catch (err) {
+      setActionErrors((previous) => ({
+        ...previous,
+        [bidId]: err instanceof Error ? err.message : "عملیات انجام نشد. دوباره تلاش کنید.",
+      }));
+    } finally {
+      setActionLoading((previous) => ({ ...previous, [bidId]: false }));
+    }
   }
 
   if (loading) {
@@ -343,34 +351,32 @@ function ReceivedProposalsContent() {
                       مشاهده پروفایل مجری
                     </Link>
 
-                    {proposal.status === "ACTIVE" && (
+                    {canReviewProposals && proposal.status === "ACTIVE" && (
                       <div className={styles.actionButtons}>
                         <button
                           type="button"
                           className={styles.rejectButton}
-                          onClick={() =>
-                            showActionNotice(proposal.bid_id, "reject")
-                          }
+                          disabled={!!actionLoading[proposal.bid_id]}
+                          onClick={() => setPendingAction({ bidId: proposal.bid_id, action: "reject" })}
                         >
-                          رد پیشنهاد
+                          {actionLoading[proposal.bid_id] ? "در حال انجام..." : "رد پیشنهاد"}
                         </button>
 
                         <button
                           type="button"
                           className={styles.acceptButton}
-                          onClick={() =>
-                            showActionNotice(proposal.bid_id, "accept")
-                          }
+                          disabled={!!actionLoading[proposal.bid_id]}
+                          onClick={() => setPendingAction({ bidId: proposal.bid_id, action: "accept" })}
                         >
-                          پذیرش پیشنهاد
+                          {actionLoading[proposal.bid_id] ? "در حال انجام..." : "پذیرش پیشنهاد"}
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {actionNotices[proposal.bid_id] && (
-                    <p className={styles.actionNotice} role="status">
-                      {actionNotices[proposal.bid_id]}
+                  {actionErrors[proposal.bid_id] && (
+                    <p className={styles.actionNotice} role="alert">
+                      {actionErrors[proposal.bid_id]}
                     </p>
                   )}
                 </article>
@@ -386,6 +392,19 @@ function ReceivedProposalsContent() {
           </div>
         )}
       </section>
+      <VakaDialog
+        open={!!pendingAction}
+        title={pendingAction?.action === "accept" ? "پذیرش پیشنهاد مجری" : "رد پیشنهاد مجری"}
+        description={pendingAction?.action === "accept" ? "آیا از پذیرش این پیشنهاد مطمئن هستید؟" : "آیا از رد این پیشنهاد مطمئن هستید؟"}
+        confirmLabel={pendingAction?.action === "accept" ? "بله، پذیرش پیشنهاد" : "بله، رد پیشنهاد"}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => {
+          if (!pendingAction) return;
+          const current = pendingAction;
+          setPendingAction(null);
+          void handleBidAction(current.bidId, current.action);
+        }}
+      />
     </DashboardLayout>
   );
 }

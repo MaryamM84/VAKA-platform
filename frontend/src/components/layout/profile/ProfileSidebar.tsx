@@ -5,7 +5,10 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getMyProfile, type MyProfile } from "@/lib/profile-api";
+import {
+  getMyProfile, getMyAvatar, uploadMyAvatar, selectMyAvatar, notifyProfileUpdated,
+  type MyProfile, type ProfileAvatar,
+} from "@/lib/profile-api";
 import styles from "./ProfileSidebar.module.css";
 
 const avatars = [
@@ -57,11 +60,6 @@ const baseMenuItems = [
     href: "/employer/bids",
     icon: "messages-square",
   },
-  {
-    label: "احراز هویت",
-    href: "/profile/verification",
-    icon: "shield-check",
-  },
 ];
 
 const workerMenuItem = {
@@ -93,12 +91,6 @@ function MenuIcon({ name }: { name: string }) {
       </>
     ),
 
-    "shield-check": (
-      <>
-        <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" />
-        <path d="m9 12 2 2 4-4" />
-      </>
-    ),
   };
 
   return (
@@ -123,7 +115,7 @@ function getVerificationLabel(status?: string) {
   switch (status?.toUpperCase()) {
     case "VERIFIED":
     case "APPROVED":
-      return "احراز هویت تأیید شده";
+      return "مجری و کارفرما";
 
     case "PENDING":
     case "SUBMITTED":
@@ -154,17 +146,15 @@ export default function ProfileSidebar() {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  const [selectedAvatar, setSelectedAvatar] = useState("avatar-04");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<ProfileAvatar | null>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentAvatar =
-    uploadedImage ||
-    avatars.find((avatar) => avatar.id === selectedAvatar)?.src ||
-    avatars[3].src;
+  const presetIndex = Math.max(0, Number(avatar?.avatar_id?.replace("avatar_", "") ?? 4) - 1);
+  const currentAvatar = avatar?.avatar_url || avatars[presetIndex]?.src || avatars[3].src;
 
   const verificationLabel = getVerificationLabel(
     profile?.verification_status
@@ -172,19 +162,19 @@ export default function ProfileSidebar() {
 
   const verified = isVerified(profile?.verification_status);
   const menuItems = verified
-    ? [...baseMenuItems.slice(0, 3), workerMenuItem, baseMenuItems[3]]
+    ? [...baseMenuItems, workerMenuItem]
     : baseMenuItems;
 
-  // دریافت اطلاعات پروفایل از API
+  // دریافت اطلاعات پروفایل
   useEffect(() => {
     let isMounted = true;
 
     async function loadProfile() {
       try {
-        const data = await getMyProfile();
-
+        const [profileResult, avatarResult] = await Promise.allSettled([getMyProfile(), getMyAvatar()]);
         if (isMounted) {
-          setProfile(data);
+          if (profileResult.status === "fulfilled") setProfile(profileResult.value);
+          if (avatarResult.status === "fulfilled") setAvatar(avatarResult.value);
         }
       } catch (error) {
         console.error("Failed to load sidebar profile:", error);
@@ -200,6 +190,16 @@ export default function ProfileSidebar() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const refreshAvatar = (event: Event) => {
+      const detail = (event as CustomEvent<ProfileAvatar>).detail;
+      if (detail?.avatar_url !== undefined) setAvatar(detail);
+      else void getMyAvatar().then(setAvatar).catch(() => undefined);
+    };
+    window.addEventListener("vaka:profile-updated", refreshAvatar);
+    return () => window.removeEventListener("vaka:profile-updated", refreshAvatar);
   }, []);
 
   // بستن پنجره انتخاب آواتار با کلید Escape
@@ -219,44 +219,43 @@ export default function ProfileSidebar() {
     };
   }, [isAvatarModalOpen]);
 
-  // بررسی و بارگذاری تصویر انتخاب‌شده
-  function handleImageUpload(file?: File) {
+  async function handleImageUpload(file?: File) {
     setUploadError("");
-
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
       setUploadError("لطفاً یک فایل تصویری انتخاب کنید.");
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       setUploadError("حجم تصویر نباید بیشتر از ۵ مگابایت باشد.");
       return;
     }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setUploadedImage(reader.result);
-        setIsAvatarModalOpen(false);
-      }
-    };
-
-    reader.onerror = () => {
-      setUploadError("خواندن تصویر با خطا مواجه شد. دوباره تلاش کنید.");
-    };
-
-    reader.readAsDataURL(file);
+    setAvatarSaving(true);
+    try {
+      const saved = await uploadMyAvatar(file);
+      setAvatar(saved);
+      notifyProfileUpdated(saved);
+      setIsAvatarModalOpen(false);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "ذخیره تصویر انجام نشد.");
+    } finally {
+      setAvatarSaving(false);
+    }
   }
 
-  // انتخاب آواتار پیش‌فرض
-  function chooseAvatar(avatarId: string) {
-    setSelectedAvatar(avatarId);
-    setUploadedImage(null);
-    setIsAvatarModalOpen(false);
+  async function chooseAvatar(avatarId: string) {
     setUploadError("");
+    setAvatarSaving(true);
+    try {
+      const saved = await selectMyAvatar(avatarId.replace("avatar-0", "avatar_"));
+      setAvatar(saved);
+      notifyProfileUpdated(saved);
+      setIsAvatarModalOpen(false);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "انتخاب آواتار انجام نشد.");
+    } finally {
+      setAvatarSaving(false);
+    }
   }
 
   return (
@@ -270,14 +269,7 @@ export default function ProfileSidebar() {
           aria-label="تغییر تصویر پروفایل"
           title="تغییر تصویر پروفایل"
         >
-          <Image
-            src={currentAvatar}
-            alt="تصویر پروفایل"
-            width={112}
-            height={112}
-            className={styles.avatar}
-            unoptimized={!!uploadedImage}
-          />
+          <img src={currentAvatar} alt="تصویر پروفایل" width={112} height={112} className={styles.avatar} />
 
           <span className={styles.avatarBadge} aria-hidden="true">
             <svg
@@ -302,7 +294,7 @@ export default function ProfileSidebar() {
             : profile?.full_name?.trim() || "نام کاربر ثبت نشده"}
         </h2>
 
-        {/* وضعیت احراز هویت از API */}
+        {/* وضعیت احراز هویت */}
         {!profileLoading && (
           <div className={styles.roleBadges}>
             <span
@@ -387,9 +379,10 @@ export default function ProfileSidebar() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                disabled={avatarSaving}
                 className={styles.fileInput}
                 onChange={(event) => {
-                  handleImageUpload(event.target.files?.[0]);
+                  void handleImageUpload(event.target.files?.[0]);
                   event.target.value = "";
                 }}
               />
@@ -401,11 +394,10 @@ export default function ProfileSidebar() {
               <strong>بارگذاری تصویر از دستگاه</strong>
 
               <span>فرمت تصویری، حداکثر ۵ مگابایت</span>
-              <span>
-                توجه: API فعلی واکا بارگذاری تصویر را پشتیبانی نمی‌کند؛ این تغییر فعلاً فقط در همین نشست نمایش داده می‌شود.
-              </span>
+              <span>تصویر پس از ذخیره در تمام بخش‌های حساب نمایش داده می‌شود.</span>
             </label>
 
+            {avatarSaving && <p role="status">در حال ذخیره تصویر...</p>}
             {uploadError && (
               <p className={styles.uploadError} role="alert">
                 {uploadError}
@@ -418,26 +410,25 @@ export default function ProfileSidebar() {
             </div>
 
             <div className={styles.modalAvatarGrid}>
-              {avatars.map((avatar) => {
-                const isSelected =
-                  !uploadedImage &&
-                  selectedAvatar === avatar.id;
+              {avatars.map((item) => {
+                const isSelected = avatar?.avatar_id === item.id.replace("avatar-0", "avatar_");
 
                 return (
                   <button
                     type="button"
-                    key={avatar.id}
+                    key={item.id}
                     className={`${styles.modalAvatarOption} ${
                       isSelected
                         ? styles.modalAvatarSelected
                         : ""
                     }`}
-                    onClick={() => chooseAvatar(avatar.id)}
-                    aria-label={avatar.alt}
+                    disabled={avatarSaving}
+                    onClick={() => void chooseAvatar(item.id)}
+                    aria-label={item.alt}
                     aria-pressed={isSelected}
                   >
                     <Image
-                      src={avatar.src}
+                      src={item.src}
                       alt=""
                       width={68}
                       height={68}

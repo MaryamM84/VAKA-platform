@@ -4,8 +4,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
+import VakaDialog from "@/components/ui/VakaDialog";
 import {
   getEmployerBids,
+  acceptEmployerBid,
+  rejectEmployerBid,
   type EmployerBidListApi,
 } from "@/lib/employer-api";
 import styles from "./EmployerBids.module.css";
@@ -85,9 +88,9 @@ export default function EmployerBidsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedBid, setExpandedBid] = useState<string | null>(null);
-  const [actionNotices, setActionNotices] = useState<
-    Record<string, string>
-  >({});
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
+  const [pendingAction, setPendingAction] = useState<{ bidId: string; action: "accept" | "reject" } | null>(null);
 
   const loadBids = useCallback(async () => {
     setLoading(true);
@@ -127,19 +130,21 @@ export default function EmployerBidsPage() {
     });
   }, [bids]);
 
-  function showActionNotice(
-    bidId: string,
-    action: "accept" | "reject"
-  ) {
-    const message =
-      action === "accept"
-        ? "عملیات پذیرش پیشنهاد هنوز به API متصل نشده است."
-        : "عملیات رد پیشنهاد هنوز به API متصل نشده است.";
-
-    setActionNotices((previous) => ({
-      ...previous,
-      [bidId]: message,
-    }));
+  async function handleBidAction(bidId: string, action: "accept" | "reject") {
+    setActionLoading((previous) => ({ ...previous, [bidId]: true }));
+    setActionErrors((previous) => ({ ...previous, [bidId]: "" }));
+    try {
+      if (action === "accept") await acceptEmployerBid(bidId);
+      else await rejectEmployerBid(bidId);
+      await loadBids();
+    } catch (err) {
+      setActionErrors((previous) => ({
+        ...previous,
+        [bidId]: err instanceof Error ? err.message : "عملیات انجام نشد. دوباره تلاش کنید.",
+      }));
+    } finally {
+      setActionLoading((previous) => ({ ...previous, [bidId]: false }));
+    }
   }
 
   return (
@@ -285,38 +290,27 @@ export default function EmployerBidsPage() {
                           <button
                             type="button"
                             className={styles.rejectButton}
-                            onClick={() =>
-                              showActionNotice(
-                                bid.bid_id,
-                                "reject"
-                              )
-                            }
+                            disabled={!!actionLoading[bid.bid_id]}
+                            onClick={() => setPendingAction({ bidId: bid.bid_id, action: "reject" })}
                           >
-                            رد پیشنهاد
+                            {actionLoading[bid.bid_id] ? "در حال انجام..." : "رد پیشنهاد"}
                           </button>
 
                           <button
                             type="button"
                             className={styles.acceptButton}
-                            onClick={() =>
-                              showActionNotice(
-                                bid.bid_id,
-                                "accept"
-                              )
-                            }
+                            disabled={!!actionLoading[bid.bid_id]}
+                            onClick={() => setPendingAction({ bidId: bid.bid_id, action: "accept" })}
                           >
-                            پذیرش پیشنهاد
+                            {actionLoading[bid.bid_id] ? "در حال انجام..." : "پذیرش پیشنهاد"}
                           </button>
                         </div>
                       )}
                     </div>
 
-                    {actionNotices[bid.bid_id] && (
-                      <p
-                        className={styles.actionNotice}
-                        role="status"
-                      >
-                        {actionNotices[bid.bid_id]}
+                    {actionErrors[bid.bid_id] && (
+                      <p className={styles.actionNotice} role="alert">
+                        {actionErrors[bid.bid_id]}
                       </p>
                     )}
                   </article>
@@ -326,6 +320,19 @@ export default function EmployerBidsPage() {
           </>
         )}
       </section>
+      <VakaDialog
+        open={!!pendingAction}
+        title={pendingAction?.action === "accept" ? "پذیرش پیشنهاد مجری" : "رد پیشنهاد مجری"}
+        description={pendingAction?.action === "accept" ? "آیا از پذیرش این پیشنهاد مطمئن هستید؟" : "آیا از رد این پیشنهاد مطمئن هستید؟"}
+        confirmLabel={pendingAction?.action === "accept" ? "بله، پذیرش پیشنهاد" : "بله، رد پیشنهاد"}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={() => {
+          if (!pendingAction) return;
+          const current = pendingAction;
+          setPendingAction(null);
+          void handleBidAction(current.bidId, current.action);
+        }}
+      />
     </DashboardLayout>
   );
 }

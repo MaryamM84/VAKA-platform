@@ -2,11 +2,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent, MouseEvent } from "react";
+import type { FormEvent } from "react";
 import DatePicker from "react-multi-date-picker";
+import DateObject from "react-date-object";
+import gregorian from "react-date-object/calendars/gregorian";
 import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import VakaDialog from "@/components/ui/VakaDialog";
+import { notifyProfileUpdated } from "@/lib/profile-api";
 import styles from "./EditProfile.module.css";
 
 import {
@@ -43,6 +47,21 @@ const emptyFormValues: FormValues = {
   city: "",
   about: "",
 };
+
+function toPersianDate(value?: string | null) {
+  if (!value) return "";
+  try {
+    return new DateObject({ date: value, calendar: gregorian }).convert(persian).format("YYYY/MM/DD");
+  } catch { return ""; }
+}
+
+function toGregorianDate(value: string) {
+  if (!value) return null;
+  try {
+    return new DateObject({ date: value, calendar: persian, locale: persian_fa })
+      .convert(gregorian).format("YYYY-MM-DD");
+  } catch { return null; }
+}
 
 function getFullNameParts(fullName: string | null | undefined) {
   const parts = (fullName ?? "").trim().split(/\s+/).filter(Boolean);
@@ -98,6 +117,8 @@ export default function EditProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const router = useRouter();
 
   // دریافت اطلاعات استان‌ها از فایل JSON محلی
   const provinces = useMemo(() => getProvinces(), []);
@@ -134,6 +155,9 @@ export default function EditProfilePage() {
           lastName: nameParts.lastName,
           phone: profile.phone ?? "",
           email: profile.email ?? "",
+          birthDate: toPersianDate(profile.birth_date),
+          province: profile.province_id ?? "",
+          city: profile.city_id ?? "",
           about: profile.bio ?? "",
         };
 
@@ -230,6 +254,9 @@ export default function EditProfilePage() {
         full_name: fullName,
         email: formValues.email.trim() || null,
         bio: formValues.about.trim() || null,
+        birth_date: toGregorianDate(formValues.birthDate),
+        province_id: formValues.province || null,
+        city_id: formValues.city || null,
       });
 
       const savedName = getFullNameParts(
@@ -242,25 +269,17 @@ export default function EditProfilePage() {
         lastName: savedName.lastName,
         phone: updatedProfile.phone ?? formValues.phone,
         email: updatedProfile.email ?? "",
+        birthDate: toPersianDate(updatedProfile.birth_date),
+        province: updatedProfile.province_id ?? "",
+        city: updatedProfile.city_id ?? "",
         about: updatedProfile.bio ?? "",
       };
 
       setFormValues(savedValues);
 
-      // فقط فیلدهایی که API پشتیبانی می‌کند به‌عنوان ذخیره‌شده ثبت می‌شوند.
-      // تاریخ تولد، استان و شهر در API فعلی ذخیره دائمی نمی‌شوند.
-      setInitialValues((previous) => ({
-        ...previous,
-        firstName: savedValues.firstName,
-        lastName: savedValues.lastName,
-        phone: savedValues.phone,
-        email: savedValues.email,
-        about: savedValues.about,
-      }));
-
-      setSuccessMessage(
-        "نام، ایمیل و درباره من با موفقیت ذخیره شدند. تاریخ تولد، استان و شهر فعلاً در API اصلی پشتیبانی نمی‌شوند و فقط در همین فرم باقی می‌مانند."
-      );
+      setInitialValues(savedValues);
+      notifyProfileUpdated(updatedProfile);
+      setSuccessMessage("اطلاعات پروفایل با موفقیت ذخیره شد.");
     } catch (error) {
       setSaveError(getErrorMessage(error));
     } finally {
@@ -268,16 +287,11 @@ export default function EditProfilePage() {
     }
   }
 
-  function handleCancel(event: MouseEvent<HTMLAnchorElement>) {
-    if (
-      isDirty &&
-      !window.confirm(
-        "تغییراتی دارید که هنوز ذخیره نشده‌اند. آیا مطمئن هستید که می‌خواهید خارج شوید؟"
-      )
-    ) {
-      event.preventDefault();
-    }
+  function requestCancel() {
+    if (isDirty) setCancelDialogOpen(true);
+    else router.push("/profile");
   }
+
 
   if (loading) {
     return (
@@ -417,7 +431,7 @@ export default function EditProfilePage() {
                 </span>
               ) : (
                 <span className={styles.fieldHint}>
-                  ایمیل از طریق API پروفایل ذخیره می‌شود.
+                  ایمیل برای ارتباط با شما در حساب کاربری ثبت می‌شود.
                 </span>
               )}
             </div>
@@ -445,7 +459,7 @@ export default function EditProfilePage() {
               />
 
               <span className={styles.fieldHint}>
-                این فیلد در API فعلی وجود ندارد و فعلاً ذخیره دائمی نمی‌شود.
+                تاریخ تولد در اطلاعات حساب شما ذخیره می‌شود.
               </span>
             </div>
 
@@ -515,7 +529,7 @@ export default function EditProfilePage() {
               <span className={styles.fieldHint}>
                 {cities.length
                   ? `${cities.length} شهر در این استان وجود دارد.`
-                  : "انتخاب شهر فعلاً ذخیره دائمی نمی‌شود."}
+                  : "شهر انتخاب‌شده در اطلاعات حساب ذخیره می‌شود."}
               </span>
             </div>
           </div>
@@ -566,13 +580,9 @@ export default function EditProfilePage() {
 
         {/* دکمه‌ها */}
         <div className={styles.actions}>
-          <Link
-            href="/profile"
-            className={styles.cancelButton}
-            onClick={handleCancel}
-          >
+          <button type="button" className={styles.cancelButton} onClick={requestCancel}>
             انصراف
-          </Link>
+          </button>
 
           <button
             type="submit"
@@ -583,6 +593,14 @@ export default function EditProfilePage() {
           </button>
         </div>
       </form>
+      <VakaDialog
+        open={cancelDialogOpen}
+        title="خروج بدون ذخیره تغییرات"
+        description="تغییراتی دارید که هنوز ذخیره نشده‌اند. آیا مطمئن هستید که می‌خواهید خارج شوید؟"
+        confirmLabel="خروج از صفحه"
+        onCancel={() => setCancelDialogOpen(false)}
+        onConfirm={() => router.push("/profile")}
+      />
     </div>
   );
 }

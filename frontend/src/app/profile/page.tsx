@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./ProfilePage.module.css";
-import { getMyProfile, type MyProfile } from "@/lib/profile-api";
+import { getMyProfile, getMyAvatar, type MyProfile, type ProfileAvatar } from "@/lib/profile-api";
 
 function getVerificationLabel(status?: string) {
   switch (status?.toUpperCase()) {
@@ -38,6 +38,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [avatar, setAvatar] = useState<ProfileAvatar | null>(null);
 
   async function loadProfile() {
     try {
@@ -46,6 +47,8 @@ export default function ProfilePage() {
 
       const data = await getMyProfile();
       setProfile(data);
+      const avatarData = await getMyAvatar().catch(() => null);
+      setAvatar(avatarData);
     } catch (err) {
       setError(
         err instanceof Error
@@ -58,14 +61,25 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    const refreshAvatar = (event: Event) => {
+      const detail = (event as CustomEvent<ProfileAvatar>).detail;
+      if (detail?.avatar_url !== undefined) setAvatar(detail);
+      else void getMyAvatar().then(setAvatar).catch(() => undefined);
+    };
+    window.addEventListener("vaka:profile-updated", refreshAvatar);
+    return () => window.removeEventListener("vaka:profile-updated", refreshAvatar);
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function fetchProfile() {
       try {
         const data = await getMyProfile();
-
+        const avatarData = await getMyAvatar().catch(() => null);
         if (isMounted) {
           setProfile(data);
+          setAvatar(avatarData);
           setError("");
         }
       } catch (err) {

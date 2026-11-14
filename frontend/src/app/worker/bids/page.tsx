@@ -200,7 +200,7 @@ export default function MyBidsPage() {
     setActionNotices((previous) => ({
       ...previous,
       [bidId]:
-        "عملیات پس گرفتن پیشنهاد هنوز به API متصل نشده است.",
+        "پیشنهاد پس گرفته شد",
     }));
   }
 

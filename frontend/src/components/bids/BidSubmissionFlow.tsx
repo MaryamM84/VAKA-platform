@@ -83,7 +83,8 @@ function toPersianDigits(value: string) {
 }
 
 function parseNumericInput(value: string) {
-  const digits = toAsciiDigits(value).replace(/[^0-9]/g, "");
+  const digits = toAsciiDigits(value).replace(/[,٬\s]/g, "");
+  if (!/^\d*$/.test(digits)) return NaN;
   return digits ? Number(digits) : 0;
 }
 
@@ -234,6 +235,8 @@ export default function BidSubmissionFlow({
   const [error, setError] = useState("");
   const [result, setResult] = useState<BidSubmissionResult | null>(null);
 
+  const submittingRef = useRef(false);
+  const hasSubmitHandler = Boolean(onSubmit);
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -259,14 +262,14 @@ export default function BidSubmissionFlow({
     setDeliveryMinutes(25);
     setDeliveryInput("۲۵");
     setSelectedDeliveryPreset("fast");
-    setMessage(DEFAULT_MESSAGE);
+    setMessage(hasSubmitHandler ? "" : DEFAULT_MESSAGE);
     setValidityDays(2);
     setValidityInput("۲");
     setAcceptedTerms(false);
     setIsSubmitting(false);
     setError("");
     setResult(null);
-  }, [taskId, taskBudget]);
+  }, [taskId, taskBudget, hasSubmitHandler]);
 
   useEffect(() => {
     if (!isOpen || !mounted) return;
@@ -283,7 +286,7 @@ export default function BidSubmissionFlow({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onCloseRef.current();
+        if (!submittingRef.current) onCloseRef.current();
         return;
       }
 
@@ -376,13 +379,13 @@ export default function BidSubmissionFlow({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!task || isSubmitting) return;
+    if (!task || submittingRef.current) return;
 
-    if (amount < 10000) {
+    if (!Number.isSafeInteger(amount) || amount < 10000 || amount > 1000000000) {
       setError("مبلغ پیشنهاد باید حداقل ۱۰٬۰۰۰ تومان باشد.");
       return;
     }
-    if (deliveryMinutes < 5 || deliveryMinutes > 240) {
+    if (!Number.isSafeInteger(deliveryMinutes) || deliveryMinutes < 5 || deliveryMinutes > 240) {
       setError("زمان تحویل باید بین ۵ تا ۲۴۰ دقیقه باشد.");
       return;
     }
@@ -390,7 +393,7 @@ export default function BidSubmissionFlow({
       setError("لطفاً توضیحات پیشنهاد را حداقل در ۱۰ کاراکتر بنویسید.");
       return;
     }
-    if (validityDays < 1 || validityDays > 30) {
+    if (!Number.isSafeInteger(validityDays) || validityDays < 1 || validityDays > 30) {
       setError("اعتبار پیشنهاد باید بین ۱ تا ۳۰ روز باشد.");
       return;
     }
@@ -402,6 +405,7 @@ export default function BidSubmissionFlow({
     }
 
     setError("");
+    submittingRef.current = true;
     setIsSubmitting(true);
 
     const draft: BidDraft = {
@@ -434,6 +438,7 @@ export default function BidSubmissionFlow({
           : "ثبت پیشنهاد انجام نشد. لطفاً دوباره تلاش کنید.",
       );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };

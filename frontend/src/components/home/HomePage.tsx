@@ -889,9 +889,10 @@ export default function HomePage() {
                   type="button"
                   className={styles.applyFilters}
                   onClick={applyFilters}
+                  aria-label="اعمال فیلترهای انتخاب‌شده"
                 >
                   <Icon name="filter" size={17} />
-                  اعمال فیلترها
+                  <span>اعمال فیلترها</span>
                 </button>
               </footer>
             </section>
@@ -1180,16 +1181,12 @@ export default function HomePage() {
                         <div className={styles.metaRow}>
                           <span>
                             <Icon name="calendar" size={17} />
-                            شروع انجام کار
+                            {formatDate(task.executionStartTime)}
                           </span>
 
                           <span>
                             <Icon name="clock" size={17} />
                             حدود {money(task.estimatedDurationMinutes)} دقیقه
-                          </span>
-
-                          <span className={styles.dateText}>
-                            {formatDate(task.executionStartTime)}
                           </span>
                         </div>
                       </div>

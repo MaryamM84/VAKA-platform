@@ -21,7 +21,7 @@ export default function ExecutorSkillsAccess({
       .then((profile) => {
         if (!active) return;
 
-        if (profile.role_codes?.includes("EXECUTOR")) {
+        if (profile.verification_status === "APPROVED") {
           setAccessState("allowed");
           return;
         }
@@ -30,16 +30,9 @@ export default function ExecutorSkillsAccess({
         router.replace("/profile");
       })
       .catch(() => {
-        if (!active) return;
-
-        // Keep the page previewable while the local backend is unavailable.
-        // Production remains fail-closed.
-        if (process.env.NODE_ENV === "development") {
-          setAccessState("allowed");
-        } else {
-          setAccessState("unavailable");
-        }
-      });
+  if (!active) return;
+  setAccessState("unavailable");
+});
 
     return () => {
       active = false;

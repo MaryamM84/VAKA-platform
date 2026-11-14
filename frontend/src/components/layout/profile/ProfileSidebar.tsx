@@ -174,13 +174,17 @@ function ProfileSidebarContent() {
   );
 
   const verified = isVerified(profile?.verification_status);
-  const hasExecutorRole = profile?.role_codes?.includes("EXECUTOR") === true;
-  const menuItems = [
-    baseMenuItems[0],
-    ...(hasExecutorRole ? [skillsMenuItem] : []),
-    ...baseMenuItems.slice(1),
-    ...(verified ? [workerMenuItem] : []),
-  ];
+
+const isApprovedExecutor =
+  profile?.verification_status === "APPROVED";
+
+const menuItems = [
+  baseMenuItems[0],
+  ...(isApprovedExecutor ? [skillsMenuItem] : []),
+  ...baseMenuItems.slice(1),
+  ...(verified ? [workerMenuItem] : []),
+];
+
 
   // دریافت اطلاعات پروفایل
   useEffect(() => {

@@ -1,11 +1,5 @@
-import type { Metadata } from "next";
-import UserSkillsPage from "@/components/user-panel/UserSkillsPage";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "مدیریت مهارت‌ها و شرایط کاری | واکا",
-  description: "مدیریت مهارت‌ها، دسته‌بندی‌های کاری، مناطق تحت پوشش و زمان‌های فعالیت در واکا.",
-};
-
-export default function UserSkillsRoute() {
-  return <UserSkillsPage />;
+export default function UserSkillsRedirect() {
+  redirect("/profile/skills");
 }

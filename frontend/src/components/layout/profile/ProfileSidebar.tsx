@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,12 +68,25 @@ const workerMenuItem = {
   icon: "messages-square",
 };
 
+const skillsMenuItem = {
+  label: "مهارت‌ها و شرایط فعالیت",
+  href: "/profile/skills",
+  icon: "briefcase-business",
+};
+
 function MenuIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
     "user-round": (
       <>
         <circle cx="12" cy="8" r="4" />
         <path d="M5 21a7 7 0 0 1 14 0" />
+      </>
+    ),
+
+    "briefcase-business": (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" />
       </>
     ),
 
@@ -140,7 +153,7 @@ function isVerified(status?: string) {
   );
 }
 
-export default function ProfileSidebar() {
+function ProfileSidebarContent() {
   const pathname = usePathname();
 
   const [profile, setProfile] = useState<MyProfile | null>(null);
@@ -161,9 +174,17 @@ export default function ProfileSidebar() {
   );
 
   const verified = isVerified(profile?.verification_status);
-  const menuItems = verified
-    ? [...baseMenuItems, workerMenuItem]
-    : baseMenuItems;
+
+const isApprovedExecutor =
+  profile?.verification_status === "APPROVED";
+
+const menuItems = [
+  baseMenuItems[0],
+  ...(isApprovedExecutor ? [skillsMenuItem] : []),
+  ...baseMenuItems.slice(1),
+  ...(verified ? [workerMenuItem] : []),
+];
+
 
   // دریافت اطلاعات پروفایل
   useEffect(() => {
@@ -441,5 +462,13 @@ export default function ProfileSidebar() {
         </div>
       )}
     </aside>
+  );
+}
+
+export default function ProfileSidebar() {
+  return (
+    <Suspense fallback={null}>
+      <ProfileSidebarContent />
+    </Suspense>
   );
 }

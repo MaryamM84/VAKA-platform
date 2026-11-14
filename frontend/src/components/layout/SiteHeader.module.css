@@ -295,6 +295,25 @@
 .createMobileLabel { display: none; }
 .notificationWrap,
 .profileDetails { position: relative; }
+.profileDetails { display: flex; align-items: center; }
+.profileDetails > .profileButton { min-width: 0; padding: 4px; }
+.profileMenu { position: static; }
+.profileMenuToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  list-style: none;
+  cursor: pointer;
+}
+.profileMenuToggle::-webkit-details-marker { display: none; }
+.profileMenuToggle svg { transition: transform 160ms ease; }
+.profileMenu[open] .profileMenuToggle svg { transform: rotate(180deg); }
 .roundButton,
 .profileButton,
 .loginLink,

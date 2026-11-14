@@ -166,17 +166,20 @@ class TaskDiscoveryTests(APITestDataMixin, APITestCase):
             ):
                 self.assertNotIn(private, row)
 
-    def test_hidden_or_own_task_details_return_404(self):
+    def test_own_published_task_is_visible_but_non_open_task_is_hidden(self):
         task = self.make_open_task()
+        detail_url = reverse("task-discovery-detail", kwargs={"task_id": task.pk})
         self.client.force_authenticate(user=self.owner)
-        self.assertEqual(self.client.get(reverse(
-            "task-discovery-detail", kwargs={"task_id": task.pk}
-        )).status_code, 404)
-        self.client.force_authenticate(user=self.viewer)
+        response = self.client.get(detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.data["task_id"], str(task.pk))
+        self.assertEqual(
+            [row["task_id"] for row in self.results()], [str(task.pk)]
+        )
+        self.client.force_authenticate(user=None)
+        self.assertEqual(self.client.get(detail_url).status_code, status.HTTP_200_OK)
         Task.objects.filter(pk=task.pk).update(status=TaskStatus.ASSIGNED)
-        self.assertEqual(self.client.get(reverse(
-            "task-discovery-detail", kwargs={"task_id": task.pk}
-        )).status_code, 404)
+        self.assertEqual(self.client.get(detail_url).status_code, status.HTTP_404_NOT_FOUND)
 
     def test_search_title_description_and_combined_search(self):
         kitchen = self.make_open_task(title="Repair kitchen shelf", description="Broken wood")
@@ -267,16 +270,39 @@ class TaskDiscoveryTests(APITestDataMixin, APITestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual([r["task_id"] for r in result.data["results"]], [str(direct.pk)])
 
-    def test_discovery_authorization_for_unapproved_and_approved_executors(self):
-        self.make_open_task()
+    def test_discovery_is_public_for_guests_and_unapproved_executors(self):
+        task = self.make_open_task()
         self.client.force_authenticate(user=None)
-        self.assertEqual(self.client.get(self.list_url).status_code, 401)
+        anonymous_response = self.client.get(self.list_url)
+        self.assertEqual(anonymous_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(anonymous_response.data["count"], 1)
+        self.assertEqual(anonymous_response.data["results"][0]["task_id"], str(task.pk))
+
         executor = self.make_user("09128880003")
         UserRole.objects.create(user=executor, role=self.executor_role)
         profile = ExecutorProfile.objects.create(user=executor)
         self.client.force_authenticate(user=executor)
-        self.assertEqual(self.client.get(self.list_url).status_code, 403)
+        self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_200_OK)
+
         profile.verification_status = ExecutorProfile.VerificationStatus.APPROVED
         profile.profile_status = "ACTIVE"
         profile.save(update_fields=["verification_status", "profile_status"])
-        self.assertEqual(self.client.get(self.list_url).status_code, 200)
+        self.assertEqual(self.client.get(self.list_url).status_code, status.HTTP_200_OK)
+
+    def test_public_category_listing_does_not_require_authentication(self):
+        task = self.make_open_task()
+        self.client.force_authenticate(user=None)
+        response = self.client.get(reverse(
+            "task-category-tasks", kwargs={"category_id": self.category.pk}
+        ))
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["task_id"], str(task.pk))
+
+    def test_public_discovery_ignores_expired_or_invalid_bearer_header(self):
+        task = self.make_open_task()
+        self.client.force_authenticate(user=None)
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token")
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(response.data["results"][0]["task_id"], str(task.pk))

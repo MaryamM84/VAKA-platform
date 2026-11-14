@@ -3,8 +3,6 @@
 from uuid import UUID
 import math
 
-from accounts.models import ExecutorProfile, UserRole
-
 from django.db.models import BooleanField, Exists, OuterRef, Prefetch, Q
 from django.db.models.expressions import RawSQL
 from django.shortcuts import get_object_or_404
@@ -18,7 +16,7 @@ from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveAPIView,
 )
-from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from drf_spectacular.utils import (
@@ -318,33 +316,8 @@ class SkillListView(ListAPIView):
 # 5. DISCOVERY PERMISSIONS AND FILTERS
 # ============================================================
 
-class IsDiscoveryViewer(BasePermission):
-    """Allow active employers and approved, active executors."""
-
-    message = "An active employer or approved executor is required."
-
-    def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated or not user.is_active:
-            return False
-
-        role_codes = set(
-            UserRole.objects.filter(
-                user_id=user.pk,
-                role__code__in=("EMPLOYER", "EXECUTOR"),
-            ).values_list("role__code", flat=True)
-        )
-        if "EMPLOYER" in role_codes:
-            return True
-
-        if "EXECUTOR" not in role_codes:
-            return False
-
-        return ExecutorProfile.objects.filter(
-            user_id=user.pk,
-            verification_status=ExecutorProfile.VerificationStatus.APPROVED,
-            profile_status="ACTIVE",
-        ).exists()
+# Public discovery does not require login or a worker verification status.
+# Task creation, management, and bidding retain their own permissions.
 
 
 DISCOVERY_PARAMETERS = [
@@ -410,7 +383,7 @@ CATEGORY_TASK_PARAMETERS = [
 
 
 class TaskDiscoveryQueryMixin:
-    """Restrict visible tasks, then apply validated discovery filters."""
+    """Select public, open, non-expired tasks and apply validated filters."""
 
     ORDERING_FIELDS = {
         "published_at", "-published_at",
@@ -437,8 +410,6 @@ class TaskDiscoveryQueryMixin:
             )
             # An optional final deadline must not have passed either.
             .filter(Q(deadline_at__isnull=True) | Q(deadline_at__gt=now))
-            # Employers discover other people's available tasks here.
-            .exclude(employer_user_id=self.request.user.pk)
             .select_related("category")
             .prefetch_related(
                 "required_skills__skill",
@@ -602,6 +573,7 @@ class TaskSubcategoryListView(ListAPIView):
 @extend_schema_view(
     get=extend_schema(
         operation_id="discoverable_tasks_list",
+        auth=[],  # Public endpoint in generated OpenAPI/Swagger.
         tags=["Task Discovery"],
         summary="Browse open, non-expired tasks",
         parameters=DISCOVERY_PARAMETERS,
@@ -609,7 +581,8 @@ class TaskSubcategoryListView(ListAPIView):
     ),
 )
 class TaskDiscoveryListView(TaskDiscoveryQueryMixin, ListAPIView):
-    permission_classes = [IsAuthenticated, IsDiscoveryViewer]
+    permission_classes = [AllowAny]
+    authentication_classes = []  # Public read-only endpoint; ignore expired browser JWTs.
     serializer_class = TaskDiscoverySerializer
     pagination_class = TaskDiscoveryPagination
 
@@ -620,13 +593,15 @@ class TaskDiscoveryListView(TaskDiscoveryQueryMixin, ListAPIView):
 @extend_schema_view(
     get=extend_schema(
         operation_id="discoverable_task_detail",
+        auth=[],  # Public endpoint in generated OpenAPI/Swagger.
         tags=["Task Discovery"],
         summary="Details of an available task",
         responses=TaskDiscoverySerializer,
     ),
 )
 class TaskDiscoveryDetailView(TaskDiscoveryQueryMixin, RetrieveAPIView):
-    permission_classes = [IsAuthenticated, IsDiscoveryViewer]
+    permission_classes = [AllowAny]
+    authentication_classes = []  # Public read-only endpoint; ignore expired browser JWTs.
     serializer_class = TaskDiscoverySerializer
     lookup_field = "task_id"
     lookup_url_kwarg = "task_id"
@@ -638,6 +613,7 @@ class TaskDiscoveryDetailView(TaskDiscoveryQueryMixin, RetrieveAPIView):
 @extend_schema_view(
     get=extend_schema(
         operation_id="category_available_tasks_list",
+        auth=[],  # Public endpoint in generated OpenAPI/Swagger.
         tags=["Task Discovery"],
         summary="List available tasks directly in a category",
         parameters=CATEGORY_TASK_PARAMETERS,
@@ -645,7 +621,8 @@ class TaskDiscoveryDetailView(TaskDiscoveryQueryMixin, RetrieveAPIView):
     ),
 )
 class CategoryTaskListView(TaskDiscoveryQueryMixin, ListAPIView):
-    permission_classes = [IsAuthenticated, IsDiscoveryViewer]
+    permission_classes = [AllowAny]
+    authentication_classes = []  # Public read-only endpoint; ignore expired browser JWTs.
     serializer_class = TaskDiscoverySerializer
     pagination_class = TaskDiscoveryPagination
 

@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import BidSubmissionButton from "@/components/bids/BidSubmissionButton";
+import { apiRequest } from "@/lib/task-api";
+import type { WorkerBidApi } from "@/lib/worker-api";
 import { getAccessToken } from "@/lib/auth-api";
 import type { Task } from "@/components/TaskDetail/types";
 import styles from "./TaskDetail.module.css";
@@ -402,6 +405,7 @@ function DetailIcon({ type }: { type: string }) {
 ============================================ */
 
 function TaskDetailView({ task, onBack, employer }: TaskDetailProps) {
+  const router = useRouter();
   const hasRoute = task.locationMode === "route";
 
   const fixedAddress =
@@ -635,10 +639,51 @@ function TaskDetailView({ task, onBack, employer }: TaskDetailProps) {
             </section>
 
             <div className={styles.detailActions}>
-              <Link href="/login" className={styles.submitProposal}>
+              <BidSubmissionButton
+                key={task.id}
+                className={styles.submitProposal}
+                task={{
+                  id: String(task.id),
+                  title: task.title,
+                  budget: task.wageBudgetAmount,
+                  purchaseCeiling: task.itemCostCapAmount ?? undefined,
+                  location: task.locationAddress || task.originAddress,
+                  requestedDeliveryMinutes: task.estimatedDurationMinutes,
+                }}
+                onSubmit={async (draft) => {
+                  const currency = task.currencyCode?.toUpperCase();
+                  if (currency !== "IRR" && currency !== "IRT") {
+                    throw new Error("ثبت پیشنهاد برای واحد پول این تسک پشتیبانی نمی‌شود.");
+                  }
+                  if (Date.parse(task.proposalDeadlineAt) <= Date.now()) {
+                    throw new Error("مهلت ثبت پیشنهاد برای این تسک تمام شده است.");
+                  }
+                  // Discovery displays tomans; submit in the task's API currency.
+                  const wage = draft.amount * (currency === "IRR" ? 10 : 1);
+                  if (!Number.isSafeInteger(wage)) {
+                    throw new Error("مبلغ پیشنهاد معتبر نیست.");
+                  }
+                  const bid = await apiRequest<WorkerBidApi>("/api/offers/bids/", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      task_id: String(task.id),
+                      proposed_wage_amount: wage,
+                      proposed_duration_minutes: draft.deliveryMinutes,
+                      message: draft.message,
+                      expires_at: new Date(Date.now() + draft.validityDays * 86400000).toISOString(),
+                    }),
+                  });
+                  if (!bid || typeof bid.bid_id !== "string" || !bid.bid_id.trim()) {
+                    throw new Error("کد پیگیری دریافت نشد. پیش از تلاش مجدد، پیشنهادهای من را بررسی کنید.");
+                  }
+                  return { trackingCode: bid.bid_id };
+                }}
+                onTrackMyTasks={() => router.push("/worker/bids")}
+                onBrowseTasks={onBack}
+              >
                 ثبت پیشنهاد
                 <DetailIcon type="check" />
-              </Link>
+              </BidSubmissionButton>
 
               <button
                 type="button"

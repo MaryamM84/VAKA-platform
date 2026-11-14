@@ -625,29 +625,26 @@
 }
 
 .rangeLabels {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  min-height: 18px;
   margin-top: 8px;
   color: var(--vaka-text-muted);
   font-size: 10px;
   line-height: 1.6;
-}
-
-.rangeLabels span:nth-child(1) {
-  text-align: right;
+  direction: rtl;
 }
 
 .rangeLabels span:nth-child(2) {
-  text-align: center;
+  position: absolute;
+  right: var(--ten-position, 26.47%);
+  transform: translateX(50%);
+  white-space: nowrap;
 }
 
-.rangeLabels span:nth-child(3) {
-  text-align: left;
-}
-
-/* Leaflet map — only the map frame and centered radius label are visible. */
+/* Leaflet map frame, controls, and default location marker. */
 .mapPanel {
   min-width: 0;
   width: 100%;
@@ -728,22 +725,63 @@
   outline-offset: 2px;
 }
 
-.mapRadiusBadge {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 500;
-  padding: 7px 13px;
-  transform: translate(-50%, -50%);
-  border: 1px solid color-mix(in srgb, var(--vaka-surface) 55%, transparent);
-  border-radius: var(--vaka-radius-pill);
-  background: var(--vaka-primary);
-  color: var(--vaka-surface);
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.5;
-  white-space: nowrap;
+.mapFrame :global(.vaka-map-ready-marker) {
+  border: 0;
+  background: transparent;
   pointer-events: none;
+}
+
+.mapFrame :global(.vaka-map-ready-pin) {
+  position: relative;
+  display: block;
+  width: 48px;
+  height: 60px;
+  overflow: visible;
+  animation: vakaMapPinFloat 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 5px 8px color-mix(in srgb, var(--vaka-primary) 30%, transparent));
+}
+
+.mapFrame :global(.vaka-map-ready-pin svg) {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 48px;
+  height: 60px;
+  overflow: visible;
+}
+
+.mapFrame :global(.vaka-map-ready-pin__pulse) {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 1px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--vaka-primary);
+  border-radius: 50%;
+  opacity: 0.72;
+  transform: translate(-50%, 50%) scale(0.45);
+  animation: vakaMapPinPulse 1.9s ease-out infinite;
+}
+
+@keyframes vakaMapPinFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes vakaMapPinPulse {
+  0% {
+    opacity: 0.72;
+    transform: translate(-50%, 50%) scale(0.45);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 50%) scale(2.15);
+  }
 }
 
 .mapFrame :global(.leaflet-container) {
@@ -1447,4 +1485,295 @@
     justify-self: start;
   }
 
+}
+
+/* API-backed multi-slot availability editor */
+.scheduleEditorList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: min(58vh, 460px);
+  overflow: auto;
+  padding-inline: 2px;
+}
+
+.scheduleEditorDayBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--vaka-border-soft);
+  border-radius: 14px;
+  background: var(--vaka-surface-muted);
+}
+
+.scheduleEditorDayBlock .scheduleEditorDay {
+  align-self: flex-start;
+  margin: 0;
+  background: var(--vaka-surface);
+}
+
+.scheduleSlotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-inline-start: 8px;
+}
+
+.scheduleSlotRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+  align-items: end;
+  gap: 8px;
+}
+
+.scheduleSlotRow .iconButton {
+  width: 34px;
+  height: 38px;
+}
+
+@media (max-width: 560px) {
+  .scheduleSlotRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;
+    gap: 5px;
+  }
+}
+
+
+/* Coverage map search and city-wide selection */
+.card[aria-labelledby="coverage-title"] {
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
+.mapSearchForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.mapSearchInput {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid var(--vaka-border);
+  border-radius: 12px;
+  outline: none;
+  background: var(--vaka-surface);
+  color: var(--vaka-text);
+  font: inherit;
+  font-size: 12px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.mapSearchInput:focus {
+  border-color: var(--vaka-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vaka-primary) 13%, transparent);
+}
+
+.mapSearchInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.mapSearchButton {
+  min-width: 92px;
+  min-height: 42px;
+  padding: 8px 15px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--vaka-primary);
+  color: var(--vaka-surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mapSearchButton:hover:not(:disabled) {
+  background: var(--vaka-primary-hover);
+}
+
+.mapSearchButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.mapSearchMessage {
+  margin: 0 0 8px;
+  color: var(--vaka-danger);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.mapSearchResults {
+  display: grid;
+  gap: 5px;
+  max-height: 210px;
+  overflow: auto;
+  margin-bottom: 9px;
+  padding: 5px;
+  border: 1px solid var(--vaka-border);
+  border-radius: 13px;
+  background: var(--vaka-surface);
+  box-shadow: var(--vaka-shadow-floating);
+}
+
+.mapSearchResult {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--vaka-text);
+  text-align: right;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mapSearchResult:hover,
+.mapSearchResult:focus-visible {
+  outline: none;
+  background: var(--vaka-primary-pale);
+}
+
+.mapSearchResult strong {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.mapSearchResult span {
+  color: var(--vaka-text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+
+.mapBoundaryError {
+  position: absolute;
+  right: 12px;
+  bottom: 54px;
+  z-index: 510;
+  max-width: min(85%, 360px);
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--vaka-danger) 25%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, white 94%, transparent);
+  color: var(--vaka-danger);
+  font-size: 10px;
+  line-height: 1.5;
+  box-shadow: var(--vaka-shadow-floating);
+}
+
+.mapFrame :global(.vaka-tehran-boundary-glow) {
+  filter: drop-shadow(0 0 7px var(--vaka-primary));
+}
+
+.mapFrame :global(.vaka-tehran-boundary-runner) {
+  stroke-dasharray: 9 17;
+  animation: vakaTehranBoundaryFlow 2.8s linear infinite;
+  filter: drop-shadow(0 0 5px var(--vaka-primary));
+}
+
+@keyframes vakaTehranBoundaryFlow {
+  to {
+    stroke-dashoffset: -52;
+  }
+}
+
+.citywideCheckbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.citywideRow {
+  position: relative;
+  cursor: pointer;
+}
+
+.citywideSwitch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 25px;
+  border: 1px solid var(--vaka-border);
+  border-radius: 999px;
+  background: var(--vaka-border);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.citywideSwitch::after {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--vaka-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.citywideCheckbox:checked + .citywideSwitch {
+  border-color: var(--vaka-primary);
+  background: var(--vaka-primary);
+}
+
+.citywideCheckbox:checked + .citywideSwitch::after {
+  transform: translateX(-19px);
+}
+
+.citywideCheckbox:focus-visible + .citywideSwitch {
+  outline: 2px solid var(--vaka-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapFrame :global(.vaka-tehran-boundary-runner),
+  .mapFrame :global(.vaka-map-ready-pin),
+  .mapFrame :global(.vaka-map-ready-pin__pulse) {
+    animation: none;
+  }
+
+  .citywideSwitch,
+  .citywideSwitch::after {
+    transition: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .card[aria-labelledby="coverage-title"] {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .mapSearchForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mapSearchButton {
+    width: 100%;
+  }
+
+  .citywideRow {
+    align-items: flex-start;
+    border-radius: 16px;
+  }
+
+  .citywideSwitch {
+    margin-top: 5px;
+  }
 }

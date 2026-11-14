@@ -106,6 +106,7 @@ class MyProfileSerializer(serializers.Serializer):
     )
 
     verification_status = serializers.SerializerMethodField()
+    role_codes = serializers.SerializerMethodField()
 
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
@@ -235,6 +236,14 @@ class MyProfileSerializer(serializers.Serializer):
             return ExecutorProfile.VerificationStatus.NOT_SUBMITTED
 
         return profile.verification_status
+
+    def get_role_codes(self, user):
+        return list(
+            user.user_roles.order_by("role__code").values_list(
+                "role__code",
+                flat=True,
+            )
+        )
 
     @transaction.atomic
     def update(self, instance, validated_data):

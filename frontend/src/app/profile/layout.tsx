@@ -15,9 +15,11 @@ export default function ProfileLayout({
   const pathname = usePathname();
   const isEditPage = pathname === "/profile/edit";
   const isVerificationPage = pathname === "/profile/verification";
+  const isSkillsPage = pathname === "/profile/skills" || pathname.startsWith("/profile/skills/");
 
   return (
     <div className={styles.pageWrapper}>
+      {!isSkillsPage && (
       <header className={styles.pageHeader}>
         <div>
           <h1>
@@ -44,6 +46,7 @@ export default function ProfileLayout({
           </Link>
         )}
       </header>
+      )}
 
       <div
         className={`${styles.profileLayout} ${

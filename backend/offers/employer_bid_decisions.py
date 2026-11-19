@@ -82,6 +82,19 @@ def _lock_employer_bid(*, user, bid_id):
     return task, bid
 
 
+def _require_assignable_executor(*, profile):
+    """Check current eligibility at BOTH bid selection and funded assignment."""
+    if (
+        profile.verification_status != ExecutorProfile.VerificationStatus.APPROVED
+        or profile.profile_status != "ACTIVE"
+        or not profile.user.is_active
+        or not UserRole.objects.filter(
+            user_id=profile.user_id, role__code="EXECUTOR",
+        ).exists()
+    ):
+        raise BidDecisionConflict("The executor is not eligible for assignment.")
+
+
 @transaction.atomic
 def accept_employer_bid(*, user, bid_id):
 
@@ -120,17 +133,7 @@ def accept_employer_bid(*, user, bid_id):
             "The selected bid has expired."
         )
 
-    profile = bid.executor_profile
-
-    if (
-        profile.verification_status
-        != ExecutorProfile.VerificationStatus.APPROVED
-        or profile.profile_status != "ACTIVE"
-        or not profile.user.is_active
-    ):
-        raise BidDecisionConflict(
-            "The executor is not eligible for assignment."
-        )
+    _require_assignable_executor(profile=bid.executor_profile)
 
     # FS §7.2/§7.3: do NOT accept a bid or assign a worker yet.
     # Reserve only the selection intention; funds must be HELD before assignment.
@@ -187,6 +190,15 @@ def confirm_funded_bid(*, task_id, financial_event, actor=None):
     selected = next((bid for bid in active_bids if str(bid.pk) == selected_id), None)
     if selected is None:
         raise BidDecisionConflict("Selected bid is no longer active.")
+
+    # Eligibility may have changed while payment was pending. Lock and
+    # re-read the profile/account instead of trusting the earlier selection.
+    current_profile = (
+        ExecutorProfile.objects.select_for_update()
+        .select_related("user")
+        .get(pk=selected.executor_profile_id)
+    )
+    _require_assignable_executor(profile=current_profile)
 
     transition_task_locked(
         task=task, target=TaskStatus.ASSIGNED,

@@ -3,6 +3,7 @@
 from django.urls import path
 
 from .category_management import CategoryManageListCreateView, CategoryManageDetailView
+from execution.views import TaskExecutionStartView
 
 from .views import (
     CategoryTaskListView,
@@ -24,6 +25,12 @@ urlpatterns = [
         "tasks/<uuid:task_id>/publish/",
         TaskPublishView.as_view(),
         name="task-publish",
+    ),
+
+    path(
+        "tasks/<uuid:task_id>/start/",
+        TaskExecutionStartView.as_view(),
+        name="task-execution-start",
     ),
 
     path(

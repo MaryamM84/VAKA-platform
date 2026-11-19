@@ -131,7 +131,7 @@ def _store_location(*, task, item):
 
 @transaction.atomic
 def create_task_draft(*, employer, data):
-    """Transactionally create a task draft and related records."""
+    """Transactionally create and immediately publish an employer task."""
 
     values = data.copy()
 
@@ -142,7 +142,8 @@ def create_task_draft(*, employer, data):
     # Create the task with backend-controlled ownership and status.
     task = Task.objects.create(
         employer_user=employer,
-        status=TaskStatus.DRAFT,
+        status=TaskStatus.OPEN,
+        published_at=timezone.now(),
         **values,
     )
 
@@ -150,9 +151,9 @@ def create_task_draft(*, employer, data):
     TaskStatusHistory.objects.create(
         task=task,
         from_status=None,
-        to_status=TaskStatus.DRAFT,
+        to_status=TaskStatus.OPEN,
         changed_by_user=employer,
-        reason="Task draft created",
+        reason="Task created and published by employer",
     )
 
     # Save required skills associated with the task.

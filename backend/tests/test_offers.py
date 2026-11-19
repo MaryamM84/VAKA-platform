@@ -1129,6 +1129,77 @@ class MyBidUpdateAPITests(BidAPITestBase):
         self.assert_api_error(response, status.HTTP_403_FORBIDDEN)
 
 
+class MyBidDeleteAPITests(BidAPITestBase):
+    """DELETE /api/offers/bids/<bid_id>/ tests."""
+
+    def setUp(self):
+        self.executor, self.profile = self.create_executor(
+            phone="09120000351",
+        )
+        self.other_executor, self.other_profile = self.create_executor(
+            phone="09120000352",
+        )
+        self.employer = self.create_user(phone="09120000353")
+        self.task = self.create_task(employer=self.employer)
+        self.bid = self.create_bid(
+            profile=self.profile,
+            task=self.task,
+            expires_at=timezone.now() + timedelta(hours=12),
+        )
+        self.authenticate_as(self.executor)
+
+    def detail_url(self, bid=None):
+        bid = bid or self.bid
+        return f"{BIDS_URL}{bid.pk}/"
+
+    def test_owner_can_delete_bid_by_withdrawing_it(self):
+        response = self.client.delete(self.detail_url())
+
+        self.assert_api_error(response, status.HTTP_200_OK)
+
+        self.bid.refresh_from_db()
+        self.assertEqual(self.bid.status, BidStatus.WITHDRAWN)
+
+        history = BidStatusHistory.objects.filter(bid=self.bid)
+        self.assertEqual(history.count(), 1)
+
+        transition = history.get()
+        self.assertEqual(transition.from_status, BidStatus.ACTIVE)
+        self.assertEqual(transition.to_status, BidStatus.WITHDRAWN)
+        self.assertEqual(transition.changed_by_user, self.executor)
+        self.assertEqual(transition.reason, "Bid withdrawn by executor")
+
+    def test_other_executor_cannot_delete_bid(self):
+        self.authenticate_as(self.other_executor)
+
+        response = self.client.delete(self.detail_url())
+
+        self.assert_api_error(response, status.HTTP_404_NOT_FOUND)
+
+    def test_non_active_bid_cannot_be_deleted(self):
+        Bid.objects.filter(pk=self.bid.pk).update(status=BidStatus.ACCEPTED)
+
+        response = self.client.delete(self.detail_url())
+
+        self.assert_api_error(response, status.HTTP_400_BAD_REQUEST)
+
+    def test_bid_cannot_be_deleted_after_task_deadline(self):
+        Task.objects.filter(pk=self.task.pk).update(
+            proposal_deadline_at=timezone.now() - timedelta(seconds=1),
+        )
+
+        response = self.client.delete(self.detail_url())
+
+        self.assert_api_error(response, status.HTTP_400_BAD_REQUEST)
+
+    def test_delete_requires_authentication(self):
+        self.client.force_authenticate(user=None)
+
+        response = self.client.delete(self.detail_url())
+
+        self.assert_api_error(response, status.HTTP_401_UNAUTHORIZED)
+
+
 class BidTransactionAndConstraintTests(BidAPITestBase):
     """Database-level invariants relevant to bid submission."""
 

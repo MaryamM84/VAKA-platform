@@ -19,3 +19,10 @@ class TaskStatus(models.TextChoices):
 class TaskSkillSource(models.TextChoices):
     MANUAL = "MANUAL", "Manual"
     AI = "AI", "AI"
+
+
+class TaskUrgency(models.TextChoices):
+    LOW = "LOW", "Low"
+    NORMAL = "NORMAL", "Normal"
+    HIGH = "HIGH", "High"
+    URGENT = "URGENT", "Urgent"

@@ -14,7 +14,7 @@ from .models import (
 from .services import create_task_draft
 
 from .task_management import update_employer_task
-from .choices import TaskStatus
+from .choices import TaskStatus, TaskUrgency
 
 
 BIGINT_MAX = 2**63 - 1
@@ -141,6 +141,10 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
     )
 
     status = serializers.CharField(read_only=True)
+    urgency = serializers.ChoiceField(
+        choices=TaskUrgency.choices,
+        required=False,
+    )
     currency_code = serializers.CharField(read_only=True)
 
     estimated_duration_minutes = serializers.IntegerField(
@@ -180,6 +184,7 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
             "category_name",
             "title",
             "description",
+            "urgency",
             "status",
             "estimated_duration_minutes",
             "wage_budget_amount",
@@ -191,6 +196,7 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
             "deadline_at",
             "proposal_deadline_at",
             "delivery_criteria",
+            "published_at",
             "required_skills",
             "locations",
             "saved_locations",
@@ -203,6 +209,7 @@ class TaskCreateSerializer(RejectUnexpectedFieldsMixin, serializers.ModelSeriali
             "category_name",
             "status",
             "currency_code",
+            "published_at",
             "created_at",
             "updated_at",
         ]
@@ -331,6 +338,7 @@ class TaskReadSerializer(serializers.ModelSerializer):
             "category_name",
             "title",
             "description",
+            "urgency",
             "status",
             "estimated_duration_minutes",
             "wage_budget_amount",
@@ -441,6 +449,11 @@ class TaskUpdateSerializer(
         allow_blank=False,
     )
 
+    urgency = serializers.ChoiceField(
+        choices=TaskUrgency.choices,
+        required=False,
+    )
+
     estimated_duration_minutes = serializers.IntegerField(
         required=False,
         min_value=1,
@@ -505,6 +518,7 @@ class TaskUpdateSerializer(
             "category_id",
             "title",
             "description",
+            "urgency",
             "estimated_duration_minutes",
             "wage_budget_amount",
             "item_cost_cap_amount",

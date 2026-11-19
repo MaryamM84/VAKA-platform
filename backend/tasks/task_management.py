@@ -1,5 +1,6 @@
 from django.db import transaction
 from rest_framework.exceptions import APIException, NotFound
+from django.utils import timezone
 
 from .choices import TaskSkillSource, TaskStatus
 from .models import (
@@ -197,6 +198,59 @@ def cancel_employer_task(*, task_id, employer):
             if target_status == TaskStatus.CANCELLED
             else "Task cancellation review requested by employer"
         ),
+    )
+
+    return task
+
+@transaction.atomic
+def soft_delete_employer_task(*, task_id, employer):
+    try:
+        task = (
+            Task.objects.select_for_update()
+            .get(
+                task_id=task_id,
+                employer_user=employer,
+                deleted_at__isnull=True,
+            )
+        )
+    except Task.DoesNotExist:
+        raise NotFound("Task not found.")
+
+    if task.status not in (
+        TaskStatus.DRAFT,
+        TaskStatus.OPEN,
+    ):
+        raise TaskManagementConflict(
+            "Only DRAFT or OPEN tasks can be deleted."
+        )
+
+    if Bid.objects.filter(task=task).exists():
+        raise TaskManagementConflict(
+            "Tasks with submitted bids cannot be deleted. "
+            "Use the cancellation workflow instead."
+        )
+
+    previous_status = task.status
+
+    task.status = TaskStatus.CANCELLED
+    task.deleted_at = timezone.now()
+    task.version += 1
+
+    task.save(
+        update_fields=[
+            "status",
+            "deleted_at",
+            "version",
+            "updated_at",
+        ]
+    )
+
+    TaskStatusHistory.objects.create(
+        task=task,
+        from_status=previous_status,
+        to_status=TaskStatus.CANCELLED,
+        changed_by_user=employer,
+        reason="Task deleted by employer",
     )
 
     return task

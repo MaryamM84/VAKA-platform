@@ -384,6 +384,77 @@ def update_executor_bid(*, user, bid_id, validated_data):
         return bid
 
 
+def withdraw_executor_bid(*, user, bid_id):
+    """
+    Withdraw (delete) an executor's own bid while it is still active.
+    """
+
+    profile = _get_executor_profile_for_bids(
+        user,
+        require_approved=True,
+    )
+
+    now = timezone.now()
+
+    with transaction.atomic():
+
+        try:
+            bid = (
+                Bid.objects
+                .select_for_update()
+                .get(
+                    bid_id=bid_id,
+                    executor_profile=profile,
+                )
+            )
+        except Bid.DoesNotExist:
+            raise NotFound("Bid not found.")
+
+        try:
+            task = (
+                Task.objects
+                .select_for_update()
+                .get(task_id=bid.task_id)
+            )
+        except Task.DoesNotExist:
+            raise NotFound("Task not found.")
+
+        if bid.status != BidStatus.ACTIVE:
+            raise ValidationError({
+                "bid": "This bid can no longer be deleted."
+            })
+
+        if task.status != TaskStatus.OPEN:
+            raise ValidationError({
+                "task": "This task is no longer open for bidding."
+            })
+
+        if task.proposal_deadline_at <= now:
+            raise ValidationError({
+                "task": "The proposal deadline has passed."
+            })
+
+        if bid.expires_at is not None and bid.expires_at <= now:
+            raise ValidationError({
+                "expires_at": "This bid has expired."
+            })
+
+        previous_status = bid.status
+
+        bid.status = BidStatus.WITHDRAWN
+        bid.save(update_fields=["status", "updated_at"])
+
+        BidStatusHistory.objects.create(
+            bid=bid,
+            from_status=previous_status,
+            to_status=BidStatus.WITHDRAWN,
+            changed_by_user=user,
+            reason="Bid withdrawn by executor",
+        )
+
+        return bid
+
+
 
 
 

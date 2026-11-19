@@ -308,7 +308,12 @@ class EmployerBidAcceptView(APIView):
     @extend_schema(
         tags=["Employer Bidding"],
         operation_id="employer_bid_accept",
-        summary="Accept an executor bid",
+        summary="Select a bid and begin escrow funding",
+        description=(
+            "FS 7.2: selection changes task OPEN to FUNDING_PENDING. "
+            "Bid stays ACTIVE until verified escrow funding confirms assignment. "
+            "No funds are reserved by this endpoint."
+        ),
         request=None,
         responses={
             200: BidDecisionResponseSerializer,

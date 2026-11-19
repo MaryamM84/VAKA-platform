@@ -398,26 +398,22 @@ def withdraw_executor_bid(*, user, bid_id):
 
     with transaction.atomic():
 
+        # Consistent lock ordering: task before bid (same as accept/update).
+        initial = Bid.objects.filter(
+            bid_id=bid_id, executor_profile=profile,
+        ).values("task_id").first()
+        if initial is None:
+            raise NotFound("Bid not found.")
         try:
-            bid = (
-                Bid.objects
-                .select_for_update()
-                .get(
-                    bid_id=bid_id,
-                    executor_profile=profile,
-                )
+            task = Task.objects.select_for_update().get(task_id=initial["task_id"])
+        except Task.DoesNotExist:
+            raise NotFound("Task not found.")
+        try:
+            bid = Bid.objects.select_for_update().get(
+                bid_id=bid_id, executor_profile=profile,
             )
         except Bid.DoesNotExist:
             raise NotFound("Bid not found.")
-
-        try:
-            task = (
-                Task.objects
-                .select_for_update()
-                .get(task_id=bid.task_id)
-            )
-        except Task.DoesNotExist:
-            raise NotFound("Task not found.")
 
         if bid.status != BidStatus.ACTIVE:
             raise ValidationError({

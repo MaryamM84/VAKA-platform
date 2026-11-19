@@ -227,14 +227,14 @@ class EmployerBidDecisionAPITests(APITestCase):
         self.bid_two.refresh_from_db()
         self.task.refresh_from_db()
 
-        self.assertEqual(self.bid.status, BidStatus.ACCEPTED)
-        self.assertEqual(self.bid_two.status, BidStatus.REJECTED)
-        self.assertEqual(self.task.status, TaskStatus.ASSIGNED)
+        self.assertEqual(self.bid.status, BidStatus.ACTIVE)
+        self.assertEqual(self.bid_two.status, BidStatus.ACTIVE)
+        self.assertEqual(self.task.status, TaskStatus.FUNDING_PENDING)
 
         self.assertTrue(
             TaskStatusHistory.objects.filter(
                 task=self.task,
-                to_status=TaskStatus.ASSIGNED,
+                to_status=TaskStatus.FUNDING_PENDING,
             ).exists()
         )
 

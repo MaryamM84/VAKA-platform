@@ -127,7 +127,7 @@ class TaskCreateAPITests(APITestDataMixin, APITestCase):
         self.category = self.make_category()
         self.url = reverse("task-list-create")
 
-    def test_employer_can_create_task_and_publish_immediately(self):
+    def test_employer_can_create_task_as_fs_draft(self):
         response = self.client.post(
             self.url,
             self.valid_task_payload(),
@@ -140,24 +140,24 @@ class TaskCreateAPITests(APITestDataMixin, APITestCase):
         task = Task.objects.get()
         self.assertEqual(task.employer_user, self.employer)
         self.assertEqual(task.category, self.category)
-        self.assertEqual(task.status, TaskStatus.OPEN)
+        self.assertEqual(task.status, TaskStatus.DRAFT)
         self.assertEqual(task.urgency, TaskUrgency.NORMAL)
-        self.assertIsNotNone(task.published_at)
+        self.assertIsNone(task.published_at)
         self.assertEqual(task.currency_code, "IRR")
         self.assertFalse(task.receipt_required)
         self.assertIsNone(task.item_cost_cap_amount)
         self.assertIsNone(task.deadline_at)
-        self.assertEqual(response.data["status"], TaskStatus.OPEN)
+        self.assertEqual(response.data["status"], TaskStatus.DRAFT)
         self.assertEqual(response.data["urgency"], TaskUrgency.NORMAL)
-        self.assertIsNotNone(response.data["published_at"])
+        self.assertIsNone(response.data["published_at"])
         self.assertEqual(response.data["employer_user_id"], str(self.employer.pk))
         self.assertEqual(response.data["category_name"], self.category.name)
 
         history = TaskStatusHistory.objects.get(task=task)
         self.assertIsNone(history.from_status)
-        self.assertEqual(history.to_status, TaskStatus.OPEN)
+        self.assertEqual(history.to_status, TaskStatus.DRAFT)
         self.assertEqual(history.changed_by_user, self.employer)
-        self.assertEqual(history.reason, "Task created and published by employer")
+        self.assertEqual(history.reason, "Task draft created")
 
     def test_employer_can_create_task_with_explicit_urgency(self):
         payload = self.valid_task_payload()

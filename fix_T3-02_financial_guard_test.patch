@@ -1,0 +1,35 @@
+diff --git a/backend/tests/test_task_lifecycle_fs.py b/backend/tests/test_task_lifecycle_fs.py
+--- a/backend/tests/test_task_lifecycle_fs.py
++++ b/backend/tests/test_task_lifecycle_fs.py
+@@ -4,8 +4,9 @@
+ from django.core.management import call_command
+ from django.test import SimpleTestCase
+ from django.utils import timezone
+ from rest_framework.test import APITestCase
++from rest_framework.exceptions import PermissionDenied
+ 
+ from accounts.models import ExecutorProfile, Role, User, UserRole
+ from offers.models import Bid, BidStatus, BidStatusHistory
+ from offers.employer_bid_decisions import (
+@@ -296,12 +297,19 @@
+                 task_id=self.task.pk, target=target, event=event,
+                 actor=(self.executor if event in ("execution_started", "delivery_submitted") else self.employer),
+                 reason=event, metadata=metadata,
+             )
+-        with self.assertRaises(TaskTransitionConflict):
++        # An employer cannot impersonate the internal financial service.
++        with self.assertRaises(PermissionDenied):
+             transition_task(
+                 task_id=self.task.pk, target=TaskStatus.COMPLETED,
+-                event="settlement_confirmed", actor=self.employer, reason="no receipt",
++                event="settlement_confirmed", actor=self.employer, reason="unauthorized settlement",
++            )
++        # Even a system-initiated transition needs verified ledger evidence.
++        with self.assertRaises(TaskTransitionConflict):
++            transition_task(
++                task_id=self.task.pk, target=TaskStatus.COMPLETED,
++                event="settlement_confirmed", actor=None, reason="no receipt",
+             )
+         transition_task(
+             task_id=self.task.pk, target=TaskStatus.COMPLETED,
+             event="settlement_confirmed", actor=None,

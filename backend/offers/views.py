@@ -27,6 +27,7 @@ from .services import (
     get_executor_bids,
     get_executor_bid_detail,
     update_executor_bid,
+    withdraw_executor_bid,
     submit_bid,
     get_employer_bids,
     get_employer_task_bids,
@@ -163,6 +164,44 @@ class MyBidDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        tags=["Bidding"],
+        operation_id="delete_my_bid",
+        summary="Delete my bid",
+        description=(
+            "Withdraws an active bid before the task is assigned."
+        ),
+        request=None,
+        responses={
+            200: BidReadSerializer,
+            401: OpenApiResponse(
+                description="Authentication required."
+            ),
+            403: OpenApiResponse(
+                description="Executor permission required."
+            ),
+            404: OpenApiResponse(
+                description="Bid not found."
+            ),
+            400: OpenApiResponse(
+                description="Bid cannot be deleted."
+            ),
+        },
+    )
+    def delete(self, request, bid_id):
+
+        bid = withdraw_executor_bid(
+            user=request.user,
+            bid_id=bid_id,
+        )
+
+        response_serializer = BidReadSerializer(bid)
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK,
+        )
+
 
 
 class EmployerBidsListView(APIView):
@@ -269,7 +308,12 @@ class EmployerBidAcceptView(APIView):
     @extend_schema(
         tags=["Employer Bidding"],
         operation_id="employer_bid_accept",
-        summary="Accept an executor bid",
+        summary="Select a bid and begin escrow funding",
+        description=(
+            "FS 7.2: selection changes task OPEN to FUNDING_PENDING. "
+            "Bid stays ACTIVE until verified escrow funding confirms assignment. "
+            "No funds are reserved by this endpoint."
+        ),
         request=None,
         responses={
             200: BidDecisionResponseSerializer,

@@ -12,6 +12,8 @@ from tasks.choices import TaskStatus
 from tasks.models import Task, TaskStatusHistory
 
 from .models import Bid, BidStatus, BidStatusHistory
+from tasks.lifecycle import transition_task_locked
+from payments.lifecycle import EscrowStatus, VerifiedFinancialEvent
 
 
 class BidDecisionConflict(APIException):
@@ -130,71 +132,101 @@ def accept_employer_bid(*, user, bid_id):
             "The executor is not eligible for assignment."
         )
 
+    # FS §7.2/§7.3: do NOT accept a bid or assign a worker yet.
+    # Reserve only the selection intention; funds must be HELD before assignment.
+    transition_task_locked(
+        task=task,
+        target=TaskStatus.FUNDING_PENDING,
+        event="bid_selected",
+        actor=user,
+        reason="Employer selected bid; waiting for escrow funding",
+        metadata={"selected_bid_id": str(bid.pk)},
+    )
+    return bid, task
+
+
+def _pending_bid_id(*, task):
+    """Read the selected bid intent recorded by the task transition engine."""
+    row = (
+        TaskStatusHistory.objects.filter(
+            task=task, to_status=TaskStatus.FUNDING_PENDING,
+        )
+        .order_by("-created_at", "-history_id")
+        .first()
+    )
+    bid_id = (row.metadata or {}).get("selected_bid_id") if row else None
+    if not bid_id:
+        raise BidDecisionConflict("There is no pending selected bid.")
+    return str(bid_id)
+
+
+@transaction.atomic
+def confirm_funded_bid(*, task_id, financial_event, actor=None):
+    """PRIVATE finance adapter hook, never expose via untrusted HTTP inputs.
+
+    The ledger must verify actual HOLD, operation/idempotency and task/bid
+    ownership before producing VerifiedFinancialEvent. No wallet exists here.
+    """
+    task = Task.objects.select_for_update().get(task_id=task_id)
+    if task.status != TaskStatus.FUNDING_PENDING:
+        raise BidDecisionConflict("No pending funding exists for this task.")
+    selected_id = _pending_bid_id(task=task)
+    if (
+        not isinstance(financial_event, VerifiedFinancialEvent)
+        or financial_event.state != EscrowStatus.HELD
+        or financial_event.task_reference != str(task.pk)
+        or financial_event.bid_reference != selected_id
+    ):
+        raise BidDecisionConflict("A verified ledger HOLD for the selected bid is required.")
+
     active_bids = list(
         Bid.objects.select_for_update()
-        .filter(
-            task=task,
-            status=BidStatus.ACTIVE,
-        )
+        .filter(task=task, status=BidStatus.ACTIVE)
         .order_by("bid_id")
     )
+    selected = next((bid for bid in active_bids if str(bid.pk) == selected_id), None)
+    if selected is None:
+        raise BidDecisionConflict("Selected bid is no longer active.")
 
-    accepted_bid = None
-
+    transition_task_locked(
+        task=task, target=TaskStatus.ASSIGNED,
+        event="funding_confirmed", actor=actor,
+        reason="Escrow funds held; one worker assigned",
+        financial_event=financial_event,
+        metadata={"accepted_bid_id": selected_id},
+    )
     for item in active_bids:
-
-        previous_status = item.status
-
-        if item.pk == bid.pk:
-            item.status = BidStatus.ACCEPTED
-            accepted_bid = item
-            reason = "Bid accepted by employer"
-        else:
-            item.status = BidStatus.REJECTED
-            reason = "Another bid was accepted"
-
-        item.save(
-            update_fields=["status", "updated_at"]
-        )
-
+        old_status = item.status
+        item.status = BidStatus.ACCEPTED if item.pk == selected.pk else BidStatus.REJECTED
+        item.save(update_fields=["status", "updated_at"])
         BidStatusHistory.objects.create(
-            bid=item,
-            from_status=previous_status,
-            to_status=item.status,
-            changed_by_user=user,
-            reason=reason,
+            bid=item, from_status=old_status, to_status=item.status,
+            changed_by_user=actor,
+            reason=("Funding confirmed: bid accepted" if item.pk == selected.pk
+                    else "Funding confirmed: another bid was accepted"),
         )
+    return selected, task
 
-    if accepted_bid is None:
-        raise BidDecisionConflict(
-            "The selected bid is no longer active."
-        )
 
-    previous_task_status = task.status
-
-    task.status = TaskStatus.ASSIGNED
-    task.version += 1
-
-    task.save(
-        update_fields=[
-            "status",
-            "version",
-            "updated_at",
-        ]
+@transaction.atomic
+def release_failed_funding(*, task_id, financial_event, actor=None):
+    """PRIVATE finance callback for a verified FAILED funding operation."""
+    task = Task.objects.select_for_update().get(task_id=task_id)
+    if task.status != TaskStatus.FUNDING_PENDING:
+        raise BidDecisionConflict("No pending funding exists for this task.")
+    if (
+        not isinstance(financial_event, VerifiedFinancialEvent)
+        or financial_event.state != EscrowStatus.FAILED
+        or financial_event.task_reference != str(task.pk)
+        or financial_event.bid_reference != _pending_bid_id(task=task)
+    ):
+        raise BidDecisionConflict("A verified funding failure is required.")
+    transition_task_locked(
+        task=task, target=TaskStatus.OPEN, event="funding_failed",
+        actor=actor, reason="Escrow funding failed; bidding reopened",
+        financial_event=financial_event,
     )
-
-    TaskStatusHistory.objects.create(
-        task=task,
-        from_status=previous_task_status,
-        to_status=TaskStatus.ASSIGNED,
-        changed_by_user=user,
-        reason="Employer accepted an executor bid",
-        metadata={
-            "accepted_bid_id": str(accepted_bid.pk),
-        },
-    )
-
-    return accepted_bid, task
+    return task
 
 
 @transaction.atomic

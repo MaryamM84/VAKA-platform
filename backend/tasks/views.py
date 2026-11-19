@@ -42,7 +42,10 @@ from .serializers import (
     TaskActionResponseSerializer
 )
 
-from .task_management import cancel_employer_task
+from .task_management import (
+    cancel_employer_task,
+    soft_delete_employer_task,
+)
 from .services import publish_task
 
 
@@ -64,11 +67,11 @@ from .services import publish_task
     post=extend_schema(
         operation_id="tasks_create",
         tags=["Tasks"],
-        summary="Create a task draft",
+        summary="Create and publish a task",
         description=(
-            "Creates a task in DRAFT status. The employer and initial "
-            "status are assigned by the server and cannot be supplied "
-            "by the client."
+            "Creates a task and immediately publishes it in OPEN status. "
+            "The employer and initial status are assigned by the server "
+            "and cannot be supplied by the client."
         ),
         request=TaskCreateSerializer,
         responses={
@@ -79,7 +82,7 @@ from .services import publish_task
 class TaskListCreateView(ListCreateAPIView):
     """
     GET: List tasks belonging to the current employer.
-    POST: Create a new task draft.
+    POST: Create and publish a new task.
     """
 
     permission_classes = [
@@ -90,7 +93,8 @@ class TaskListCreateView(ListCreateAPIView):
     def get_queryset(self):
         return (
         Task.objects.filter(
-            employer_user=self.request.user
+            employer_user=self.request.user,
+            deleted_at__isnull=True,
         )
         .select_related("category")
         .prefetch_related(
@@ -159,7 +163,8 @@ class TaskPublishView(GenericAPIView):
 
         return (
             Task.objects.filter(
-                employer_user=self.request.user
+                employer_user=self.request.user,
+                deleted_at__isnull=True,
             )
             .select_related("category")
             .prefetch_related("required_skills__skill", "locations")
@@ -651,7 +656,8 @@ class EmployerTaskDetailView(GenericAPIView):
 
         return (
             Task.objects.filter(
-                employer_user=self.request.user
+                employer_user=self.request.user,
+                deleted_at__isnull=True,
             )
             .select_related("category")
             .prefetch_related(
@@ -710,6 +716,40 @@ class EmployerTaskDetailView(GenericAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        tags=["Tasks"],
+        operation_id="employer_task_delete",
+        summary="Delete an employer task",
+        request=None,
+        responses={
+            204: OpenApiResponse(
+                description="Task deleted successfully."
+            ),
+            401: OpenApiResponse(
+                description="Authentication required."
+            ),
+            403: OpenApiResponse(
+                description="Employer permission required."
+            ),
+            404: OpenApiResponse(
+                description="Task not found."
+            ),
+            409: OpenApiResponse(
+                description="Task cannot be deleted."
+            ),
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+
+        task = self.get_object()
+
+        soft_delete_employer_task(
+            task_id=task.task_id,
+            employer=request.user,
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class EmployerTaskCancelView(GenericAPIView):
 
@@ -726,7 +766,8 @@ class EmployerTaskCancelView(GenericAPIView):
     def get_queryset(self):
 
         return Task.objects.filter(
-            employer_user=self.request.user
+            employer_user=self.request.user,
+            deleted_at__isnull=True,
         )
 
     @extend_schema(

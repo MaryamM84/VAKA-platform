@@ -227,14 +227,14 @@ class EmployerBidDecisionAPITests(APITestCase):
         self.bid_two.refresh_from_db()
         self.task.refresh_from_db()
 
-        self.assertEqual(self.bid.status, BidStatus.ACCEPTED)
-        self.assertEqual(self.bid_two.status, BidStatus.REJECTED)
-        self.assertEqual(self.task.status, TaskStatus.ASSIGNED)
+        self.assertEqual(self.bid.status, BidStatus.ACTIVE)
+        self.assertEqual(self.bid_two.status, BidStatus.ACTIVE)
+        self.assertEqual(self.task.status, TaskStatus.FUNDING_PENDING)
 
         self.assertTrue(
             TaskStatusHistory.objects.filter(
                 task=self.task,
-                to_status=TaskStatus.ASSIGNED,
+                to_status=TaskStatus.FUNDING_PENDING,
             ).exists()
         )
 
@@ -443,3 +443,108 @@ class EmployerTaskManagementAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+    def test_delete_draft_task(self):
+        url = f"/api/tasks/{self.task.pk}/"
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 204)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(
+            self.task.status,
+            TaskStatus.CANCELLED,
+        )
+        self.assertIsNotNone(self.task.deleted_at)
+
+        self.assertTrue(
+            TaskStatusHistory.objects.filter(
+                task=self.task,
+                to_status=TaskStatus.CANCELLED,
+            ).exists()
+        )
+
+        list_response = self.client.get("/api/tasks/")
+        self.assertEqual(list_response.status_code, 200)
+
+        returned_ids = [
+            item["task_id"]
+            for item in list_response.data
+        ]
+        self.assertNotIn(str(self.task.pk), returned_ids)
+
+        second_response = self.client.delete(url)
+        self.assertEqual(second_response.status_code, 404)
+
+    def test_cannot_delete_assigned_task(self):
+        self.task.status = TaskStatus.ASSIGNED
+        self.task.save(update_fields=["status"])
+
+        response = self.client.delete(
+            f"/api/tasks/{self.task.pk}/"
+        )
+
+        self.assertEqual(response.status_code, 409)
+
+        self.task.refresh_from_db()
+        self.assertIsNone(self.task.deleted_at)
+
+    def test_cannot_delete_task_with_bid(self):
+        executor = User.objects.create_user(
+            phone="09129995003",
+            full_name="Test Executor",
+            phone_verified_at=timezone.now(),
+        )
+
+        executor_profile = ExecutorProfile.objects.create(
+            user=executor,
+        )
+
+        self.task.status = TaskStatus.OPEN
+        self.task.save(update_fields=["status"])
+
+        Bid.objects.create(
+            task=self.task,
+            executor_profile=executor_profile,
+            proposed_wage_amount=500000,
+            proposed_duration_minutes=60,
+            message="Test offer",
+            status=BidStatus.ACTIVE,
+        )
+
+        response = self.client.delete(
+            f"/api/tasks/{self.task.pk}/"
+        )
+
+        self.assertEqual(response.status_code, 409)
+
+        self.task.refresh_from_db()
+        self.assertIsNone(self.task.deleted_at)
+
+    def test_other_employer_cannot_delete_task(self):
+        other_employer = User.objects.create_user(
+            phone="09129995002",
+            full_name="Other Employer",
+            phone_verified_at=timezone.now(),
+        )
+
+        employer_role = Role.objects.get(code="EMPLOYER")
+
+        UserRole.objects.create(
+            user=other_employer,
+            role=employer_role,
+        )
+
+        self.client.force_authenticate(
+            user=other_employer,
+        )
+
+        response = self.client.delete(
+            f"/api/tasks/{self.task.pk}/"
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+        self.task.refresh_from_db()
+        self.assertIsNone(self.task.deleted_at)

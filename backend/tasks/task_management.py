@@ -1,5 +1,6 @@
 from django.db import transaction
 from rest_framework.exceptions import APIException, NotFound
+from django.utils import timezone
 
 from .choices import TaskSkillSource, TaskStatus
 from .models import (
@@ -9,6 +10,7 @@ from .models import (
     TaskStatusHistory,
 )
 from .services import _store_location, _validate_task_for_publication
+from .lifecycle import transition_task_locked
 
 from offers.models import (
     Bid,
@@ -34,6 +36,7 @@ def update_employer_task(*, task_id, employer, data):
             .get(
                 task_id=task_id,
                 employer_user=employer,
+                deleted_at__isnull=True,
             )
         )
 
@@ -117,31 +120,23 @@ def cancel_employer_task(*, task_id, employer):
             .get(
                 task_id=task_id,
                 employer_user=employer,
+                deleted_at__isnull=True,
             )
         )
 
     except Task.DoesNotExist:
         raise NotFound("Task not found.")
 
-    if task.status in (
-        TaskStatus.DRAFT,
-        TaskStatus.OPEN,
-    ):
+    # FS §7.2: review only after assignment; never invent unsupported edges.
+    if task.status in (TaskStatus.DRAFT, TaskStatus.OPEN):
         target_status = TaskStatus.CANCELLED
-
-    elif task.status in (
-        TaskStatus.FUNDING_PENDING,
-        TaskStatus.ASSIGNED,
-        TaskStatus.IN_PROGRESS,
-        TaskStatus.SUBMITTED,
-        TaskStatus.APPROVED,
-        TaskStatus.DISPUTED,
-    ):
+        event = "cancel_before_assignment"
+    elif task.status in (TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS):
         target_status = TaskStatus.CANCELLATION_REVIEW
-
+        event = "cancellation_requested"
     else:
         raise TaskManagementConflict(
-            f"Cannot cancel task in {task.status} status."
+            f"Cannot cancel task in {task.status} status under FS §7.2."
         )
 
     active_bids = list(
@@ -174,29 +169,54 @@ def cancel_employer_task(*, task_id, employer):
             reason="Task cancellation requested by employer",
         )
 
-    previous_task_status = task.status
-
-    task.status = target_status
-    task.version += 1
-
-    task.save(
-        update_fields=[
-            "status",
-            "version",
-            "updated_at",
-        ]
-    )
-
-    TaskStatusHistory.objects.create(
+    transition_task_locked(
         task=task,
-        from_status=previous_task_status,
-        to_status=target_status,
-        changed_by_user=employer,
+        target=target_status,
+        event=event,
+        actor=employer,
         reason=(
             "Task cancelled by employer"
             if target_status == TaskStatus.CANCELLED
             else "Task cancellation review requested by employer"
         ),
     )
+
+    return task
+
+@transaction.atomic
+def soft_delete_employer_task(*, task_id, employer):
+    try:
+        task = (
+            Task.objects.select_for_update()
+            .get(
+                task_id=task_id,
+                employer_user=employer,
+                deleted_at__isnull=True,
+            )
+        )
+    except Task.DoesNotExist:
+        raise NotFound("Task not found.")
+
+    if task.status not in (
+        TaskStatus.DRAFT,
+        TaskStatus.OPEN,
+    ):
+        raise TaskManagementConflict(
+            "Only DRAFT or OPEN tasks can be deleted."
+        )
+
+    if Bid.objects.filter(task=task).exists():
+        raise TaskManagementConflict(
+            "Tasks with submitted bids cannot be deleted. "
+            "Use the cancellation workflow instead."
+        )
+
+    transition_task_locked(
+        task=task, target=TaskStatus.CANCELLED,
+        event="cancel_before_assignment", actor=employer,
+        reason="Task deleted by employer",
+    )
+    task.deleted_at = timezone.now()
+    task.save(update_fields=["deleted_at", "updated_at"])
 
     return task

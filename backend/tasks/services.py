@@ -5,7 +5,8 @@ from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
 
 from .choices import TaskSkillSource, TaskStatus
-from .models import Task, TaskRequiredSkill, TaskStatusHistory
+from .models import Task, TaskRequiredSkill
+from .lifecycle import transition_task_locked, record_initial_task_state
 from django.utils import timezone
 
 class TaskPublishConflict(APIException):
@@ -81,6 +82,14 @@ def _validate_task_for_publication(task):
         errors["proposal_deadline_at"] = [
             "A proposal deadline is required before publishing."
         ]
+    elif task.proposal_deadline_at <= timezone.now():
+        errors["proposal_deadline_at"] = [
+            "The proposal deadline must be in the future."
+        ]
+    if end_at is not None and end_at <= timezone.now():
+        errors["execution_window_end_at"] = [
+            "The execution window must be in the future."
+        ]
 
     if errors:
         raise ValidationError(errors)
@@ -131,7 +140,7 @@ def _store_location(*, task, item):
 
 @transaction.atomic
 def create_task_draft(*, employer, data):
-    """Transactionally create a task draft and related records."""
+    """Transactionally create an unpublished DRAFT, as required by FS §6 M2."""
 
     values = data.copy()
 
@@ -146,14 +155,8 @@ def create_task_draft(*, employer, data):
         **values,
     )
 
-    # Record the initial task status.
-    TaskStatusHistory.objects.create(
-        task=task,
-        from_status=None,
-        to_status=TaskStatus.DRAFT,
-        changed_by_user=employer,
-        reason="Task draft created",
-    )
+    # Lifecycle history begins with DRAFT. No admin approval is required to publish.
+    record_initial_task_state(task=task, actor=employer)
 
     # Save required skills associated with the task.
     TaskRequiredSkill.objects.bulk_create(
@@ -207,29 +210,9 @@ def publish_task(*, task_id, employer):
     # Validate all required publication data.
     _validate_task_for_publication(task)
 
-    previous_status = task.status
-
-    # Perform the state transition.
-    task.status = TaskStatus.OPEN
-    task.published_at = timezone.now()
-    task.version += 1
-
-    task.save(
-        update_fields=[
-            "status",
-            "published_at",
-            "updated_at",
-            "version",
-        ]
-    )
-
-    # Record the transition in the status history.
-    TaskStatusHistory.objects.create(
-        task=task,
-        from_status=previous_status,
-        to_status=TaskStatus.OPEN,
-        changed_by_user=employer,
-        reason="Task published by employer",
+    transition_task_locked(
+        task=task, target=TaskStatus.OPEN, event="publish",
+        actor=employer, reason="Task published by employer",
     )
 
     return task

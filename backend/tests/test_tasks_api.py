@@ -8,8 +8,9 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from accounts.models import Role, User, UserRole
-from tasks.choices import TaskSkillSource, TaskStatus
+from accounts.models import ExecutorProfile, Role, User, UserRole
+from offers.models import Bid, BidStatus
+from tasks.choices import TaskSkillSource, TaskStatus, TaskUrgency
 from tasks.models import (
     Skill,
     Task,
@@ -126,7 +127,7 @@ class TaskCreateAPITests(APITestDataMixin, APITestCase):
         self.category = self.make_category()
         self.url = reverse("task-list-create")
 
-    def test_employer_can_create_task_as_draft(self):
+    def test_employer_can_create_task_as_fs_draft(self):
         response = self.client.post(
             self.url,
             self.valid_task_payload(),
@@ -140,11 +141,15 @@ class TaskCreateAPITests(APITestDataMixin, APITestCase):
         self.assertEqual(task.employer_user, self.employer)
         self.assertEqual(task.category, self.category)
         self.assertEqual(task.status, TaskStatus.DRAFT)
+        self.assertEqual(task.urgency, TaskUrgency.NORMAL)
+        self.assertIsNone(task.published_at)
         self.assertEqual(task.currency_code, "IRR")
         self.assertFalse(task.receipt_required)
         self.assertIsNone(task.item_cost_cap_amount)
         self.assertIsNone(task.deadline_at)
         self.assertEqual(response.data["status"], TaskStatus.DRAFT)
+        self.assertEqual(response.data["urgency"], TaskUrgency.NORMAL)
+        self.assertIsNone(response.data["published_at"])
         self.assertEqual(response.data["employer_user_id"], str(self.employer.pk))
         self.assertEqual(response.data["category_name"], self.category.name)
 
@@ -153,6 +158,22 @@ class TaskCreateAPITests(APITestDataMixin, APITestCase):
         self.assertEqual(history.to_status, TaskStatus.DRAFT)
         self.assertEqual(history.changed_by_user, self.employer)
         self.assertEqual(history.reason, "Task draft created")
+
+    def test_employer_can_create_task_with_explicit_urgency(self):
+        payload = self.valid_task_payload()
+        payload["urgency"] = TaskUrgency.URGENT
+
+        response = self.client.post(
+            self.url,
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        task = Task.objects.get()
+        self.assertEqual(task.urgency, TaskUrgency.URGENT)
+        self.assertEqual(response.data["urgency"], TaskUrgency.URGENT)
 
     def test_employer_can_create_task_with_category_and_global_skills(self):
         category_skill = self.make_skill("Cabinet repair", category=self.category)
@@ -539,6 +560,117 @@ class TaskListAPITests(APITestDataMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])
+
+
+class TaskDetailManageAPITests(APITestDataMixin, APITestCase):
+    def setUp(self):
+        self.employer_role = Role.objects.get_or_create(code="EMPLOYER", defaults={"name": "Employer"})[0]
+        self.executor_role = Role.objects.get_or_create(code="EXECUTOR", defaults={"name": "Executor"})[0]
+        self.employer = self.make_employer("09120000011")
+        self.client.force_authenticate(user=self.employer)
+        self.category = self.make_category()
+
+        now = timezone.now()
+        self.task = Task.objects.create(
+            employer_user=self.employer,
+            category=self.category,
+            title="Replace faucet",
+            description="Replace bathroom faucet",
+            urgency=TaskUrgency.NORMAL,
+            status=TaskStatus.OPEN,
+            estimated_duration_minutes=90,
+            wage_budget_amount=1_500_000,
+            receipt_required=False,
+            execution_window_start_at=now + timedelta(days=1),
+            execution_window_end_at=now + timedelta(days=2),
+            proposal_deadline_at=now + timedelta(hours=12),
+            delivery_criteria="Leak-free installation",
+            published_at=now,
+        )
+
+        self.detail_url = reverse(
+            "task-detail-update",
+            kwargs={"task_id": self.task.pk},
+        )
+
+    def test_employer_can_update_task_from_detail_endpoint(self):
+        response = self.client.patch(
+            self.detail_url,
+            {
+                "title": "Replace kitchen faucet",
+                "urgency": TaskUrgency.HIGH,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.title, "Replace kitchen faucet")
+        self.assertEqual(self.task.urgency, TaskUrgency.HIGH)
+        self.assertEqual(response.data["urgency"], TaskUrgency.HIGH)
+
+    def test_employer_can_soft_delete_task_without_bids(self):
+        response = self.client.delete(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT, response.data)
+
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.CANCELLED)
+        self.assertIsNotNone(self.task.deleted_at)
+
+    def test_task_with_submitted_bids_cannot_be_deleted(self):
+        executor = self.make_user("09120000012")
+        UserRole.objects.create(user=executor, role=self.executor_role)
+        profile = ExecutorProfile.objects.create(
+            user=executor,
+            verification_status=ExecutorProfile.VerificationStatus.APPROVED,
+            profile_status="ACTIVE",
+            approved_at=timezone.now(),
+        )
+
+        Bid.objects.create(
+            task=self.task,
+            executor_profile=profile,
+            proposed_wage_amount=900_000,
+            proposed_duration_minutes=60,
+            message="Ready to do it",
+            status=BidStatus.ACTIVE,
+        )
+
+        response = self.client.delete(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT, response.data)
+
+        self.task.refresh_from_db()
+        self.assertIsNone(self.task.deleted_at)
+
+    def test_non_owner_cannot_update_or_delete_task(self):
+        other_employer = self.make_employer("09120000013")
+        self.client.force_authenticate(user=other_employer)
+
+        patch_response = self.client.patch(
+            self.detail_url,
+            {"title": "No access"},
+            format="json",
+        )
+        delete_response = self.client.delete(self.detail_url)
+
+        self.assertEqual(patch_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(delete_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_detail_update_delete_require_authentication(self):
+        self.client.force_authenticate(user=None)
+
+        patch_response = self.client.patch(
+            self.detail_url,
+            {"title": "No auth"},
+            format="json",
+        )
+        delete_response = self.client.delete(self.detail_url)
+
+        self.assertEqual(patch_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(delete_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class TaskCategoryCatalogAPITests(APITestDataMixin, APITestCase):

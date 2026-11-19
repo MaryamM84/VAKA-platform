@@ -3,8 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.contrib.postgres.indexes import GistIndex
 from django.db.models import F, Q
-
-from .choices import TaskSkillSource, TaskStatus
+from .choices import TaskSkillSource, TaskStatus, TaskUrgency
 from .fields import (
     CurrencyCodeField,
     PostGISGeographyPointField,
@@ -66,6 +65,11 @@ class Task(models.Model):
     )
     title = models.CharField(max_length=180)
     description = models.TextField()
+    urgency = models.CharField(
+        max_length=16,
+        choices=TaskUrgency.choices,
+        default=TaskUrgency.NORMAL,
+    )
     status = models.CharField(
         max_length=24, choices=TaskStatus.choices, default=TaskStatus.DRAFT,
     )
@@ -80,6 +84,11 @@ class Task(models.Model):
     proposal_deadline_at = models.DateTimeField()
     delivery_criteria = models.TextField()
     published_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(
+    null=True,
+    blank=True,
+    db_index=True,
+)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     version = models.IntegerField(default=1)

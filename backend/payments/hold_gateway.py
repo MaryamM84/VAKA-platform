@@ -1,21 +1,25 @@
-"""Read-only boundary for authoritative Escrow holds.
+"""Read-only boundary for authoritative, persisted Escrow holds."""
 
-T3-03 integration point. The finance implementation must query a persisted,
-trusted ledger/reservation record, not a client-provided status or a past Task
-history event. Until that implementation ships, the gateway is fail-closed.
-"""
 from dataclasses import dataclass
 
+from offers.models import BidStatus
+
+from .fees import calculate_platform_fee_amount
 from .lifecycle import EscrowStatus
+from .models import (
+    EscrowReservation,
+    FeePayer,
+    IdempotencyRecord,
+    IdempotencyStatus,
+    WalletTransaction,
+    WalletTransactionDirection,
+    WalletTransactionType,
+)
 
 
 @dataclass(frozen=True)
 class VerifiedHeldReservation:
-    """Snapshot returned ONLY by the trusted finance adapter.
-
-    The dataclass itself is not cryptographic evidence; construction must
-    follow an authoritative ledger check. Never deserialize from HTTP input.
-    """
+    """Snapshot returned only after checking the persisted reservation + ledger."""
 
     task_reference: str
     bid_reference: str
@@ -25,15 +29,67 @@ class VerifiedHeldReservation:
 
 
 def read_verified_held_reservation(*, task_id, bid_id):
-    """Return a current verified reservation or None.
+    """Return the current verified HELD reservation, otherwise fail closed."""
+    reservation = (
+        EscrowReservation.objects.select_related("task", "bid", "wallet")
+        .filter(
+            task_id=task_id,
+            bid_id=bid_id,
+            status=EscrowStatus.HELD.value,
+        )
+        .order_by("-created_at", "-reservation_id")
+        .first()
+    )
+    if reservation is None:
+        return None
 
-    FINANCE TODO: read the current escrow row for task_id and bid_id from the
-    trusted ledger, verify it is HELD, and return VerifiedHeldReservation.
-    It must reject stale/released/refunded/mismatched reservations. Do not
-    call external payment HTTP APIs while holding the Task database row lock;
-    use persisted local ledger state populated by a verified callback.
+    if (
+        reservation.bid.task_id != reservation.task_id
+        or reservation.wallet.user_id != reservation.task.employer_user_id
+        or reservation.currency_code != reservation.task.currency_code
+        or reservation.currency_code != reservation.wallet.currency_code
+        or reservation.amount != reservation.labor_amount + reservation.expense_amount
+        or reservation.expense_amount != (reservation.task.item_cost_cap_amount or 0)
+        or reservation.fee_payer != FeePayer.WORKER
+        or reservation.bid.status != BidStatus.ACCEPTED
+        or reservation.wallet.reserved_balance < reservation.amount
+        or reservation.platform_fee_amount != calculate_platform_fee_amount(
+            reservation.labor_amount, reservation.platform_fee_rate_bps
+        )
+    ):
+        return None
 
-    Intentionally returns None until finance is integrated. This keeps
-    production execution disabled rather than bypassing BR-05.
-    """
-    return None
+    idempotency_record_exists = IdempotencyRecord.objects.filter(
+        user_id=reservation.wallet.user_id,
+        operation_type="BID_ESCROW_RESERVATION",
+        idempotency_key=reservation.idempotency_key,
+        status=IdempotencyStatus.COMPLETED,
+        response_body__reservation_id=str(reservation.reservation_id),
+        response_body__operation_reference=str(reservation.operation_reference),
+    ).exists()
+    if not idempotency_record_exists:
+        return None
+
+    ledger_entries = WalletTransaction.objects.filter(
+        wallet=reservation.wallet,
+        task_id=reservation.task_id,
+        escrow_reservation=reservation,
+        transaction_type=WalletTransactionType.ESCROW_RESERVATION,
+        direction=WalletTransactionDirection.DEBIT,
+        amount=reservation.amount,
+        available_balance_delta=-reservation.amount,
+        reserved_balance_delta=reservation.amount,
+        currency_code=reservation.currency_code,
+        idempotency_key=reservation.idempotency_key,
+        operation_reference=reservation.operation_reference,
+    )
+    if ledger_entries.count() != 1:
+        return None
+
+    return VerifiedHeldReservation(
+        task_reference=str(reservation.task_id),
+        bid_reference=str(reservation.bid_id),
+        escrow_reference=str(reservation.reservation_id),
+        operation_reference=str(reservation.operation_reference),
+        state=EscrowStatus.HELD,
+    )

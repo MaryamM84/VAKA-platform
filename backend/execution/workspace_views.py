@@ -4,6 +4,7 @@ from django.db.models import Count, OuterRef, Prefetch, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import status
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -17,10 +18,10 @@ from tasks.models import Task, TaskStatusHistory
 from tasks.pagination import TaskDiscoveryPagination
 from .models import TaskProgressReport
 from .serializers import (
-    ExecutorTaskCardSerializer, ExecutorTaskDetailSerializer, ExecutorTaskListResponseSerializer, TaskPrivateDetailsSerializer,
+    ExecutorTaskCardSerializer, ExecutorTaskDetailSerializer, ExecutorTaskListResponseSerializer, TaskPrivateDetailsSerializer, ProgressReportInputSerializer, ProgressReportReadSerializer, ProgressReportListResponseSerializer,
 )
 from .workspace_services import (
-    ACTIVE_EXECUTION_STATUSES, approved_executor_profile,
+    ACTIVE_EXECUTION_STATUSES, approved_executor_profile, record_progress,
 )
 
 
@@ -243,3 +244,38 @@ class ExecutorTaskPrivateDetailsView(APIView):
             "employer_phone": task.employer_user.phone,
             "locations": locations,
         }).data)
+
+
+class ExecutorProgressReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Executor Workspace"], operation_id="executor_progress_reports_list",
+        summary="List immutable progress reports for an assigned task",
+        responses={200: ProgressReportListResponseSerializer},
+    )
+    def get(self, request, task_id):
+        profile = approved_executor_profile(user=request.user)
+        assigned_task_or_404(profile=profile, task_id=task_id)
+        reports = TaskProgressReport.objects.filter(
+            task_id=task_id, executor_profile=profile,
+        ).order_by("-created_at", "-report_id")
+        pager = TaskDiscoveryPagination()
+        page = pager.paginate_queryset(reports, request, view=self)
+        return pager.get_paginated_response(
+            ProgressReportReadSerializer(page, many=True).data,
+        )
+
+    @extend_schema(
+        tags=["Executor Workspace"], operation_id="executor_progress_reports_create",
+        summary="Create a progress report (25 / 50 / 75 / 100 percent)",
+        request=ProgressReportInputSerializer,
+        responses={201: ProgressReportReadSerializer, 409: OpenApiResponse(description="Invalid state or progress regression")},
+    )
+    def post(self, request, task_id):
+        payload = ProgressReportInputSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        report = record_progress(
+            task_id=task_id, actor=request.user, **payload.validated_data,
+        )
+        return Response(ProgressReportReadSerializer(report).data, status=status.HTTP_201_CREATED)

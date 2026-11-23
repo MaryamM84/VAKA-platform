@@ -2,10 +2,37 @@
 from rest_framework import serializers
 
 
+class StrictInputSerializer(serializers.Serializer):
+    def to_internal_value(self, data):
+        if not hasattr(data, "keys"):
+            raise serializers.ValidationError("Expected a JSON object.")
+        extra = set(data.keys()) - set(self.fields.keys())
+        if extra:
+            raise serializers.ValidationError({
+                field: "This field is not accepted." for field in sorted(extra)
+            })
+        return super().to_internal_value(data)
+
+
 class TaskStartResponseSerializer(serializers.Serializer):
     task_id = serializers.UUIDField(read_only=True)
     status = serializers.CharField(read_only=True)
     version = serializers.IntegerField(read_only=True)
+
+
+class ProgressReportInputSerializer(StrictInputSerializer):
+    progress_percent = serializers.ChoiceField(choices=(25, 50, 75, 100))
+    description = serializers.CharField(min_length=1, max_length=4000, trim_whitespace=True)
+    on_schedule = serializers.BooleanField()
+
+
+class ProgressReportReadSerializer(serializers.Serializer):
+    report_id = serializers.UUIDField()
+    task_id = serializers.UUIDField()
+    progress_percent = serializers.IntegerField()
+    description = serializers.CharField()
+    on_schedule = serializers.BooleanField()
+    created_at = serializers.DateTimeField()
 
 
 class TaskEmployerSummarySerializer(serializers.Serializer):
@@ -98,3 +125,10 @@ class ExecutorTaskListResponseSerializer(serializers.Serializer):
     next = serializers.URLField(allow_null=True)
     previous = serializers.URLField(allow_null=True)
     results = ExecutorTaskCardSerializer(many=True)
+
+
+class ProgressReportListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = ProgressReportReadSerializer(many=True)

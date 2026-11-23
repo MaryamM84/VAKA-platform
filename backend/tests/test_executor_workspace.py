@@ -92,3 +92,45 @@ class ExecutorWorkspaceTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["employer_phone"], self.employer.phone)
         self.assertEqual(response.data["locations"], [])
+
+    def test_non_assigned_worker_cannot_read_or_modify(self):
+        self.client.force_authenticate(user=self.other_worker)
+        self.assertEqual(self.client.get(self.base).status_code, 404)
+        self.assertEqual(self.client.get(self.base + "private-details/").status_code, 404)
+        self.assertEqual(self.client.post(self.base + "progress-reports/", {
+            "progress_percent": 25, "description": "Unauthorized report", "on_schedule": True,
+        }, format="json").status_code, 404)
+
+    def test_report_requires_in_progress(self):
+        response = self.client.post(self.base + "progress-reports/", {
+            "progress_percent": 25, "description": "Finished first step", "on_schedule": True,
+        }, format="json")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(TaskProgressReport.objects.count(), 0)
+
+    def test_progress_is_persisted_and_cannot_decrease(self):
+        self.task.status = TaskStatus.IN_PROGRESS
+        self.task.save(update_fields=["status"])
+        first = self.client.post(self.base + "progress-reports/", {
+            "progress_percent": 50, "description": "Wireframes prepared", "on_schedule": True,
+        }, format="json")
+        self.assertEqual(first.status_code, 201, first.data)
+        regression = self.client.post(self.base + "progress-reports/", {
+            "progress_percent": 25, "description": "Regress", "on_schedule": False,
+        }, format="json")
+        self.assertEqual(regression.status_code, 409)
+        detail = self.client.get(self.base)
+        self.assertEqual(detail.data["progress_percent"], 50)
+        self.assertEqual(detail.data["reports_count"], 1)
+        self.assertIsInstance(detail.data["remaining_seconds"], int)
+        self.assertEqual(self.client.get(self.base + "progress-reports/").data["count"], 1)
+
+    def test_progress_validation_blocks_fake_client_fields(self):
+        self.task.status = TaskStatus.IN_PROGRESS
+        self.task.save(update_fields=["status"])
+        for payload in [
+            {"progress_percent": 30, "description": "X", "on_schedule": True},
+            {"progress_percent": 25, "description": "   ", "on_schedule": True},
+            {"progress_percent": 25, "description": "X", "on_schedule": True, "status": "COMPLETED"},
+        ]:
+            self.assertEqual(self.client.post(self.base + "progress-reports/", payload, format="json").status_code, 400)

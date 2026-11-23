@@ -1,0 +1,4544 @@
+openapi: 3.0.3
+info:
+  title: VAKA Platform API
+  version: 1.0.0
+  description: API documentation for the VAKA platform. Task creation and listing
+    require an authenticated user with the EMPLOYER role.
+paths:
+  /api/admin/worker-verifications/:
+    get:
+      operationId: admin_worker_verifications_list
+      summary: List pending worker verification applications
+      tags:
+      - Admin Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminWorkerVerificationList'
+          description: ''
+  /api/admin/worker-verifications/{executor_profile_id}/:
+    get:
+      operationId: admin_worker_verifications_retrieve
+      summary: Get worker verification application details
+      parameters:
+      - in: path
+        name: executor_profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminWorkerVerificationDetail'
+          description: ''
+        '404':
+          description: Application not found.
+  /api/admin/worker-verifications/{executor_profile_id}/approve/:
+    post:
+      operationId: admin_worker_verifications_approve_create
+      summary: Approve worker verification application
+      parameters:
+      - in: path
+        name: executor_profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminWorkerVerificationDetail'
+          description: ''
+        '400':
+          description: Application is not pending.
+        '404':
+          description: Application not found.
+  /api/admin/worker-verifications/{executor_profile_id}/documents/{document_id}/download/:
+    get:
+      operationId: admin_worker_verifications_documents_download_retrieve
+      summary: Download a private verification document
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: executor_profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Private verification document.
+        '404':
+          description: Document not found.
+  /api/admin/worker-verifications/{executor_profile_id}/reject/:
+    post:
+      operationId: admin_worker_verifications_reject_create
+      summary: Reject worker verification application
+      parameters:
+      - in: path
+        name: executor_profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Admin Worker Verification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationRejectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationRejectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationRejectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminWorkerVerificationDetail'
+          description: ''
+        '400':
+          description: Invalid rejection reason or application status.
+        '404':
+          description: Application not found.
+  /api/auth/login/otp/send/:
+    post:
+      operationId: auth_login_otp_send_create
+      summary: Request login OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPPhoneRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPPhoneRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPPhoneRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPPhone'
+          description: ''
+  /api/auth/login/otp/verify/:
+    post:
+      operationId: auth_login_otp_verify_create
+      summary: Login using OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/auth/login/password/:
+    post:
+      operationId: auth_login_password_create
+      summary: Login with phone and password
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordLoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+        '401':
+          description: Invalid phone number or password.
+  /api/auth/otp/resend/:
+    post:
+      operationId: auth_otp_resend_create
+      summary: Resend OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPResendRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPResendRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPResendRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPResend'
+          description: ''
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create
+      summary: Register and request phone verification OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OTPPendingResponse'
+          description: ''
+  /api/auth/register/verify-otp/:
+    post:
+      operationId: auth_register_verify_otp_create
+      summary: Verify registration OTP
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OTPVerifyRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          description: ''
+  /api/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      summary: Refresh JWT access token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequestRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+          description: ''
+  /api/auth/token/verify/:
+    post:
+      operationId: auth_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      summary: Verify JWT token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequestRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Token is valid.
+        '401':
+          description: Token is invalid or expired.
+  /api/discovery/tasks/:
+    get:
+      operationId: discoverable_tasks_list
+      description: Select public, open, non-expired tasks and apply validated filters.
+      summary: Browse open, non-expired tasks
+      parameters:
+      - in: query
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        description: Match tasks directly in this active category.
+      - in: query
+        name: city
+        schema:
+          type: string
+        description: Filter by task location city.
+      - in: query
+        name: description
+        schema:
+          type: string
+        description: Search task description (case-insensitive).
+      - in: query
+        name: latitude
+        schema:
+          type: number
+        description: Search center latitude; requires longitude and radius_meters.
+      - in: query
+        name: longitude
+        schema:
+          type: number
+        description: Search center longitude; requires latitude and radius_meters.
+      - in: query
+        name: max_budget
+        schema:
+          type: integer
+        description: Maximum executor wage in IRR.
+      - in: query
+        name: min_budget
+        schema:
+          type: integer
+        description: Minimum executor wage in IRR.
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: published_at, -published_at, wage_budget_amount, -wage_budget_amount,
+          estimated_duration_minutes, -estimated_duration_minutes, proposal_deadline_at,
+          -proposal_deadline_at
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: radius_meters
+        schema:
+          type: number
+        description: Positive distance in meters; requires latitude and longitude.
+      - in: query
+        name: region
+        schema:
+          type: string
+        description: Filter by task location region.
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search task title OR description (case-insensitive).
+      - in: query
+        name: title
+        schema:
+          type: string
+        description: Search task title (case-insensitive).
+      tags:
+      - Task Discovery
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskDiscoveryList'
+          description: ''
+  /api/discovery/tasks/{task_id}/:
+    get:
+      operationId: discoverable_task_detail
+      description: Select public, open, non-expired tasks and apply validated filters.
+      summary: Details of an available task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task Discovery
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDiscovery'
+          description: ''
+  /api/manage/task-categories/:
+    get:
+      operationId: manage_task_categories_list
+      summary: List categories for authorized managers (including inactive)
+      tags:
+      - Category Management
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskCategory'
+          description: ''
+    post:
+      operationId: manage_task_categories_create
+      summary: Create a category or subcategory (ADMIN only)
+      tags:
+      - Category Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWrite'
+          description: ''
+  /api/manage/task-categories/{category_id}/:
+    get:
+      operationId: manage_task_categories_retrieve
+      summary: Retrieve a category for authorized management
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Category Management
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCategory'
+          description: ''
+    put:
+      operationId: manage_task_categories_update
+      summary: Replace editable category fields (ADMIN only)
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Category Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWrite'
+          description: ''
+    patch:
+      operationId: manage_task_categories_partial_update
+      summary: Partially edit or deactivate a category (ADMIN only)
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Category Management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWrite'
+          description: ''
+  /api/offers/bids/:
+    get:
+      operationId: my_bids_list
+      description: Returns all bids submitted by the authenticated executor.
+      summary: Get my bids
+      tags:
+      - Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BidRead'
+          description: ''
+    post:
+      operationId: submit_bid
+      description: Allows an authenticated, approved and active executor to submit
+        one bid for an open task.
+      summary: Submit a bid
+      tags:
+      - Bidding
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BidSubmissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BidSubmissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BidSubmissionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidRead'
+          description: ''
+  /api/offers/bids/{bid_id}/:
+    get:
+      operationId: my_bid_detail
+      description: Returns details of a bid belonging to the authenticated executor.
+      summary: Get my bid details
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidRead'
+          description: ''
+    patch:
+      operationId: update_my_bid
+      description: Updates an active bid before the task is assigned.
+      summary: Update my bid
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Bidding
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBidUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBidUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBidUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidRead'
+          description: ''
+    delete:
+      operationId: delete_my_bid
+      description: Withdraws an active bid before the task is assigned.
+      summary: Delete my bid
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidRead'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Executor permission required.
+        '404':
+          description: Bid not found.
+        '400':
+          description: Bid cannot be deleted.
+  /api/offers/employer/bids/:
+    get:
+      operationId: employer_bids_list
+      description: Returns all bids submitted to tasks owned by the authenticated
+        employer.
+      summary: List employer received bids
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployerBidList'
+          description: ''
+  /api/offers/employer/bids/{bid_id}/:
+    get:
+      operationId: employer_bid_detail
+      description: Returns bid details only if the related task belongs to the authenticated
+        employer.
+      summary: Get employer bid details
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployerBidDetail'
+          description: ''
+  /api/offers/employer/bids/{bid_id}/accept/:
+    post:
+      operationId: employer_bid_accept
+      description: 'FS 7.2: selection changes task OPEN to FUNDING_PENDING. Bid stays
+        ACTIVE until verified escrow funding confirms assignment. No funds are reserved
+        by this endpoint.'
+      summary: Select a bid and begin escrow funding
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidDecisionResponse'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Bid not found.
+        '409':
+          description: Invalid bid or task state.
+  /api/offers/employer/bids/{bid_id}/reject/:
+    post:
+      operationId: employer_bid_reject
+      summary: Reject an executor bid
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidDecisionResponse'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Bid not found.
+        '409':
+          description: Invalid bid or task state.
+  /api/offers/employer/tasks/{task_id}/bids/:
+    get:
+      operationId: employer_task_bids_list
+      description: Returns all bids for a task owned by the authenticated employer.
+      summary: List bids for employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Employer Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployerBidList'
+          description: ''
+  /api/profile/me/:
+    get:
+      operationId: profile_me_retrieve
+      description: Returns the personal information and optional worker profile information
+        of the authenticated user.
+      summary: Get current user's profile
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+          description: ''
+        '401':
+          description: Authentication credentials were not provided.
+    patch:
+      operationId: profile_me_partial_update
+      summary: Update current user's profile
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMyProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMyProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMyProfileRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+          description: ''
+        '400':
+          description: Invalid profile information.
+        '401':
+          description: Authentication credentials were not provided.
+  /api/profile/me/availability/:
+    get:
+      operationId: profile_me_availability_retrieve
+      summary: Get current worker availability
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerAvailabilityCollection'
+          description: ''
+    post:
+      operationId: profile_me_availability_create
+      summary: Add an availability slot
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerAvailabilityWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerAvailabilityWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerAvailabilityWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerAvailabilityRead'
+          description: ''
+        '400':
+          description: Invalid or overlapping availability slot.
+        '401':
+          description: Authentication required.
+    patch:
+      operationId: profile_me_availability_partial_update
+      summary: Update worker availability timezone
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerAvailabilityTimezoneRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerAvailabilityTimezoneRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerAvailabilityTimezoneRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerAvailabilityCollection'
+          description: ''
+        '400':
+          description: Invalid timezone.
+  /api/profile/me/availability/{availability_id}/:
+    patch:
+      operationId: profile_me_availability_partial_update_2
+      summary: Update an availability slot
+      parameters:
+      - in: path
+        name: availability_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerAvailabilityWriteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerAvailabilityWriteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerAvailabilityWriteRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerAvailabilityRead'
+          description: ''
+        '400':
+          description: Invalid or overlapping availability slot.
+        '404':
+          description: Availability slot not found.
+    delete:
+      operationId: profile_me_availability_destroy
+      summary: Delete an availability slot
+      parameters:
+      - in: path
+        name: availability_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Availability slot deleted successfully.
+        '404':
+          description: Availability slot not found.
+  /api/profile/me/avatar/:
+    get:
+      operationId: profile_me_avatar_retrieve
+      summary: Get current profile avatar
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAvatarRead'
+          description: ''
+    post:
+      operationId: profile_me_avatar_create
+      summary: Upload or replace the current profile avatar
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvatarUploadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvatarUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AvatarUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAvatarRead'
+          description: ''
+        '400':
+          description: Invalid image.
+        '401':
+          description: Authentication required.
+    patch:
+      operationId: profile_me_avatar_partial_update
+      summary: Select one of the predefined profile avatars
+      tags:
+      - Profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarPresetSelectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarPresetSelectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarPresetSelectionRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileAvatarRead'
+          description: ''
+        '400':
+          description: Invalid avatar selection.
+        '401':
+          description: Authentication required.
+    delete:
+      operationId: profile_me_avatar_destroy
+      summary: Delete the current profile avatar
+      tags:
+      - Profile
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Avatar deleted.
+        '401':
+          description: Authentication required.
+  /api/profile/me/preferences/:
+    get:
+      operationId: profile_me_preferences_retrieve
+      summary: Get current worker preferences
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerPreferencesRead'
+          description: ''
+        '401':
+          description: Authentication required.
+    patch:
+      operationId: profile_me_preferences_partial_update
+      summary: Update current worker preferences
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerPreferencesUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerPreferencesUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerPreferencesUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerPreferencesRead'
+          description: ''
+        '400':
+          description: Invalid preference information.
+        '401':
+          description: Authentication required.
+  /api/profile/me/service-area/:
+    get:
+      operationId: profile_me_service_area_retrieve
+      summary: Get current worker service area
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerServiceArea'
+          description: ''
+    patch:
+      operationId: profile_me_service_area_partial_update
+      summary: Update current worker service area
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerServiceAreaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerServiceAreaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerServiceAreaRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerServiceArea'
+          description: ''
+        '400':
+          description: Invalid service area information.
+        '401':
+          description: Authentication required.
+  /api/profile/me/service-area/neighborhoods/:
+    get:
+      operationId: profile_me_service_area_neighborhoods_list
+      summary: List selected service-area neighborhoods
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerServiceNeighborhoodRead'
+          description: ''
+    post:
+      operationId: profile_me_service_area_neighborhoods_create
+      summary: Add a neighborhood to the current service-area city
+      tags:
+      - Worker Preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerServiceNeighborhoodCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerServiceNeighborhoodCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerServiceNeighborhoodCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerServiceNeighborhoodRead'
+          description: ''
+        '400':
+          description: City missing, duplicate or invalid neighborhood.
+        '401':
+          description: Authentication required.
+  /api/profile/me/service-area/neighborhoods/{neighborhood_id}/:
+    delete:
+      operationId: profile_me_service_area_neighborhoods_destroy
+      summary: Remove a selected neighborhood
+      parameters:
+      - in: path
+        name: neighborhood_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Preferences
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Neighborhood removed.
+        '404':
+          description: Neighborhood not found.
+  /api/profile/me/skills/:
+    get:
+      operationId: profile_me_skills_list
+      summary: Get current user's skills
+      tags:
+      - Worker Skills
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerSkillRead'
+          description: ''
+    post:
+      operationId: profile_me_skills_create
+      summary: Add a skill to current user's profile
+      tags:
+      - Worker Skills
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerSkillCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerSkillCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerSkillCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerSkillRead'
+          description: ''
+        '400':
+          description: Invalid skill or duplicate skill.
+        '401':
+          description: Authentication required.
+  /api/profile/me/skills/{worker_skill_id}/:
+    patch:
+      operationId: profile_me_skills_partial_update
+      summary: Update current user's skill
+      parameters:
+      - in: path
+        name: worker_skill_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Skills
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerSkillUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerSkillUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkerSkillUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerSkillRead'
+          description: ''
+        '400':
+          description: Invalid skill information.
+        '404':
+          description: Skill not found.
+    delete:
+      operationId: profile_me_skills_destroy
+      summary: Delete current user's skill
+      parameters:
+      - in: path
+        name: worker_skill_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Skills
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Skill successfully deleted.
+        '404':
+          description: Skill not found.
+  /api/profile/me/statistics/:
+    get:
+      operationId: profile_me_statistics_retrieve
+      summary: Get the current worker's dashboard statistics
+      tags:
+      - Worker Dashboard
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerStatistics'
+          description: ''
+  /api/profile/me/verification/:
+    get:
+      operationId: profile_me_verification_retrieve
+      summary: Read verification status and document metadata
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationStatus'
+          description: ''
+        '401':
+          description: Authentication required.
+  /api/profile/me/verification/documents/:
+    post:
+      operationId: profile_me_verification_documents_create
+      summary: Upload front or back national card image
+      tags:
+      - Worker Verification
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationDocumentUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationDocumentUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationDocumentRead'
+          description: ''
+        '400':
+          description: Unsupported image or invalid document type.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/documents/{document_id}/:
+    delete:
+      operationId: profile_me_verification_documents_destroy
+      summary: Delete an uploaded document before submission
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Document deleted.
+        '401':
+          description: Authentication required.
+        '404':
+          description: Document not found.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/identity/:
+    get:
+      operationId: profile_me_verification_identity_retrieve
+      summary: Read saved identity form
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          description: ''
+        '401':
+          description: Authentication required.
+        '404':
+          description: Identity form has not been saved.
+    put:
+      operationId: profile_me_verification_identity_update
+      summary: Validate and save identity form
+      tags:
+      - Worker Verification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkerVerificationIdentityRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          description: ''
+        '400':
+          description: Invalid identity fields.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Verification is locked.
+  /api/profile/me/verification/submit/:
+    post:
+      operationId: profile_me_verification_submit_create
+      summary: Submit saved identity and both documents
+      tags:
+      - Worker Verification
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerVerificationStatus'
+          description: ''
+        '400':
+          description: Missing saved identity or documents.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Application already submitted.
+  /api/profiles/{profile_id}/:
+    get:
+      operationId: profiles_retrieve
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - profiles
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicWorkerProfile'
+          description: ''
+  /api/skills/:
+    get:
+      operationId: skills_list
+      description: Returns skills belonging to active categories and global skills.
+        Optionally filter by category_id. Global skills (category=null) remain available
+        when a category filter is supplied.
+      summary: List skills
+      parameters:
+      - in: query
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        description: Optional category UUID used to filter skills.
+      tags:
+      - Task Catalog
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Skill'
+          description: ''
+  /api/task-categories/:
+    get:
+      operationId: task_categories_list
+      description: Returns active task categories, including their parent category
+        when present.
+      summary: List active task categories
+      tags:
+      - Task Catalog
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskCategory'
+          description: ''
+  /api/task-categories/{category_id}/subcategories/:
+    get:
+      operationId: task_subcategories_list
+      summary: List direct active subcategories
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task Catalog
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskCategory'
+          description: ''
+  /api/task-categories/{category_id}/tasks/:
+    get:
+      operationId: category_available_tasks_list
+      description: Select public, open, non-expired tasks and apply validated filters.
+      summary: List available tasks directly in a category
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: city
+        schema:
+          type: string
+        description: Filter by task location city.
+      - in: query
+        name: description
+        schema:
+          type: string
+        description: Search task description (case-insensitive).
+      - in: query
+        name: latitude
+        schema:
+          type: number
+        description: Search center latitude; requires longitude and radius_meters.
+      - in: query
+        name: longitude
+        schema:
+          type: number
+        description: Search center longitude; requires latitude and radius_meters.
+      - in: query
+        name: max_budget
+        schema:
+          type: integer
+        description: Maximum executor wage in IRR.
+      - in: query
+        name: min_budget
+        schema:
+          type: integer
+        description: Minimum executor wage in IRR.
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: published_at, -published_at, wage_budget_amount, -wage_budget_amount,
+          estimated_duration_minutes, -estimated_duration_minutes, proposal_deadline_at,
+          -proposal_deadline_at
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: radius_meters
+        schema:
+          type: number
+        description: Positive distance in meters; requires latitude and longitude.
+      - in: query
+        name: region
+        schema:
+          type: string
+        description: Filter by task location region.
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search task title OR description (case-insensitive).
+      - in: query
+        name: title
+        schema:
+          type: string
+        description: Search task title (case-insensitive).
+      tags:
+      - Task Discovery
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskDiscoveryList'
+          description: ''
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      description: Returns all tasks created by the current authenticated user. Tasks
+        belonging to other users are never included.
+      summary: List tasks created by the authenticated employer
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskRead'
+          description: ''
+    post:
+      operationId: tasks_create
+      description: Creates a task and immediately publishes it in OPEN status. The
+        employer and initial status are assigned by the server and cannot be supplied
+        by the client.
+      summary: Create and publish a task
+      tags:
+      - Tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCreate'
+          description: ''
+  /api/tasks/{task_id}/:
+    patch:
+      operationId: employer_task_update
+      summary: Update an employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskUpdateRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+          description: ''
+        '400':
+          description: Invalid task data.
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Task not found.
+        '409':
+          description: Task cannot be edited.
+    delete:
+      operationId: employer_task_delete
+      summary: Delete an employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Task deleted successfully.
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Task not found.
+        '409':
+          description: Task cannot be deleted.
+  /api/tasks/{task_id}/cancel/:
+    post:
+      operationId: employer_task_cancel
+      summary: Cancel an employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskActionResponse'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Task not found.
+        '409':
+          description: Task cannot be cancelled.
+  /api/tasks/{task_id}/publish/:
+    post:
+      operationId: task_publish
+      description: Publishes a valid task draft owned by the authenticated employer.
+        The task transitions from DRAFT to OPEN. The server sets published_at and
+        records the status history.
+      summary: Publish a task draft
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+          description: ''
+  /api/tasks/{task_id}/start/:
+    post:
+      operationId: tasks_start_execution
+      description: Only the currently approved, active, assigned executor can start
+        an ASSIGNED task, after the internal finance adapter verifies a current HELD
+        escrow reservation. No escrow status is accepted from the client. Until the
+        finance adapter is implemented, this endpoint rejects attempts to start execution
+        with HTTP 409.
+      summary: Start execution of an assigned and funded task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Execution
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStartResponse'
+          description: ''
+        '400':
+          description: Unexpected request payload
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Not the eligible assigned executor
+        '404':
+          description: Task not found
+        '409':
+          description: State invalid or escrow hold not verified
+  /api/wallet/deposit/:
+    post:
+      operationId: wallet_deposit_create
+      description: Creates a payment link through the configured payment gateway.
+        The wallet is not credited by this endpoint; only a verified provider callback
+        may post the deposit to the wallet ledger.
+      summary: Create a wallet deposit payment request
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        required: true
+      tags:
+      - Wallet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletDepositRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WalletDepositRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WalletDepositRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDepositResponse'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDepositResponse'
+          description: ''
+        '400':
+          description: Invalid amount or Idempotency-Key.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Idempotency conflict.
+        '503':
+          description: Payment gateway unavailable.
+  /api/wallet/summary/:
+    get:
+      operationId: wallet_summary
+      summary: Get current user's wallet summary
+      tags:
+      - Wallet
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletSummary'
+          description: ''
+        '401':
+          description: Authentication required.
+  /api/wallet/transactions/:
+    get:
+      operationId: wallet_transactions_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - wallet
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWalletTransactionList'
+          description: ''
+  /api/wallet/transactions/{transaction_id}/:
+    get:
+      operationId: wallet_transactions_retrieve
+      parameters:
+      - in: path
+        name: transaction_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - wallet
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletTransaction'
+          description: ''
+components:
+  schemas:
+    AdminWorkerVerificationDetail:
+      type: object
+      properties:
+        executor_profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        applicant:
+          allOf:
+          - $ref: '#/components/schemas/VerificationApplicant'
+          readOnly: true
+        bio:
+          type: string
+          readOnly: true
+          nullable: true
+        work_interests:
+          readOnly: true
+        service_area_city:
+          type: string
+          readOnly: true
+        service_area_region:
+          type: string
+          readOnly: true
+        service_area_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
+        service_area_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
+        service_area_radius_km:
+          type: integer
+          readOnly: true
+          nullable: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationStatusEnum'
+          readOnly: true
+        application_submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by_user:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        rejection_reason:
+          type: string
+          readOnly: true
+          nullable: true
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkerVerificationDocumentRead'
+          readOnly: true
+        identity:
+          allOf:
+          - $ref: '#/components/schemas/WorkerVerificationIdentityRead'
+          readOnly: true
+      required:
+      - applicant
+      - application_submitted_at
+      - approved_at
+      - bio
+      - documents
+      - executor_profile_id
+      - identity
+      - rejection_reason
+      - reviewed_at
+      - reviewed_by_user
+      - service_area_city
+      - service_area_latitude
+      - service_area_longitude
+      - service_area_radius_km
+      - service_area_region
+      - verification_status
+      - work_interests
+    AdminWorkerVerificationList:
+      type: object
+      properties:
+        executor_profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        applicant:
+          allOf:
+          - $ref: '#/components/schemas/VerificationApplicant'
+          readOnly: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationStatusEnum'
+          readOnly: true
+        application_submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - applicant
+      - application_submitted_at
+      - executor_profile_id
+      - verification_status
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          allOf:
+          - $ref: '#/components/schemas/UserRead'
+          readOnly: true
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+      - user
+    AvatarIdEnum:
+      enum:
+      - avatar_1
+      - avatar_2
+      - avatar_3
+      - avatar_4
+      - avatar_5
+      - avatar_6
+      type: string
+      description: |-
+        * `avatar_1` - avatar_1
+        * `avatar_2` - avatar_2
+        * `avatar_3` - avatar_3
+        * `avatar_4` - avatar_4
+        * `avatar_5` - avatar_5
+        * `avatar_6` - avatar_6
+    AvatarUploadRequest:
+      type: object
+      properties:
+        image:
+          type: string
+          format: binary
+      required:
+      - image
+    BidDecisionResponse:
+      type: object
+      properties:
+        bid_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status224Enum'
+          readOnly: true
+        task_status:
+          allOf:
+          - $ref: '#/components/schemas/TaskStatusEnum'
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bid_id
+      - status
+      - task_id
+      - task_status
+      - updated_at
+    BidRead:
+      type: object
+      properties:
+        bid_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_title:
+          type: string
+          readOnly: true
+        employer_name:
+          type: string
+          readOnly: true
+        task_currency_code:
+          type: string
+          readOnly: true
+        executor_profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        proposed_wage_amount:
+          type: integer
+          readOnly: true
+        proposed_duration_minutes:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status224Enum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bid_id
+      - created_at
+      - employer_name
+      - executor_profile_id
+      - expires_at
+      - message
+      - proposed_duration_minutes
+      - proposed_wage_amount
+      - status
+      - task_currency_code
+      - task_id
+      - task_title
+      - updated_at
+    BidSubmissionRequest:
+      type: object
+      description: |-
+        Reject fields that are not explicitly declared
+        by the serializer.
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        proposed_wage_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        proposed_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        message:
+          type: string
+          minLength: 1
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - message
+      - proposed_duration_minutes
+      - proposed_wage_amount
+      - task_id
+    CategoryWrite:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - category_id
+      - name
+    CategoryWriteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - name
+    DirectionEnum:
+      enum:
+      - CREDIT
+      - DEBIT
+      type: string
+      description: |-
+        * `CREDIT` - Credit
+        * `DEBIT` - Debit
+    DocumentTypeEnum:
+      enum:
+      - NATIONAL_CARD_FRONT
+      - NATIONAL_CARD_BACK
+      type: string
+      description: |-
+        * `NATIONAL_CARD_FRONT` - NATIONAL_CARD_FRONT
+        * `NATIONAL_CARD_BACK` - NATIONAL_CARD_BACK
+    EmployerBidDetail:
+      type: object
+      properties:
+        bid_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_title:
+          type: string
+          readOnly: true
+        task_currency_code:
+          type: string
+          readOnly: true
+        executor_profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        executor_name:
+          type: string
+          readOnly: true
+        executor_bio:
+          type: string
+          readOnly: true
+          nullable: true
+        executor_verification_status:
+          type: string
+          readOnly: true
+        proposed_wage_amount:
+          type: integer
+          readOnly: true
+        proposed_duration_minutes:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status224Enum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        task_description:
+          type: string
+          readOnly: true
+        task_status:
+          type: string
+          readOnly: true
+        task_wage_budget_amount:
+          type: integer
+          readOnly: true
+        task_estimated_duration_minutes:
+          type: integer
+          readOnly: true
+        task_execution_window_start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        task_execution_window_end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        task_proposal_deadline_at:
+          type: string
+          format: date-time
+          readOnly: true
+        task_delivery_criteria:
+          type: string
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bid_id
+      - created_at
+      - executor_bio
+      - executor_name
+      - executor_profile_id
+      - executor_verification_status
+      - expires_at
+      - message
+      - proposed_duration_minutes
+      - proposed_wage_amount
+      - status
+      - task_currency_code
+      - task_delivery_criteria
+      - task_description
+      - task_estimated_duration_minutes
+      - task_execution_window_end_at
+      - task_execution_window_start_at
+      - task_id
+      - task_proposal_deadline_at
+      - task_status
+      - task_title
+      - task_wage_budget_amount
+      - updated_at
+    EmployerBidList:
+      type: object
+      properties:
+        bid_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task_title:
+          type: string
+          readOnly: true
+        task_currency_code:
+          type: string
+          readOnly: true
+        executor_profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        executor_name:
+          type: string
+          readOnly: true
+        executor_bio:
+          type: string
+          readOnly: true
+          nullable: true
+        executor_verification_status:
+          type: string
+          readOnly: true
+        proposed_wage_amount:
+          type: integer
+          readOnly: true
+        proposed_duration_minutes:
+          type: integer
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status224Enum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bid_id
+      - created_at
+      - executor_bio
+      - executor_name
+      - executor_profile_id
+      - executor_verification_status
+      - expires_at
+      - message
+      - proposed_duration_minutes
+      - proposed_wage_amount
+      - status
+      - task_currency_code
+      - task_id
+      - task_title
+    LocationInput:
+      type: object
+      properties:
+        location_type:
+          type: string
+          maxLength: 20
+        stop_order:
+          type: integer
+          maximum: 32767
+          minimum: 1
+        city:
+          type: string
+          maxLength: 100
+        region:
+          type: string
+          maxLength: 120
+        latitude:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+        longitude:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+      required:
+      - city
+      - latitude
+      - location_type
+      - longitude
+      - region
+      - stop_order
+    LocationInputRequest:
+      type: object
+      properties:
+        location_type:
+          type: string
+          minLength: 1
+          maxLength: 20
+        stop_order:
+          type: integer
+          maximum: 32767
+          minimum: 1
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+        region:
+          type: string
+          minLength: 1
+          maxLength: 120
+        latitude:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+        longitude:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+      required:
+      - city
+      - latitude
+      - location_type
+      - longitude
+      - region
+      - stop_order
+    MyProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 160
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        province_id:
+          type: string
+          nullable: true
+          maxLength: 64
+        city_id:
+          type: string
+          nullable: true
+          maxLength: 64
+        avatar_key:
+          type: string
+          readOnly: true
+          nullable: true
+        avatar_type:
+          type: string
+          readOnly: true
+        avatar_id:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          readOnly: true
+        completed_tasks_count:
+          type: string
+          readOnly: true
+        active_tasks_count:
+          type: string
+          readOnly: true
+        average_rating:
+          type: string
+          readOnly: true
+        rating_count:
+          type: string
+          readOnly: true
+        bio:
+          type: string
+          nullable: true
+        verification_status:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - active_tasks_count
+      - avatar_id
+      - avatar_key
+      - avatar_type
+      - avatar_url
+      - average_rating
+      - completed_tasks_count
+      - created_at
+      - phone
+      - rating_count
+      - updated_at
+      - user_id
+      - verification_status
+    OTPPendingResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+        requires_verification:
+          type: boolean
+      required:
+      - detail
+      - requires_verification
+    OTPPhone:
+      type: object
+      properties:
+        phone:
+          type: string
+      required:
+      - phone
+    OTPPhoneRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+      required:
+      - phone
+    OTPResend:
+      type: object
+      properties:
+        phone:
+          type: string
+        purpose:
+          $ref: '#/components/schemas/PurposeEnum'
+      required:
+      - phone
+      - purpose
+    OTPResendRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+        purpose:
+          $ref: '#/components/schemas/PurposeEnum'
+      required:
+      - phone
+      - purpose
+    OTPVerifyRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+        code:
+          type: string
+          minLength: 1
+          pattern: ^[0-9]{5}$
+      required:
+      - code
+      - phone
+    PaginatedTaskDiscoveryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDiscovery'
+    PaginatedWalletTransactionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/WalletTransaction'
+    PasswordLoginRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - phone
+    PatchedAvatarPresetSelectionRequest:
+      type: object
+      properties:
+        avatar_id:
+          $ref: '#/components/schemas/AvatarIdEnum'
+    PatchedBidUpdateRequest:
+      type: object
+      properties:
+        proposed_wage_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        proposed_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        message:
+          type: string
+          minLength: 1
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+    PatchedCategoryWriteRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+    PatchedMyProfileRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 160
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        province_id:
+          type: string
+          nullable: true
+          maxLength: 64
+        city_id:
+          type: string
+          nullable: true
+          maxLength: 64
+        bio:
+          type: string
+          nullable: true
+    PatchedTaskUpdateRequest:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        description:
+          type: string
+          minLength: 1
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
+        estimated_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+          minLength: 1
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredSkillInputRequest'
+          writeOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationInputRequest'
+          writeOnly: true
+    PatchedWorkerAvailabilityTimezoneRequest:
+      type: object
+      properties:
+        availability_timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+    PatchedWorkerAvailabilityWriteRequest:
+      type: object
+      properties:
+        weekday:
+          $ref: '#/components/schemas/WeekdayEnum'
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+    PatchedWorkerPreferencesUpdateRequest:
+      type: object
+      properties:
+        work_interests:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+          maxItems: 30
+        preferred_category_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 50
+    PatchedWorkerServiceAreaRequest:
+      type: object
+      properties:
+        service_area_city:
+          type: string
+          maxLength: 100
+        service_area_region:
+          type: string
+          maxLength: 120
+        service_area_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        service_area_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        service_area_radius_km:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          nullable: true
+        covers_entire_city:
+          type: boolean
+    PatchedWorkerSkillUpdateRequest:
+      type: object
+      properties:
+        proficiency_level:
+          $ref: '#/components/schemas/ProficiencyLevelEnum'
+        experience_years:
+          type: integer
+          maximum: 60
+          minimum: 0
+    PreferredCategoryRead:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+      required:
+      - category_id
+      - name
+    ProficiencyLevelEnum:
+      enum:
+      - BEGINNER
+      - INTERMEDIATE
+      - ADVANCED
+      - EXPERT
+      type: string
+      description: |-
+        * `BEGINNER` - Beginner
+        * `INTERMEDIATE` - Intermediate
+        * `ADVANCED` - Advanced
+        * `EXPERT` - Expert
+    ProfileAvatarRead:
+      type: object
+      properties:
+        avatar_key:
+          type: string
+          readOnly: true
+          nullable: true
+        avatar_type:
+          type: string
+          readOnly: true
+        avatar_id:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          readOnly: true
+      required:
+      - avatar_id
+      - avatar_key
+      - avatar_type
+      - avatar_url
+    PublicWorkerProfile:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        avatar_key:
+          type: string
+          readOnly: true
+          nullable: true
+        avatar_type:
+          type: string
+          readOnly: true
+        avatar_id:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          readOnly: true
+        bio:
+          type: string
+          readOnly: true
+          nullable: true
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicWorkerSkill'
+          readOnly: true
+        province:
+          type: string
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        verification_status:
+          type: string
+          readOnly: true
+        completed_tasks_count:
+          type: string
+          readOnly: true
+        active_tasks_count:
+          type: string
+          readOnly: true
+        average_rating:
+          type: string
+          readOnly: true
+        rating_count:
+          type: string
+          readOnly: true
+      required:
+      - active_tasks_count
+      - avatar_id
+      - avatar_key
+      - avatar_type
+      - avatar_url
+      - average_rating
+      - bio
+      - city
+      - completed_tasks_count
+      - full_name
+      - profile_id
+      - province
+      - rating_count
+      - skills
+      - verification_status
+    PublicWorkerSkill:
+      type: object
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        proficiency_level:
+          type: string
+          readOnly: true
+        experience_years:
+          type: integer
+          readOnly: true
+      required:
+      - experience_years
+      - name
+      - proficiency_level
+      - skill_id
+    PurposeEnum:
+      enum:
+      - REGISTER
+      - LOGIN
+      type: string
+      description: |-
+        * `REGISTER` - Register
+        * `LOGIN` - Login
+    RegisterRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password_confirm:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - password_confirm
+      - phone
+    RequiredSkillInput:
+      type: object
+      description: Input format for a skill required by a new task.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+        importance:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+      required:
+      - importance
+      - skill_id
+    RequiredSkillInputRequest:
+      type: object
+      description: Input format for a skill required by a new task.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+        importance:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+      required:
+      - importance
+      - skill_id
+    SavedTaskLocation:
+      type: object
+      properties:
+        task_location_id:
+          type: string
+          format: uuid
+        location_type:
+          type: string
+        stop_order:
+          type: integer
+        city:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+      required:
+      - city
+      - location_type
+      - region
+      - stop_order
+      - task_location_id
+    Skill:
+      type: object
+      description: Read-only representation of a skill.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        category_name:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - category_id
+      - category_name
+      - name
+      - skill_id
+    SkillCategory:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+      required:
+      - category_id
+      - name
+    SkillRead:
+      type: object
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SkillCategory'
+          readOnly: true
+      required:
+      - category
+      - name
+      - skill_id
+    SourceEnum:
+      enum:
+      - MANUAL
+      - AI
+      type: string
+      description: |-
+        * `MANUAL` - Manual
+        * `AI` - AI
+    Status224Enum:
+      enum:
+      - ACTIVE
+      - ACCEPTED
+      - REJECTED
+      - WITHDRAWN
+      - EXPIRED
+      type: string
+      description: |-
+        * `ACTIVE` - Active
+        * `ACCEPTED` - Accepted
+        * `REJECTED` - Rejected
+        * `WITHDRAWN` - Withdrawn
+        * `EXPIRED` - Expired
+    Status7deEnum:
+      enum:
+      - DRAFT
+      - OPEN
+      - FUNDING_PENDING
+      - ASSIGNED
+      - IN_PROGRESS
+      - SUBMITTED
+      - APPROVED
+      - DISPUTED
+      - CANCELLATION_REVIEW
+      - COMPLETED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `OPEN` - Open
+        * `FUNDING_PENDING` - Funding pending
+        * `ASSIGNED` - Assigned
+        * `IN_PROGRESS` - In progress
+        * `SUBMITTED` - Submitted
+        * `APPROVED` - Approved
+        * `DISPUTED` - Disputed
+        * `CANCELLATION_REVIEW` - Cancellation review
+        * `COMPLETED` - Completed
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
+    TaskActionResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status7deEnum'
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - status
+      - task_id
+      - updated_at
+    TaskCategory:
+      type: object
+      description: Read-only representation of a task category.
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+        parent_category_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        parent_category_name:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - category_id
+      - name
+      - parent_category_id
+      - parent_category_name
+    TaskCreate:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        employer_user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 180
+        description:
+          type: string
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
+        status:
+          type: string
+          readOnly: true
+        estimated_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        currency_code:
+          type: string
+          readOnly: true
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+          default: false
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+        published_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        saved_locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedTaskLocation'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_id
+      - category_name
+      - created_at
+      - currency_code
+      - delivery_criteria
+      - description
+      - employer_user_id
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - proposal_deadline_at
+      - published_at
+      - saved_locations
+      - status
+      - task_id
+      - title
+      - updated_at
+      - wage_budget_amount
+    TaskCreateRequest:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        description:
+          type: string
+          minLength: 1
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
+        estimated_duration_minutes:
+          type: integer
+          maximum: 300
+          minimum: 1
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+          default: false
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+          minLength: 1
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequiredSkillInputRequest'
+          writeOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationInputRequest'
+          writeOnly: true
+      required:
+      - category_id
+      - delivery_criteria
+      - description
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - proposal_deadline_at
+      - title
+      - wage_budget_amount
+    TaskDiscovery:
+      type: object
+      description: Public representation of a discoverable task.
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status7deEnum'
+          readOnly: true
+        estimated_duration_minutes:
+          type: integer
+          readOnly: true
+        wage_budget_amount:
+          type: integer
+          readOnly: true
+        currency_code:
+          type: string
+          readOnly: true
+        item_cost_cap_amount:
+          type: integer
+          readOnly: true
+          nullable: true
+        receipt_required:
+          type: boolean
+          readOnly: true
+        execution_window_start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        execution_window_end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        deadline_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+          readOnly: true
+        delivery_criteria:
+          type: string
+          readOnly: true
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRequiredSkillRead'
+          readOnly: true
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskLocationDiscovery'
+          readOnly: true
+        published_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category_id
+      - category_name
+      - created_at
+      - currency_code
+      - deadline_at
+      - delivery_criteria
+      - description
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - item_cost_cap_amount
+      - locations
+      - proposal_deadline_at
+      - published_at
+      - receipt_required
+      - required_skills
+      - status
+      - task_id
+      - title
+      - wage_budget_amount
+    TaskLocationDiscovery:
+      type: object
+      description: Public location fields; never include exact geographic data.
+      properties:
+        task_location_id:
+          type: string
+          format: uuid
+          readOnly: true
+        location_type:
+          type: string
+          readOnly: true
+        stop_order:
+          type: integer
+          readOnly: true
+        city:
+          type: string
+          readOnly: true
+        region:
+          type: string
+          readOnly: true
+      required:
+      - city
+      - location_type
+      - region
+      - stop_order
+      - task_location_id
+    TaskRead:
+      type: object
+      description: Representation returned when an employer lists their own tasks.
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        employer_user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 180
+        description:
+          type: string
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
+        status:
+          $ref: '#/components/schemas/Status7deEnum'
+        estimated_duration_minutes:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+        wage_budget_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        currency_code:
+          type: string
+          maxLength: 3
+        item_cost_cap_amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+        receipt_required:
+          type: boolean
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+        proposal_deadline_at:
+          type: string
+          format: date-time
+        delivery_criteria:
+          type: string
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRequiredSkillRead'
+          readOnly: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        saved_locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/SavedTaskLocation'
+          readOnly: true
+      required:
+      - category_id
+      - category_name
+      - created_at
+      - delivery_criteria
+      - description
+      - employer_user_id
+      - estimated_duration_minutes
+      - execution_window_end_at
+      - execution_window_start_at
+      - proposal_deadline_at
+      - required_skills
+      - saved_locations
+      - task_id
+      - title
+      - updated_at
+      - wage_budget_amount
+    TaskRequiredSkillRead:
+      type: object
+      description: Read-only skill information attached to a task.
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        skill_name:
+          type: string
+          readOnly: true
+        importance:
+          type: integer
+          maximum: 32767
+          minimum: -32768
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+      required:
+      - importance
+      - skill_id
+      - skill_name
+      - source
+    TaskStartResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+      required:
+      - status
+      - task_id
+      - version
+    TaskStatusEnum:
+      enum:
+      - DRAFT
+      - OPEN
+      - FUNDING_PENDING
+      - ASSIGNED
+      - IN_PROGRESS
+      - SUBMITTED
+      - APPROVED
+      - DISPUTED
+      - CANCELLATION_REVIEW
+      - COMPLETED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `OPEN` - Open
+        * `FUNDING_PENDING` - Funding pending
+        * `ASSIGNED` - Assigned
+        * `IN_PROGRESS` - In progress
+        * `SUBMITTED` - Submitted
+        * `APPROVED` - Approved
+        * `DISPUTED` - Disputed
+        * `CANCELLATION_REVIEW` - Cancellation review
+        * `COMPLETED` - Completed
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
+    TokenRefreshRequestRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TokenRefreshResponse:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+    TokenVerifyRequestRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+      required:
+      - token
+    UrgencyEnum:
+      enum:
+      - LOW
+      - NORMAL
+      - HIGH
+      - URGENT
+      type: string
+      description: |-
+        * `LOW` - Low
+        * `NORMAL` - Normal
+        * `HIGH` - High
+        * `URGENT` - Urgent
+    UserRead:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+      required:
+      - full_name
+      - phone
+      - user_id
+    VerificationApplicant:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+      required:
+      - email
+      - full_name
+      - phone
+      - user_id
+    VerificationStatusEnum:
+      enum:
+      - NOT_SUBMITTED
+      - PENDING
+      - APPROVED
+      - REJECTED
+      type: string
+      description: |-
+        * `NOT_SUBMITTED` - Not submitted
+        * `PENDING` - Pending
+        * `APPROVED` - Approved
+        * `REJECTED` - Rejected
+    WalletDepositRequestRequest:
+      type: object
+      properties:
+        amount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+      required:
+      - amount
+    WalletDepositResponse:
+      type: object
+      properties:
+        deposit_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/WalletDepositResponseStatusEnum'
+          readOnly: true
+        amount:
+          type: integer
+          readOnly: true
+        currency_code:
+          type: string
+          readOnly: true
+        payment_url:
+          type: string
+          format: uri
+          readOnly: true
+        expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - amount
+      - currency_code
+      - deposit_id
+      - expires_at
+      - payment_url
+      - status
+    WalletDepositResponseStatusEnum:
+      enum:
+      - PROCESSING
+      - PENDING
+      - SUCCEEDED
+      - FAILED
+      - CANCELLED
+      type: string
+      description: |-
+        * `PROCESSING` - Processing
+        * `PENDING` - Pending
+        * `SUCCEEDED` - Succeeded
+        * `FAILED` - Failed
+        * `CANCELLED` - Cancelled
+    WalletSummary:
+      type: object
+      properties:
+        wallet_id:
+          type: string
+          format: uuid
+          readOnly: true
+        currency_code:
+          type: string
+          readOnly: true
+        total_balance:
+          type: integer
+          readOnly: true
+        available_balance:
+          type: integer
+          readOnly: true
+        reserved_balance:
+          type: integer
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - available_balance
+      - currency_code
+      - reserved_balance
+      - total_balance
+      - updated_at
+      - wallet_id
+    WalletTransaction:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+          format: uuid
+          readOnly: true
+        type:
+          type: string
+          readOnly: true
+        direction:
+          allOf:
+          - $ref: '#/components/schemas/DirectionEnum'
+          readOnly: true
+        amount:
+          type: integer
+          readOnly: true
+        currency_code:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - currency_code
+      - description
+      - direction
+      - status
+      - task_id
+      - title
+      - transaction_id
+      - type
+    WeekdayEnum:
+      enum:
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      type: integer
+      description: |-
+        * `0` - Saturday
+        * `1` - Sunday
+        * `2` - Monday
+        * `3` - Tuesday
+        * `4` - Wednesday
+        * `5` - Thursday
+        * `6` - Friday
+    WorkerAvailabilityCollection:
+      type: object
+      properties:
+        availability_timezone:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkerAvailabilityRead'
+      required:
+      - availability_timezone
+      - slots
+    WorkerAvailabilityRead:
+      type: object
+      properties:
+        availability_id:
+          type: string
+          format: uuid
+          readOnly: true
+        weekday:
+          allOf:
+          - $ref: '#/components/schemas/WeekdayEnum'
+          readOnly: true
+        start_time:
+          type: string
+          format: time
+          readOnly: true
+        end_time:
+          type: string
+          format: time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - availability_id
+      - created_at
+      - end_time
+      - start_time
+      - updated_at
+      - weekday
+    WorkerAvailabilityWriteRequest:
+      type: object
+      properties:
+        weekday:
+          $ref: '#/components/schemas/WeekdayEnum'
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+      required:
+      - end_time
+      - start_time
+      - weekday
+    WorkerPreferencesRead:
+      type: object
+      properties:
+        work_interests: {}
+        preferred_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreferredCategoryRead'
+          readOnly: true
+      required:
+      - preferred_categories
+    WorkerServiceArea:
+      type: object
+      properties:
+        service_area_city:
+          type: string
+          maxLength: 100
+        service_area_region:
+          type: string
+          maxLength: 120
+        service_area_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        service_area_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        service_area_radius_km:
+          type: integer
+          maximum: 32767
+          minimum: 1
+          nullable: true
+        covers_entire_city:
+          type: boolean
+    WorkerServiceNeighborhoodCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required:
+      - name
+    WorkerServiceNeighborhoodRead:
+      type: object
+      properties:
+        neighborhood_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+      required:
+      - name
+      - neighborhood_id
+    WorkerSkillCreateRequest:
+      type: object
+      properties:
+        skill_id:
+          type: string
+          format: uuid
+        proficiency_level:
+          allOf:
+          - $ref: '#/components/schemas/ProficiencyLevelEnum'
+          default: BEGINNER
+        experience_years:
+          type: integer
+          maximum: 60
+          minimum: 0
+          default: 0
+      required:
+      - skill_id
+    WorkerSkillRead:
+      type: object
+      properties:
+        worker_skill_id:
+          type: string
+          format: uuid
+          readOnly: true
+        skill:
+          allOf:
+          - $ref: '#/components/schemas/SkillRead'
+          readOnly: true
+        proficiency_level:
+          allOf:
+          - $ref: '#/components/schemas/ProficiencyLevelEnum'
+          readOnly: true
+        experience_years:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - experience_years
+      - proficiency_level
+      - skill
+      - updated_at
+      - worker_skill_id
+    WorkerStatistics:
+      type: object
+      properties:
+        average_rating:
+          type: number
+          format: double
+          nullable: true
+        completed_tasks_count:
+          type: integer
+          minimum: 0
+        received_offers_count:
+          type: integer
+          minimum: 0
+          nullable: true
+        submitted_bids_count:
+          type: integer
+          minimum: 0
+        profile_completion_percent:
+          type: integer
+          maximum: 100
+          minimum: 0
+      required:
+      - average_rating
+      - completed_tasks_count
+      - profile_completion_percent
+      - received_offers_count
+      - submitted_bids_count
+    WorkerVerificationDocumentRead:
+      type: object
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          readOnly: true
+        document_type:
+          type: string
+          readOnly: true
+        original_file_name:
+          type: string
+          readOnly: true
+        mime_type:
+          type: string
+          readOnly: true
+        size_bytes:
+          type: integer
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - document_id
+      - document_type
+      - mime_type
+      - original_file_name
+      - size_bytes
+      - uploaded_at
+    WorkerVerificationDocumentUploadRequest:
+      type: object
+      properties:
+        document_type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        file:
+          type: string
+          format: binary
+      required:
+      - document_type
+      - file
+    WorkerVerificationIdentityRead:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 80
+        last_name:
+          type: string
+          maxLength: 100
+        national_code:
+          type: string
+          maxLength: 32
+        birth_date:
+          type: string
+          format: date
+        iban:
+          type: string
+          maxLength: 40
+        mobile:
+          type: string
+          maxLength: 32
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - birth_date
+      - first_name
+      - iban
+      - last_name
+      - mobile
+      - national_code
+      - updated_at
+    WorkerVerificationIdentityRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        national_code:
+          type: string
+          minLength: 1
+          maxLength: 32
+        birth_date:
+          type: string
+          format: date
+        iban:
+          type: string
+          minLength: 1
+          maxLength: 40
+        mobile:
+          type: string
+          minLength: 1
+          maxLength: 32
+      required:
+      - birth_date
+      - first_name
+      - iban
+      - last_name
+      - mobile
+      - national_code
+    WorkerVerificationRejectRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+      - reason
+    WorkerVerificationStatus:
+      type: object
+      properties:
+        verification_status:
+          $ref: '#/components/schemas/VerificationStatusEnum'
+        application_submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        rejection_reason:
+          type: string
+          nullable: true
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkerVerificationDocumentRead'
+        identity_saved:
+          type: boolean
+        national_code_masked:
+          type: string
+          nullable: true
+        iban_masked:
+          type: string
+          nullable: true
+      required:
+      - application_submitted_at
+      - approved_at
+      - documents
+      - iban_masked
+      - identity_saved
+      - national_code_masked
+      - rejection_reason
+      - reviewed_at
+      - verification_status
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

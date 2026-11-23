@@ -40,6 +40,7 @@ urlpatterns = [
     path("api/profiles/", include("accounts.public_profile_urls")),
     path("api/", include("tasks.urls")),
     path("api/offers/", include("offers.urls")),
+    path("api/wallet/", include("payments.urls")),
 
     path("api/admin/worker-verifications/",include("accounts.worker_verification_admin_urls"),),
     

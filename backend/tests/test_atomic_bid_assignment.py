@@ -134,6 +134,13 @@ class AtomicBidAssignmentAPITests(APITestCase):
         self.assertEqual(response.data["platform_fee_amount"], 40000)
         self.assertEqual(response.data["fee_payer"], "WORKER")
         self.assertEqual(response.data["currency_code"], "IRR")
+        self.assertRegex(response.data["escrow_public_reference"], r"^ESC-\d{6,}$")
+        self.assertEqual(response.data["task_title"], self.task.title)
+        self.assertEqual(response.data["executor_name"], self.worker_one.full_name)
+        self.assertFalse(response.data["fee_included_in_reserved_amount"])
+        self.assertEqual(response.data["wallet_total_balance"], 2_000_000)
+        self.assertEqual(response.data["available_balance_after_reservation"], 1_500_000)
+        self.assertEqual(response.data["reserved_balance_after_reservation"], 500_000)
 
         self.task.refresh_from_db()
         self.bid_one.refresh_from_db()
@@ -152,6 +159,9 @@ class AtomicBidAssignmentAPITests(APITestCase):
         self.assertEqual(reservation.status, EscrowStatus.HELD.value)
         self.assertEqual(reservation.amount, 500000)
         self.assertEqual(reservation.platform_fee_amount, 40000)
+        self.assertEqual(
+            reservation.public_reference, response.data["escrow_public_reference"]
+        )
 
         ledger = WalletTransaction.objects.filter(
             wallet=self.wallet,
@@ -176,6 +186,102 @@ class AtomicBidAssignmentAPITests(APITestCase):
             row["task_id"] for row in discovery_response.data["results"]
         }
         self.assertNotIn(str(self.task.pk), visible_task_ids)
+
+    def test_assignment_preview_is_read_only_and_returns_financial_breakdown(self):
+        response = self.client.get(
+            f"/api/offers/employer/bids/{self.bid_one.pk}/assignment-preview/"
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["task"]["task_id"], str(self.task.pk))
+        self.assertEqual(response.data["task"]["title"], self.task.title)
+        self.assertEqual(response.data["task"]["category_name"], "Atomic Assignment")
+        self.assertEqual(response.data["bid"]["bid_id"], str(self.bid_one.pk))
+        self.assertEqual(
+            response.data["executor"]["full_name"], self.worker_one.full_name
+        )
+        self.assertEqual(
+            response.data["reservation_preview"]["labor_amount"], 400000
+        )
+        self.assertEqual(
+            response.data["reservation_preview"]["expense_amount"], 100000
+        )
+        self.assertEqual(
+            response.data["reservation_preview"]["reserved_amount"], 500000
+        )
+        self.assertEqual(
+            response.data["reservation_preview"]["platform_fee_amount"], 40000
+        )
+        self.assertFalse(
+            response.data["reservation_preview"]["fee_included_in_reserved_amount"]
+        )
+        self.assertTrue(response.data["can_confirm"])
+        self.assertIsNone(response.data["blocking_reason"])
+        self.assertEqual(response.data["wallet"]["available_balance"], 2_000_000)
+        self.assertEqual(
+            response.data["wallet"]["available_balance_after_reservation"], 1_500_000
+        )
+        self.assertEqual(
+            response.data["wallet"]["reserved_balance_after_reservation"], 500_000
+        )
+
+        self.task.refresh_from_db()
+        self.wallet.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.OPEN)
+        self.assertEqual(self.wallet.available_balance, 2_000_000)
+        self.assertEqual(self.wallet.reserved_balance, 0)
+        self.assertFalse(EscrowReservation.objects.filter(task=self.task).exists())
+        self.assertFalse(WalletTransaction.objects.filter(wallet=self.wallet).exists())
+
+    def test_assignment_preview_reports_insufficient_balance_without_reserving(self):
+        self.wallet.available_balance = 499999
+        self.wallet.save(update_fields=["available_balance", "updated_at"])
+
+        response = self.client.get(
+            f"/api/offers/employer/bids/{self.bid_one.pk}/assignment-preview/"
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertFalse(response.data["can_confirm"])
+        self.assertEqual(response.data["blocking_reason"], "INSUFFICIENT_BALANCE")
+        self.assertFalse(response.data["wallet"]["has_sufficient_balance"])
+        self.assertEqual(response.data["wallet"]["shortfall_amount"], 1)
+        self.assertIsNone(
+            response.data["wallet"]["available_balance_after_reservation"]
+        )
+        self.assertFalse(EscrowReservation.objects.filter(task=self.task).exists())
+        self.assertFalse(WalletTransaction.objects.filter(wallet=self.wallet).exists())
+
+    def test_assignment_preview_does_not_create_a_missing_wallet(self):
+        self.wallet.delete()
+
+        response = self.client.get(
+            f"/api/offers/employer/bids/{self.bid_one.pk}/assignment-preview/"
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIsNone(response.data["wallet"]["wallet_id"])
+        self.assertEqual(response.data["wallet"]["available_balance"], 0)
+        self.assertFalse(response.data["can_confirm"])
+        self.assertFalse(Wallet.objects.filter(user=self.employer).exists())
+
+    def test_assignment_preview_is_not_visible_to_another_employer(self):
+        other_employer = User.objects.create_user(
+            phone="09123110005",
+            full_name="Preview Other Employer",
+            phone_verified_at=timezone.now(),
+        )
+        UserRole.objects.create(
+            user=other_employer, role=Role.objects.get(code="EMPLOYER")
+        )
+        self.client.force_authenticate(user=other_employer)
+
+        response = self.client.get(
+            f"/api/offers/employer/bids/{self.bid_one.pk}/assignment-preview/"
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(EscrowReservation.objects.filter(task=self.task).exists())
 
     def test_insufficient_balance_rolls_back_every_assignment_and_financial_write(self):
         self.wallet.available_balance = 499999
@@ -238,6 +344,10 @@ class AtomicBidAssignmentAPITests(APITestCase):
         self.assertEqual(
             first.data["escrow_reservation_id"],
             second.data["escrow_reservation_id"],
+        )
+        self.assertEqual(
+            first.data["escrow_public_reference"],
+            second.data["escrow_public_reference"],
         )
         self.assertEqual(EscrowReservation.objects.filter(task=self.task).count(), 1)
         self.assertEqual(WalletTransaction.objects.filter(wallet=self.wallet).count(), 1)

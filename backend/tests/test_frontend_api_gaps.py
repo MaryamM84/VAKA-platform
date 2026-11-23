@@ -15,6 +15,8 @@ from offers.models import (
     BidStatus,
     BidStatusHistory,
 )
+from payments.lifecycle import EscrowStatus
+from payments.models import EscrowReservation, Wallet, WalletTransaction
 from tasks.models import (
     Task,
     TaskCategory,
@@ -191,6 +193,12 @@ class EmployerBidDecisionAPITests(APITestCase):
             published_at=now,
         )
 
+        self.wallet = Wallet.objects.create(
+            user=self.employer,
+            currency_code="IRR",
+            available_balance=2_000_000,
+        )
+
         self.bid = Bid.objects.create(
             task=self.task,
             executor_profile=self.profile,
@@ -215,6 +223,7 @@ class EmployerBidDecisionAPITests(APITestCase):
             f"/api/offers/employer/bids/{self.bid.pk}/accept/",
             {},
             format="json",
+            HTTP_IDEMPOTENCY_KEY="frontend-accept-bid-001",
         )
 
         self.assertEqual(
@@ -226,16 +235,32 @@ class EmployerBidDecisionAPITests(APITestCase):
         self.bid.refresh_from_db()
         self.bid_two.refresh_from_db()
         self.task.refresh_from_db()
+        self.wallet.refresh_from_db()
 
-        self.assertEqual(self.bid.status, BidStatus.ACTIVE)
-        self.assertEqual(self.bid_two.status, BidStatus.ACTIVE)
-        self.assertEqual(self.task.status, TaskStatus.FUNDING_PENDING)
+        self.assertEqual(self.bid.status, BidStatus.ACCEPTED)
+        self.assertEqual(self.bid_two.status, BidStatus.REJECTED)
+        self.assertEqual(self.task.status, TaskStatus.ASSIGNED)
+        self.assertEqual(response.data["escrow_status"], EscrowStatus.HELD.value)
+        self.assertEqual(response.data["reserved_amount"], 500000)
+        self.assertEqual(self.wallet.available_balance, 1_500_000)
+        self.assertEqual(self.wallet.reserved_balance, 500_000)
 
         self.assertTrue(
             TaskStatusHistory.objects.filter(
                 task=self.task,
                 to_status=TaskStatus.FUNDING_PENDING,
             ).exists()
+        )
+        self.assertTrue(
+            TaskStatusHistory.objects.filter(
+                task=self.task,
+                to_status=TaskStatus.ASSIGNED,
+            ).exists()
+        )
+        self.assertEqual(EscrowReservation.objects.filter(task=self.task).count(), 1)
+        self.assertEqual(
+            WalletTransaction.objects.filter(wallet=self.wallet).count(),
+            1,
         )
 
     def test_reject_bid(self):
@@ -261,7 +286,7 @@ class EmployerBidDecisionAPITests(APITestCase):
             ).exists()
         )
 
-    def test_accepting_same_bid_twice_fails(self):
+    def test_accepting_same_bid_twice_with_same_idempotency_key_replays_result(self):
 
         url = (
             f"/api/offers/employer/bids/"
@@ -269,15 +294,38 @@ class EmployerBidDecisionAPITests(APITestCase):
         )
 
         first_response = self.client.post(
-            url, {}, format="json"
+            url,
+            {},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="frontend-accept-replay-001",
         )
 
         second_response = self.client.post(
-            url, {}, format="json"
+            url,
+            {},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="frontend-accept-replay-001",
         )
 
-        self.assertEqual(first_response.status_code, 200)
-        self.assertEqual(second_response.status_code, 409)
+        self.assertEqual(first_response.status_code, 200, first_response.data)
+        self.assertEqual(second_response.status_code, 200, second_response.data)
+        self.assertEqual(
+            first_response.data["escrow_reservation_id"],
+            second_response.data["escrow_reservation_id"],
+        )
+        self.assertEqual(EscrowReservation.objects.filter(task=self.task).count(), 1)
+        self.assertEqual(WalletTransaction.objects.filter(wallet=self.wallet).count(), 1)
+
+    def test_accept_bid_requires_idempotency_key(self):
+        response = self.client.post(
+            f"/api/offers/employer/bids/{self.bid.pk}/accept/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.OPEN)
+        self.assertEqual(EscrowReservation.objects.filter(task=self.task).count(), 0)
 
     def test_executor_cannot_accept_bid(self):
 

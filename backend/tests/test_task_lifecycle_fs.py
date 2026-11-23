@@ -16,6 +16,12 @@ from payments.lifecycle import (
     EscrowSnapshot, EscrowStatus, InvalidEscrowTransition,
     VerifiedFinancialEvent,
 )
+from payments.models import (
+    EscrowReservation,
+    Wallet,
+    WalletTransaction,
+    WalletTransactionType,
+)
 from reviews.dispute_lifecycle import (
     DisputeSnapshot, DisputeStatus, InvalidDisputeTransition,
 )
@@ -107,6 +113,11 @@ class TaskFSMIntegrationTests(APITestCase):
             proposal_deadline_at=now + timedelta(hours=12),
             delivery_criteria="Delivered",
         )
+        self.wallet = Wallet.objects.create(
+            user=self.employer,
+            currency_code="IRR",
+            available_balance=2_000_000,
+        )
         self.bid = Bid.objects.create(
             task=self.task, executor_profile=self.profile,
             proposed_wage_amount=500000, proposed_duration_minutes=60,
@@ -127,9 +138,13 @@ class TaskFSMIntegrationTests(APITestCase):
             task_reference=str(self.task.pk), bid_reference=str(self.bid.pk),
         )
 
-    def _select_bid(self):
+    def _select_bid(self, *, bid=None, idempotency_key=None):
+        bid = bid or self.bid
         response = self.client.post(
-            f"/api/offers/employer/bids/{self.bid.pk}/accept/", {}, format="json",
+            f"/api/offers/employer/bids/{bid.pk}/accept/",
+            {},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=idempotency_key or f"accept-{bid.pk}",
         )
         self.assertEqual(response.status_code, 200, response.data)
         return response
@@ -212,47 +227,104 @@ class TaskFSMIntegrationTests(APITestCase):
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, TaskStatus.CANCELLED)
 
-    def test_select_is_pending_until_funding_succeeds(self):
+    def test_bid_selection_funding_and_assignment_are_one_atomic_operation(self):
         response = self._select_bid()
-        self.assertEqual(response.data["task_status"], TaskStatus.FUNDING_PENDING)
-        self.assertEqual(response.data["status"], BidStatus.ACTIVE)
+
+        self.assertEqual(response.data["task_status"], TaskStatus.ASSIGNED)
+        self.assertEqual(response.data["status"], BidStatus.ACCEPTED)
+        self.assertEqual(response.data["escrow_status"], EscrowStatus.HELD.value)
+        self.assertEqual(response.data["reserved_amount"], 500000)
+        self.assertEqual(response.data["labor_amount"], 500000)
+        self.assertEqual(response.data["expense_amount"], 0)
+        self.assertEqual(response.data["platform_fee_rate_bps"], 1000)
+        self.assertEqual(response.data["platform_fee_amount"], 50000)
+        self.assertEqual(response.data["fee_payer"], "WORKER")
+
         self.task.refresh_from_db()
         self.bid.refresh_from_db()
         self.bid_two.refresh_from_db()
-        self.assertEqual(self.task.status, TaskStatus.FUNDING_PENDING)
-        self.assertEqual(self.bid.status, BidStatus.ACTIVE)
-        self.assertEqual(self.bid_two.status, BidStatus.ACTIVE)
-        row = TaskStatusHistory.objects.get(task=self.task, to_status=TaskStatus.FUNDING_PENDING)
-        self.assertEqual(row.metadata["selected_bid_id"], str(self.bid.pk))
-        self.assertEqual(row.metadata["event"], "bid_selected")
-        self.assertEqual(self.client.post(
-            f"/api/offers/employer/bids/{self.bid_two.pk}/accept/", {}, format="json",
-        ).status_code, 409)
+        self.wallet.refresh_from_db()
 
-    def test_confirm_finance_is_atomic_and_rejects_other_bids_once(self):
-        self._select_bid()
-        with self.assertRaises(BidDecisionConflict):
-            confirm_funded_bid(task_id=self.task.pk, financial_event=None)
-        accepted, task = confirm_funded_bid(
-            task_id=self.task.pk, financial_event=self.finance_proof(EscrowStatus.HELD),
-        )
-        self.assertEqual(task.status, TaskStatus.ASSIGNED)
-        self.assertEqual(accepted.pk, self.bid.pk)
-        self.bid.refresh_from_db()
-        self.bid_two.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.ASSIGNED)
         self.assertEqual(self.bid.status, BidStatus.ACCEPTED)
         self.assertEqual(self.bid_two.status, BidStatus.REJECTED)
-        self.assertEqual(BidStatusHistory.objects.filter(
-            bid=self.bid, to_status=BidStatus.ACCEPTED,
-        ).count(), 1)
-        self.assertEqual(TaskStatusHistory.objects.filter(
-            task=self.task, to_status=TaskStatus.ASSIGNED,
-        ).count(), 1)
+        self.assertEqual(self.wallet.available_balance, 1_500_000)
+        self.assertEqual(self.wallet.reserved_balance, 500_000)
+        self.assertEqual(self.wallet.total_balance, 2_000_000)
+
+        reservation = EscrowReservation.objects.get(task=self.task)
+        self.assertEqual(reservation.status, EscrowStatus.HELD.value)
+        self.assertEqual(reservation.bid_id, self.bid.pk)
+        self.assertEqual(reservation.amount, 500000)
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                escrow_reservation=reservation,
+                transaction_type=WalletTransactionType.ESCROW_RESERVATION,
+            ).count(),
+            1,
+        )
+
+        history = list(
+            TaskStatusHistory.objects.filter(task=self.task).order_by("created_at")
+        )
+        self.assertEqual(
+            [row.to_status for row in history[-2:]],
+            [TaskStatus.FUNDING_PENDING, TaskStatus.ASSIGNED],
+        )
+        self.assertEqual(
+            history[-2].metadata["selected_bid_id"],
+            str(self.bid.pk),
+        )
+        self.assertEqual(
+            BidStatusHistory.objects.filter(
+                bid=self.bid, to_status=BidStatus.ACCEPTED,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            BidStatusHistory.objects.filter(
+                bid=self.bid_two, to_status=BidStatus.REJECTED,
+            ).count(),
+            1,
+        )
+
+        second_accept = self.client.post(
+            f"/api/offers/employer/bids/{self.bid_two.pk}/accept/",
+            {},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="another-bid-key",
+        )
+        self.assertEqual(second_accept.status_code, 409)
+
+    def test_internal_finance_confirmation_cannot_assign_the_task_twice(self):
+        self._select_bid()
         with self.assertRaises(BidDecisionConflict):
-            confirm_funded_bid(task_id=self.task.pk, financial_event=self.finance_proof(EscrowStatus.HELD))
+            confirm_funded_bid(
+                task_id=self.task.pk,
+                financial_event=self.finance_proof(EscrowStatus.HELD),
+            )
+        self.task.refresh_from_db()
+        self.bid.refresh_from_db()
+        self.bid_two.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.ASSIGNED)
+        self.assertEqual(self.bid.status, BidStatus.ACCEPTED)
+        self.assertEqual(self.bid_two.status, BidStatus.REJECTED)
+        self.assertEqual(
+            BidStatusHistory.objects.filter(
+                bid=self.bid, to_status=BidStatus.ACCEPTED,
+            ).count(),
+            1,
+        )
 
     def test_wrong_task_ledger_confirmation_is_rejected(self):
-        self._select_bid()
+        transition_task(
+            task_id=self.task.pk,
+            target=TaskStatus.FUNDING_PENDING,
+            event="bid_selected",
+            actor=self.employer,
+            reason="test pending selection",
+            metadata={"selected_bid_id": str(self.bid.pk)},
+        )
         bad = VerifiedFinancialEvent(
             state=EscrowStatus.HELD, escrow_reference="e", operation_reference="o",
             idempotency_key="i", task_reference="wrong-task",
@@ -264,7 +336,14 @@ class TaskFSMIntegrationTests(APITestCase):
         self.assertEqual(self.task.status, TaskStatus.FUNDING_PENDING)
 
     def test_funding_failed_returns_to_open_without_picking_a_bid(self):
-        self._select_bid()
+        transition_task(
+            task_id=self.task.pk,
+            target=TaskStatus.FUNDING_PENDING,
+            event="bid_selected",
+            actor=self.employer,
+            reason="test pending selection",
+            metadata={"selected_bid_id": str(self.bid.pk)},
+        )
         release_failed_funding(
             task_id=self.task.pk,
             financial_event=self.finance_proof(EscrowStatus.FAILED),
@@ -286,7 +365,6 @@ class TaskFSMIntegrationTests(APITestCase):
 
     def test_execution_submission_approval_and_release_guards(self):
         self._select_bid()
-        confirm_funded_bid(task_id=self.task.pk, financial_event=self.finance_proof(EscrowStatus.HELD))
         actions = [
             (TaskStatus.IN_PROGRESS, "execution_started", {}),
             (TaskStatus.SUBMITTED, "delivery_submitted", {"evidence_reference": "image-1"}),
@@ -337,7 +415,14 @@ class TaskFSMIntegrationTests(APITestCase):
             )
 
     def test_pending_cannot_be_cancelled_without_resolution(self):
-        self._select_bid()
+        transition_task(
+            task_id=self.task.pk,
+            target=TaskStatus.FUNDING_PENDING,
+            event="bid_selected",
+            actor=self.employer,
+            reason="test pending selection",
+            metadata={"selected_bid_id": str(self.bid.pk)},
+        )
         response = self.client.post(f"/api/tasks/{self.task.pk}/cancel/", {}, format="json")
         self.assertEqual(response.status_code, 409, response.data)
         self.task.refresh_from_db()

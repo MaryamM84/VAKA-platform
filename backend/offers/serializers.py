@@ -316,3 +316,14 @@ class BidDecisionResponseSerializer(serializers.Serializer):
     )
 
     updated_at = serializers.DateTimeField(read_only=True)
+
+class BidAssignmentResponseSerializer(BidDecisionResponseSerializer):
+    escrow_reservation_id = serializers.UUIDField(read_only=True)
+    escrow_status = serializers.CharField(read_only=True)
+    reserved_amount = serializers.IntegerField(read_only=True)
+    labor_amount = serializers.IntegerField(read_only=True)
+    expense_amount = serializers.IntegerField(read_only=True)
+    currency_code = serializers.CharField(read_only=True)
+    platform_fee_rate_bps = serializers.IntegerField(read_only=True)
+    platform_fee_amount = serializers.IntegerField(read_only=True)
+    fee_payer = serializers.CharField(read_only=True)

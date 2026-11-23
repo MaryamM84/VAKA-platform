@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import (
     extend_schema,
     OpenApiResponse,
+    OpenApiParameter,
 )
 
 from .employer_bid_decisions import (
@@ -21,6 +22,7 @@ from .serializers import (
     EmployerBidListSerializer,
     EmployerBidDetailSerializer,
     BidDecisionResponseSerializer,
+    BidAssignmentResponseSerializer,
 )
 
 from .services import (
@@ -308,15 +310,25 @@ class EmployerBidAcceptView(APIView):
     @extend_schema(
         tags=["Employer Bidding"],
         operation_id="employer_bid_accept",
-        summary="Select a bid and begin escrow funding",
+        summary="Atomically accept a bid and reserve escrow funds",
         description=(
-            "FS 7.2: selection changes task OPEN to FUNDING_PENDING. "
-            "Bid stays ACTIVE until verified escrow funding confirms assignment. "
-            "No funds are reserved by this endpoint."
+            "Atomically reserves the employer's available wallet balance, "
+            "records the escrow hold and financial ledger entry, accepts the "
+            "selected bid, rejects competing active bids and assigns the task. "
+            "An Idempotency-Key header is required for safe retries."
         ),
         request=None,
+        parameters=[
+            OpenApiParameter(
+                name="Idempotency-Key",
+                type=str,
+                location=OpenApiParameter.HEADER,
+                required=True,
+                description="Unique key for this bid assignment attempt.",
+            ),
+        ],
         responses={
-            200: BidDecisionResponseSerializer,
+            200: BidAssignmentResponseSerializer,
             401: OpenApiResponse(
                 description="Authentication required."
             ),
@@ -326,16 +338,20 @@ class EmployerBidAcceptView(APIView):
             404: OpenApiResponse(
                 description="Bid not found."
             ),
+            400: OpenApiResponse(
+                description="A valid Idempotency-Key header is required."
+            ),
             409: OpenApiResponse(
-                description="Invalid bid or task state."
+                description="Insufficient balance or invalid bid/task state."
             ),
         },
     )
     def post(self, request, bid_id):
 
-        bid, task = accept_employer_bid(
+        bid, task, reservation = accept_employer_bid(
             user=request.user,
             bid_id=bid_id,
+            idempotency_key=request.headers.get("Idempotency-Key"),
         )
 
         payload = {
@@ -344,9 +360,18 @@ class EmployerBidAcceptView(APIView):
             "status": bid.status,
             "task_status": task.status,
             "updated_at": bid.updated_at,
+            "escrow_reservation_id": reservation.reservation_id,
+            "escrow_status": reservation.status,
+            "reserved_amount": reservation.amount,
+            "labor_amount": reservation.labor_amount,
+            "expense_amount": reservation.expense_amount,
+            "currency_code": reservation.currency_code,
+            "platform_fee_rate_bps": reservation.platform_fee_rate_bps,
+            "platform_fee_amount": reservation.platform_fee_amount,
+            "fee_payer": reservation.fee_payer,
         }
 
-        serializer = BidDecisionResponseSerializer(payload)
+        serializer = BidAssignmentResponseSerializer(payload)
 
         return Response(
             serializer.data,

@@ -5,6 +5,7 @@ from rest_framework.exceptions import (
     APIException,
     NotFound,
     PermissionDenied,
+    ValidationError,
 )
 
 from accounts.models import ExecutorProfile, UserRole
@@ -14,6 +15,7 @@ from tasks.models import Task, TaskStatusHistory
 from .models import Bid, BidStatus, BidStatusHistory
 from tasks.lifecycle import transition_task_locked
 from payments.lifecycle import EscrowStatus, VerifiedFinancialEvent
+from payments.services import reserve_funds_for_bid
 
 
 class BidDecisionConflict(APIException):
@@ -96,12 +98,51 @@ def _require_assignable_executor(*, profile):
 
 
 @transaction.atomic
-def accept_employer_bid(*, user, bid_id):
+def accept_employer_bid(*, user, bid_id, idempotency_key):
+    """Atomically reserve escrow funds and finalize one selected bid.
 
+    The Task row is the serialization point. The OPEN -> FUNDING_PENDING ->
+    ASSIGNED transitions, wallet movement, escrow row, ledger entry, selected
+    bid acceptance and competing bid rejections all share this outer DB
+    transaction. A failure at any point rolls the complete operation back.
+    """
     task, bid = _lock_employer_bid(
         user=user,
         bid_id=bid_id,
     )
+
+    if (
+        not isinstance(idempotency_key, str)
+        or not idempotency_key.strip()
+        or len(idempotency_key.strip()) > 128
+    ):
+        raise ValidationError({
+            "Idempotency-Key": "A non-empty Idempotency-Key of at most 128 characters is required."
+        })
+    idempotency_key = idempotency_key.strip()
+
+    # A retry of the exact successful request must return its original escrow
+    # reservation rather than attempting a second assignment or ledger entry.
+    # reserve_funds_for_bid validates the stored request hash and authoritative
+    # ledger entry before returning a replay.
+    if task.status == TaskStatus.ASSIGNED and bid.status == BidStatus.ACCEPTED:
+        reservation, financial_event = reserve_funds_for_bid(
+            employer=user,
+            task=task,
+            bid=bid,
+            idempotency_key=idempotency_key,
+        )
+        if (
+            financial_event.state != EscrowStatus.HELD
+            or financial_event.task_reference != str(task.pk)
+            or financial_event.bid_reference != str(bid.pk)
+            or reservation.task_id != task.pk
+            or reservation.bid_id != bid.pk
+        ):
+            raise BidDecisionConflict(
+                "The original escrow reservation does not match this assignment."
+            )
+        return bid, task, reservation
 
     now = timezone.now()
 
@@ -135,17 +176,35 @@ def accept_employer_bid(*, user, bid_id):
 
     _require_assignable_executor(profile=bid.executor_profile)
 
-    # FS §7.2/§7.3: do NOT accept a bid or assign a worker yet.
-    # Reserve only the selection intention; funds must be HELD before assignment.
+    # First record the selected bid intent through the Task State Machine.
+    # This is still uncommitted and invisible to other transactions.
     transition_task_locked(
         task=task,
         target=TaskStatus.FUNDING_PENDING,
         event="bid_selected",
         actor=user,
-        reason="Employer selected bid; waiting for escrow funding",
+        reason="Employer selected bid; reserving escrow funds",
         metadata={"selected_bid_id": str(bid.pk)},
     )
-    return bid, task
+
+    # Wallet, Escrow and Ledger are persisted in nested atomic blocks that
+    # remain part of this outer transaction.
+    reservation, financial_event = reserve_funds_for_bid(
+        employer=user,
+        task=task,
+        bid=bid,
+        idempotency_key=idempotency_key,
+    )
+
+    # Assignment is finalized only after the finance service has persisted
+    # a HELD reservation and its matching idempotent ledger entry.
+    accepted_bid, task = confirm_funded_bid(
+        task_id=task.pk,
+        financial_event=financial_event,
+        actor=None,
+        changed_by_user=user,
+    )
+    return accepted_bid, task, reservation
 
 
 def _pending_bid_id(*, task):
@@ -164,11 +223,11 @@ def _pending_bid_id(*, task):
 
 
 @transaction.atomic
-def confirm_funded_bid(*, task_id, financial_event, actor=None):
+def confirm_funded_bid(*, task_id, financial_event, actor=None, changed_by_user=None):
     """PRIVATE finance adapter hook, never expose via untrusted HTTP inputs.
 
-    The ledger must verify actual HOLD, operation/idempotency and task/bid
-    ownership before producing VerifiedFinancialEvent. No wallet exists here.
+    The caller must obtain this event from the private wallet reservation
+    service after it has persisted the HELD escrow and matching ledger entry.
     """
     task = Task.objects.select_for_update().get(task_id=task_id)
     if task.status != TaskStatus.FUNDING_PENDING:
@@ -213,7 +272,7 @@ def confirm_funded_bid(*, task_id, financial_event, actor=None):
         item.save(update_fields=["status", "updated_at"])
         BidStatusHistory.objects.create(
             bid=item, from_status=old_status, to_status=item.status,
-            changed_by_user=actor,
+            changed_by_user=changed_by_user or actor,
             reason=("Funding confirmed: bid accepted" if item.pk == selected.pk
                     else "Funding confirmed: another bid was accepted"),
         )

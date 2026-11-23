@@ -2,7 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import connection, models
 from django.db.models import F, Q
 
 from tasks.fields import CurrencyCodeField
@@ -15,6 +15,19 @@ ESCROW_STATUS_CHOICES = tuple(
     (status.value, status.value.replace("_", " ").title())
     for status in EscrowStatus
 )
+
+
+def generate_escrow_public_reference():
+    """Allocate a short, globally unique, human-readable escrow reference.
+
+    PostgreSQL sequences are concurrency-safe and are not rolled back, so two
+    simultaneous reservations can never receive the same public reference.
+    The suffix expands naturally after 999999 while retaining the ESC- prefix.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT nextval('payments_escrow_public_reference_seq')")
+        sequence_value = cursor.fetchone()[0]
+    return f"ESC-{sequence_value:06d}"
 
 
 class Wallet(models.Model):
@@ -70,6 +83,12 @@ class EscrowReservation(models.Model):
     """
 
     reservation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    public_reference = models.CharField(
+        max_length=16,
+        unique=True,
+        editable=False,
+        default=generate_escrow_public_reference,
+    )
     task = models.ForeignKey(
         "tasks.Task",
         on_delete=models.PROTECT,

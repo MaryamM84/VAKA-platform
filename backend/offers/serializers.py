@@ -317,9 +317,92 @@ class BidDecisionResponseSerializer(serializers.Serializer):
 
     updated_at = serializers.DateTimeField(read_only=True)
 
+class AssignmentPreviewLocationSerializer(serializers.Serializer):
+    location_type = serializers.CharField()
+    stop_order = serializers.IntegerField()
+    city = serializers.CharField()
+    region = serializers.CharField()
+
+
+class AssignmentPreviewTaskSerializer(serializers.Serializer):
+    task_id = serializers.UUIDField()
+    title = serializers.CharField()
+    description = serializers.CharField()
+    category_name = serializers.CharField()
+    status = serializers.CharField()
+    currency_code = serializers.CharField()
+    receipt_required = serializers.BooleanField()
+    execution_window_start_at = serializers.DateTimeField()
+    execution_window_end_at = serializers.DateTimeField()
+    deadline_at = serializers.DateTimeField(allow_null=True)
+    delivery_criteria = serializers.CharField()
+    locations = AssignmentPreviewLocationSerializer(many=True)
+
+
+class AssignmentPreviewBidSerializer(serializers.Serializer):
+    bid_id = serializers.UUIDField()
+    status = serializers.ChoiceField(choices=BidStatus.choices)
+    proposed_wage_amount = serializers.IntegerField()
+    proposed_duration_minutes = serializers.IntegerField()
+    message = serializers.CharField()
+    expires_at = serializers.DateTimeField(allow_null=True)
+
+
+class AssignmentPreviewExecutorSerializer(serializers.Serializer):
+    profile_id = serializers.UUIDField()
+    full_name = serializers.CharField(allow_blank=True)
+    avatar_type = serializers.CharField(allow_null=True)
+    avatar_id = serializers.CharField(allow_null=True)
+    avatar_url = serializers.URLField(allow_null=True)
+    bio = serializers.CharField(allow_null=True)
+    verification_status = serializers.CharField()
+    completed_tasks_count = serializers.IntegerField()
+    active_tasks_count = serializers.IntegerField()
+    average_rating = serializers.FloatField(allow_null=True)
+    rating_count = serializers.IntegerField(allow_null=True)
+
+
+class AssignmentPreviewReservationSerializer(serializers.Serializer):
+    labor_amount = serializers.IntegerField()
+    expense_amount = serializers.IntegerField()
+    reserved_amount = serializers.IntegerField()
+    currency_code = serializers.CharField()
+    platform_fee_rate_bps = serializers.IntegerField()
+    platform_fee_amount = serializers.IntegerField()
+    fee_payer = serializers.CharField()
+    fee_included_in_reserved_amount = serializers.BooleanField()
+
+
+class AssignmentPreviewWalletSerializer(serializers.Serializer):
+    wallet_id = serializers.UUIDField(allow_null=True)
+    currency_code = serializers.CharField()
+    total_balance = serializers.IntegerField()
+    available_balance = serializers.IntegerField()
+    reserved_balance = serializers.IntegerField()
+    required_reservation_amount = serializers.IntegerField()
+    shortfall_amount = serializers.IntegerField()
+    has_sufficient_balance = serializers.BooleanField()
+    currency_matches = serializers.BooleanField()
+    available_balance_after_reservation = serializers.IntegerField(allow_null=True)
+    reserved_balance_after_reservation = serializers.IntegerField(allow_null=True)
+
+
+class BidAssignmentPreviewSerializer(serializers.Serializer):
+    task = AssignmentPreviewTaskSerializer()
+    bid = AssignmentPreviewBidSerializer()
+    executor = AssignmentPreviewExecutorSerializer()
+    reservation_preview = AssignmentPreviewReservationSerializer()
+    wallet = AssignmentPreviewWalletSerializer()
+    can_confirm = serializers.BooleanField()
+    blocking_reason = serializers.CharField(allow_null=True)
+
+
 class BidAssignmentResponseSerializer(BidDecisionResponseSerializer):
     escrow_reservation_id = serializers.UUIDField(read_only=True)
+    escrow_public_reference = serializers.CharField(read_only=True)
     escrow_status = serializers.CharField(read_only=True)
+    task_title = serializers.CharField(read_only=True)
+    executor_name = serializers.CharField(read_only=True, allow_blank=True)
     reserved_amount = serializers.IntegerField(read_only=True)
     labor_amount = serializers.IntegerField(read_only=True)
     expense_amount = serializers.IntegerField(read_only=True)
@@ -327,3 +410,7 @@ class BidAssignmentResponseSerializer(BidDecisionResponseSerializer):
     platform_fee_rate_bps = serializers.IntegerField(read_only=True)
     platform_fee_amount = serializers.IntegerField(read_only=True)
     fee_payer = serializers.CharField(read_only=True)
+    fee_included_in_reserved_amount = serializers.BooleanField(read_only=True)
+    wallet_total_balance = serializers.IntegerField(read_only=True)
+    available_balance_after_reservation = serializers.IntegerField(read_only=True)
+    reserved_balance_after_reservation = serializers.IntegerField(read_only=True)

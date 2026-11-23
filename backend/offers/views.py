@@ -12,6 +12,7 @@ from drf_spectacular.utils import (
 
 from .employer_bid_decisions import (
     accept_employer_bid,
+    get_employer_bid_assignment_preview,
     reject_employer_bid,
 )
 
@@ -22,6 +23,7 @@ from .serializers import (
     EmployerBidListSerializer,
     EmployerBidDetailSerializer,
     BidDecisionResponseSerializer,
+    BidAssignmentPreviewSerializer,
     BidAssignmentResponseSerializer,
 )
 
@@ -303,6 +305,37 @@ class EmployerBidDetailView(APIView):
             status=status.HTTP_200_OK,
         )
 
+class EmployerBidAssignmentPreviewView(APIView):
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Bidding"],
+        operation_id="employer_bid_assignment_preview",
+        summary="Preview bid assignment and escrow reservation",
+        description=(
+            "Returns the selected task, executor, reservation breakdown and "
+            "current employer wallet balances. This is a read-only preview; "
+            "it does not reserve funds or change task/bid state. The accept "
+            "endpoint revalidates all values atomically."
+        ),
+        responses={
+            200: BidAssignmentPreviewSerializer,
+            401: OpenApiResponse(description="Authentication required."),
+            403: OpenApiResponse(description="Employer permission required."),
+            404: OpenApiResponse(description="Bid not found."),
+            409: OpenApiResponse(description="The bid, task or executor is no longer eligible."),
+        },
+    )
+    def get(self, request, bid_id):
+        payload = get_employer_bid_assignment_preview(
+            user=request.user,
+            bid_id=bid_id,
+            request=request,
+        )
+        serializer = BidAssignmentPreviewSerializer(payload)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class EmployerBidAcceptView(APIView):
 
     permission_classes = [IsAuthenticated, IsEmployer]
@@ -354,6 +387,9 @@ class EmployerBidAcceptView(APIView):
             idempotency_key=request.headers.get("Idempotency-Key"),
         )
 
+        wallet = reservation.wallet
+        wallet.refresh_from_db()
+
         payload = {
             "bid_id": bid.pk,
             "task_id": task.pk,
@@ -361,7 +397,10 @@ class EmployerBidAcceptView(APIView):
             "task_status": task.status,
             "updated_at": bid.updated_at,
             "escrow_reservation_id": reservation.reservation_id,
+            "escrow_public_reference": reservation.public_reference,
             "escrow_status": reservation.status,
+            "task_title": task.title,
+            "executor_name": bid.executor_profile.user.full_name,
             "reserved_amount": reservation.amount,
             "labor_amount": reservation.labor_amount,
             "expense_amount": reservation.expense_amount,
@@ -369,6 +408,10 @@ class EmployerBidAcceptView(APIView):
             "platform_fee_rate_bps": reservation.platform_fee_rate_bps,
             "platform_fee_amount": reservation.platform_fee_amount,
             "fee_payer": reservation.fee_payer,
+            "fee_included_in_reserved_amount": False,
+            "wallet_total_balance": wallet.total_balance,
+            "available_balance_after_reservation": wallet.available_balance,
+            "reserved_balance_after_reservation": wallet.reserved_balance,
         }
 
         serializer = BidAssignmentResponseSerializer(payload)

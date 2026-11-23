@@ -366,7 +366,7 @@ paths:
   /api/discovery/tasks/:
     get:
       operationId: discoverable_tasks_list
-      description: Restrict visible tasks, then apply validated discovery filters.
+      description: Select public, open, non-expired tasks and apply validated filters.
       summary: Browse open, non-expired tasks
       parameters:
       - in: query
@@ -446,9 +446,6 @@ paths:
         description: Search task title (case-insensitive).
       tags:
       - Task Discovery
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -459,7 +456,7 @@ paths:
   /api/discovery/tasks/{task_id}/:
     get:
       operationId: discoverable_task_detail
-      description: Restrict visible tasks, then apply validated discovery filters.
+      description: Select public, open, non-expired tasks and apply validated filters.
       summary: Details of an available task
       parameters:
       - in: path
@@ -470,9 +467,6 @@ paths:
         required: true
       tags:
       - Task Discovery
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -721,6 +715,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/BidRead'
           description: ''
+    delete:
+      operationId: delete_my_bid
+      description: Withdraws an active bid before the task is assigned.
+      summary: Delete my bid
+      parameters:
+      - in: path
+        name: bid_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Bidding
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BidRead'
+          description: ''
+        '401':
+          description: Authentication required.
+        '403':
+          description: Executor permission required.
+        '404':
+          description: Bid not found.
+        '400':
+          description: Bid cannot be deleted.
   /api/offers/employer/bids/:
     get:
       operationId: employer_bids_list
@@ -769,7 +794,10 @@ paths:
   /api/offers/employer/bids/{bid_id}/accept/:
     post:
       operationId: employer_bid_accept
-      summary: Accept an executor bid
+      description: 'FS 7.2: selection changes task OPEN to FUNDING_PENDING. Bid stays
+        ACTIVE until verified escrow funding confirms assignment. No funds are reserved
+        by this endpoint.'
+      summary: Select a bid and begin escrow funding
       parameters:
       - in: path
         name: bid_id
@@ -1665,7 +1693,7 @@ paths:
   /api/task-categories/{category_id}/tasks/:
     get:
       operationId: category_available_tasks_list
-      description: Restrict visible tasks, then apply validated discovery filters.
+      description: Select public, open, non-expired tasks and apply validated filters.
       summary: List available tasks directly in a category
       parameters:
       - in: path
@@ -1745,9 +1773,6 @@ paths:
         description: Search task title (case-insensitive).
       tags:
       - Task Discovery
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
       responses:
         '200':
           content:
@@ -1777,9 +1802,10 @@ paths:
           description: ''
     post:
       operationId: tasks_create
-      description: Creates a task in DRAFT status. The employer and initial status
-        are assigned by the server and cannot be supplied by the client.
-      summary: Create a task draft
+      description: Creates a task and immediately publishes it in OPEN status. The
+        employer and initial status are assigned by the server and cannot be supplied
+        by the client.
+      summary: Create and publish a task
       tags:
       - Tasks
       requestBody:
@@ -1848,6 +1874,32 @@ paths:
           description: Task not found.
         '409':
           description: Task cannot be edited.
+    delete:
+      operationId: employer_task_delete
+      summary: Delete an employer task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Task deleted successfully.
+        '401':
+          description: Authentication required.
+        '403':
+          description: Employer permission required.
+        '404':
+          description: Task not found.
+        '409':
+          description: Task cannot be deleted.
   /api/tasks/{task_id}/cancel/:
     post:
       operationId: employer_task_cancel
@@ -1905,6 +1957,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskRead'
           description: ''
+  /api/tasks/{task_id}/start/:
+    post:
+      operationId: tasks_start_execution
+      description: Only the currently approved, active, assigned executor can start
+        an ASSIGNED task, after the internal finance adapter verifies a current HELD
+        escrow reservation. No escrow status is accepted from the client. Until the
+        finance adapter is implemented, this endpoint rejects attempts to start execution
+        with HTTP 409.
+      summary: Start execution of an assigned and funded task
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Execution
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStartResponse'
+          description: ''
+        '400':
+          description: Unexpected request payload
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Not the eligible assigned executor
+        '404':
+          description: Task not found
+        '409':
+          description: State invalid or escrow hold not verified
 components:
   schemas:
     AdminWorkerVerificationDetail:
@@ -2742,6 +2832,8 @@ components:
         description:
           type: string
           minLength: 1
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
         estimated_duration_minutes:
           type: integer
           maximum: 300
@@ -3250,6 +3342,8 @@ components:
           maxLength: 180
         description:
           type: string
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
         status:
           type: string
           readOnly: true
@@ -3289,6 +3383,11 @@ components:
           format: date-time
         delivery_criteria:
           type: string
+        published_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         saved_locations:
           type: array
           items:
@@ -3314,6 +3413,7 @@ components:
       - execution_window_end_at
       - execution_window_start_at
       - proposal_deadline_at
+      - published_at
       - saved_locations
       - status
       - task_id
@@ -3333,6 +3433,8 @@ components:
         description:
           type: string
           minLength: 1
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
         estimated_duration_minutes:
           type: integer
           maximum: 300
@@ -3538,6 +3640,8 @@ components:
           maxLength: 180
         description:
           type: string
+        urgency:
+          $ref: '#/components/schemas/UrgencyEnum'
         status:
           $ref: '#/components/schemas/Status7deEnum'
         estimated_duration_minutes:
@@ -3636,6 +3740,23 @@ components:
       - skill_id
       - skill_name
       - source
+    TaskStartResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+      required:
+      - status
+      - task_id
+      - version
     TaskStatusEnum:
       enum:
       - DRAFT
@@ -3689,6 +3810,18 @@ components:
           minLength: 1
       required:
       - token
+    UrgencyEnum:
+      enum:
+      - LOW
+      - NORMAL
+      - HIGH
+      - URGENT
+      type: string
+      description: |-
+        * `LOW` - Low
+        * `NORMAL` - Normal
+        * `HIGH` - High
+        * `URGENT` - Urgent
     UserRead:
       type: object
       properties:

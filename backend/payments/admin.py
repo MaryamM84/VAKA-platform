@@ -4,50 +4,13 @@ from .models import (
     EscrowReservation,
     IdempotencyRecord,
     Wallet,
+    WalletDeposit,
     WalletTransaction,
 )
 
 
-@admin.register(Wallet)
-class WalletAdmin(admin.ModelAdmin):
-    list_display = (
-        "wallet_id",
-        "user",
-        "currency_code",
-        "available_balance",
-        "reserved_balance",
-        "display_total_balance",
-        "updated_at",
-    )
-    search_fields = ("wallet_id", "user__phone", "user__full_name")
-    readonly_fields = (
-        "wallet_id",
-        "available_balance",
-        "reserved_balance",
-        "created_at",
-        "updated_at",
-    )
-
-    @admin.display(description="Total balance")
-    def display_total_balance(self, obj):
-        return obj.total_balance
-
-
-@admin.register(EscrowReservation)
-class EscrowReservationAdmin(admin.ModelAdmin):
-    list_display = (
-        "reservation_id",
-        "task",
-        "bid",
-        "wallet",
-        "amount",
-        "currency_code",
-        "status",
-        "created_at",
-    )
-    list_filter = ("status", "currency_code")
-    search_fields = ("reservation_id", "operation_reference", "idempotency_key")
-    readonly_fields = tuple(field.name for field in EscrowReservation._meta.fields)
+class ReadOnlyFinanceAdmin(admin.ModelAdmin):
+    """Finance records are inspected in Admin but changed only by services."""
 
     def has_add_permission(self, request):
         return False
@@ -58,12 +21,47 @@ class EscrowReservationAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def has_view_permission(self, request, obj=None):
-        return request.user.is_active and request.user.is_staff
+
+@admin.register(Wallet)
+class WalletAdmin(ReadOnlyFinanceAdmin):
+    list_display = (
+        "wallet_id",
+        "user",
+        "currency_code",
+        "available_balance",
+        "reserved_balance",
+        "display_total_balance",
+        "updated_at",
+    )
+    search_fields = ("wallet_id", "user__phone", "user__full_name")
+    readonly_fields = tuple(field.name for field in Wallet._meta.fields)
+
+    @admin.display(description="Total balance")
+    def display_total_balance(self, obj):
+        return obj.total_balance
+
+
+@admin.register(EscrowReservation)
+class EscrowReservationAdmin(ReadOnlyFinanceAdmin):
+    list_display = (
+        "reservation_id",
+        "task",
+        "bid",
+        "wallet",
+        "amount",
+        "platform_fee_amount",
+        "platform_fee_rate_bps",
+        "fee_payer",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status", "currency_code", "fee_payer")
+    search_fields = ("reservation_id", "operation_reference", "idempotency_key")
+    readonly_fields = tuple(field.name for field in EscrowReservation._meta.fields)
 
 
 @admin.register(WalletTransaction)
-class WalletTransactionAdmin(admin.ModelAdmin):
+class WalletTransactionAdmin(ReadOnlyFinanceAdmin):
     list_display = (
         "transaction_id",
         "wallet",
@@ -77,21 +75,9 @@ class WalletTransactionAdmin(admin.ModelAdmin):
     search_fields = ("transaction_id", "operation_reference", "idempotency_key")
     readonly_fields = tuple(field.name for field in WalletTransaction._meta.fields)
 
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_view_permission(self, request, obj=None):
-        return request.user.is_active and request.user.is_staff
-
 
 @admin.register(IdempotencyRecord)
-class IdempotencyRecordAdmin(admin.ModelAdmin):
+class IdempotencyRecordAdmin(ReadOnlyFinanceAdmin):
     list_display = (
         "idempotency_record_id",
         "user",
@@ -105,14 +91,18 @@ class IdempotencyRecordAdmin(admin.ModelAdmin):
     search_fields = ("idempotency_record_id", "user__phone", "idempotency_key")
     readonly_fields = tuple(field.name for field in IdempotencyRecord._meta.fields)
 
-    def has_add_permission(self, request):
-        return False
 
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-    def has_view_permission(self, request, obj=None):
-        return request.user.is_active and request.user.is_staff
+@admin.register(WalletDeposit)
+class WalletDepositAdmin(ReadOnlyFinanceAdmin):
+    list_display = (
+        "deposit_id",
+        "wallet",
+        "amount",
+        "currency_code",
+        "provider",
+        "status",
+        "created_at",
+    )
+    list_filter = ("provider", "status", "currency_code")
+    search_fields = ("deposit_id", "provider_reference", "idempotency_key")
+    readonly_fields = tuple(field.name for field in WalletDeposit._meta.fields)

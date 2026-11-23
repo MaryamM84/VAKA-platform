@@ -158,9 +158,9 @@ class EscrowReservationModelTests(TestCase):
         self.assertEqual(reservation.amount, 500000)
 
     def test_reservation_amount_must_equal_labor_plus_expenses(self):
-        reservation = self.make_reservation(amount=450000)
-        with self.assertRaises(ValidationError):
-            reservation.full_clean()
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.make_reservation(amount=450000)
 
     def test_reservation_fee_must_match_snapshot(self):
         reservation = self.make_reservation(fee_amount=39999)

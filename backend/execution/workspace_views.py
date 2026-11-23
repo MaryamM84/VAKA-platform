@@ -1,9 +1,10 @@
 """Views for assigned executor tasks; unrelated task APIs remain unchanged."""
+from django.db import connection
 from django.db.models import Count, OuterRef, Prefetch, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,7 +17,7 @@ from tasks.models import Task, TaskStatusHistory
 from tasks.pagination import TaskDiscoveryPagination
 from .models import TaskProgressReport
 from .serializers import (
-    ExecutorTaskCardSerializer, ExecutorTaskDetailSerializer, ExecutorTaskListResponseSerializer,
+    ExecutorTaskCardSerializer, ExecutorTaskDetailSerializer, ExecutorTaskListResponseSerializer, TaskPrivateDetailsSerializer,
 )
 from .workspace_services import (
     ACTIVE_EXECUTION_STATUSES, approved_executor_profile,
@@ -194,3 +195,51 @@ class ExecutorTaskDetailView(APIView):
         return Response(ExecutorTaskDetailSerializer(
             _detail_payload(task=task, request=request),
         ).data)
+
+
+class ExecutorTaskPrivateDetailsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Executor Workspace"], operation_id="executor_task_private_details",
+        summary="Reveal employer phone and exact task points only after work starts",
+        description="The encrypted exact-address field has no decryption implementation in this backend and is never exposed.",
+        responses={200: TaskPrivateDetailsSerializer, 403: OpenApiResponse(description="Not started yet")},
+    )
+    def get(self, request, task_id):
+        profile = approved_executor_profile(user=request.user)
+        task = assigned_task_or_404(profile=profile, task_id=task_id)
+        if task.status not in ACTIVE_EXECUTION_STATUSES:
+            raise PermissionDenied("Private contact and exact locations become accessible only after work starts.")
+        # The project stores exact locations using a custom PostGIS geography
+        # field. Raw, parameterized SQL is used to read coordinates safely;
+        # no approximate location is misrepresented as an exact one.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT task_location_id, location_type, stop_order, city, region,
+                       ST_Y(exact_point::geometry) AS latitude,
+                       ST_X(exact_point::geometry) AS longitude,
+                       location_notes
+                  FROM task_locations
+                 WHERE task_id = %s::uuid
+                 ORDER BY stop_order, task_location_id
+                """, [str(task.pk)],
+            )
+            locations = [
+                {
+                    "task_location_id": row[0], "location_type": row[1],
+                    "stop_order": row[2], "city": row[3], "region": row[4],
+                    "latitude": row[5], "longitude": row[6],
+                    "location_notes": row[7],
+                    "exact_address": None,
+                }
+                for row in cursor.fetchall()
+            ]
+        return Response(TaskPrivateDetailsSerializer({
+            "task_id": task.pk,
+            "employer_user_id": task.employer_user_id,
+            "employer_name": task.employer_user.full_name,
+            "employer_phone": task.employer_user.phone,
+            "locations": locations,
+        }).data)

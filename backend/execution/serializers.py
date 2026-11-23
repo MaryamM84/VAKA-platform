@@ -1,4 +1,5 @@
 """Public executor workspace API contracts."""
+from urllib.parse import urlsplit
 from rest_framework import serializers
 
 
@@ -33,6 +34,32 @@ class ProgressReportReadSerializer(serializers.Serializer):
     description = serializers.CharField()
     on_schedule = serializers.BooleanField()
     created_at = serializers.DateTimeField()
+
+
+class DeliveryInputSerializer(StrictInputSerializer):
+    summary = serializers.CharField(min_length=1, max_length=10000, trim_whitespace=True)
+    evidence_urls = serializers.ListField(
+        child=serializers.URLField(max_length=2048),
+        required=False, default=list, max_length=10,
+    )
+
+    def validate_evidence_urls(self, values):
+        for value in values:
+            parts = urlsplit(value)
+            if parts.scheme.lower() != "https" or not parts.hostname or parts.username or parts.password:
+                raise serializers.ValidationError("Evidence URLs must be public-format HTTPS URLs without credentials.")
+        if len(values) != len(set(values)):
+            raise serializers.ValidationError("Duplicate URLs are not allowed.")
+        return values
+
+
+class DeliveryReadSerializer(serializers.Serializer):
+    delivery_id = serializers.UUIDField()
+    task_id = serializers.UUIDField()
+    summary = serializers.CharField()
+    evidence_urls = serializers.ListField(child=serializers.URLField())
+    created_at = serializers.DateTimeField()
+    status = serializers.CharField()
 
 
 class TaskEmployerSummarySerializer(serializers.Serializer):

@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,12 +16,12 @@ from payments.models import EscrowReservation
 from tasks.choices import TaskStatus
 from tasks.models import Task, TaskStatusHistory
 from tasks.pagination import TaskDiscoveryPagination
-from .models import TaskProgressReport
+from .models import TaskProgressReport, TaskDelivery
 from .serializers import (
-    ExecutorTaskCardSerializer, ExecutorTaskDetailSerializer, ExecutorTaskListResponseSerializer, TaskPrivateDetailsSerializer, ProgressReportInputSerializer, ProgressReportReadSerializer, ProgressReportListResponseSerializer,
+    ExecutorTaskCardSerializer, ExecutorTaskDetailSerializer, ExecutorTaskListResponseSerializer, TaskPrivateDetailsSerializer, ProgressReportInputSerializer, ProgressReportReadSerializer, ProgressReportListResponseSerializer, DeliveryInputSerializer, DeliveryReadSerializer,
 )
 from .workspace_services import (
-    ACTIVE_EXECUTION_STATUSES, approved_executor_profile, record_progress,
+    ACTIVE_EXECUTION_STATUSES, approved_executor_profile, record_progress, submit_delivery,
 )
 
 
@@ -279,3 +279,50 @@ class ExecutorProgressReportView(APIView):
             task_id=task_id, actor=request.user, **payload.validated_data,
         )
         return Response(ProgressReportReadSerializer(report).data, status=status.HTTP_201_CREATED)
+
+
+class ExecutorTaskDeliveryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Executor Workspace"], operation_id="executor_delivery_retrieve",
+        summary="Read the final submitted delivery for an assigned task",
+        responses={200: DeliveryReadSerializer, 404: OpenApiResponse(description="No delivery")},
+    )
+    def get(self, request, task_id):
+        profile = approved_executor_profile(user=request.user)
+        assigned_task_or_404(profile=profile, task_id=task_id)
+        delivery = TaskDelivery.objects.filter(
+            task_id=task_id, executor_profile=profile,
+        ).select_related("task").first()
+        if delivery is None:
+            raise NotFound("No delivery has been submitted for this task.")
+        return Response(DeliveryReadSerializer({
+            "delivery_id": delivery.pk,
+            "task_id": delivery.task_id,
+            "summary": delivery.summary,
+            "evidence_urls": delivery.evidence_urls,
+            "created_at": delivery.created_at,
+            "status": delivery.task.status,
+        }).data)
+
+    @extend_schema(
+        tags=["Executor Workspace"], operation_id="executor_delivery_submit",
+        summary="Submit final delivery evidence and transition to SUBMITTED",
+        request=DeliveryInputSerializer,
+        responses={201: DeliveryReadSerializer, 409: OpenApiResponse(description="Invalid state")},
+    )
+    def post(self, request, task_id):
+        payload = DeliveryInputSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        delivery = submit_delivery(
+            task_id=task_id, actor=request.user, **payload.validated_data,
+        )
+        return Response(DeliveryReadSerializer({
+            "delivery_id": delivery.pk,
+            "task_id": delivery.task_id,
+            "summary": delivery.summary,
+            "evidence_urls": delivery.evidence_urls,
+            "created_at": delivery.created_at,
+            "status": TaskStatus.SUBMITTED,
+        }).data, status=status.HTTP_201_CREATED)

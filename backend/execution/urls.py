@@ -5,6 +5,7 @@ from .workspace_views import (
     ExecutorTaskDetailView,
     ExecutorTaskPrivateDetailsView,
     ExecutorProgressReportView,
+    ExecutorTaskDeliveryView,
 )
 
 urlpatterns = [
@@ -12,4 +13,5 @@ urlpatterns = [
     path("tasks/<uuid:task_id>/", ExecutorTaskDetailView.as_view(), name="executor-task-detail"),
     path("tasks/<uuid:task_id>/private-details/", ExecutorTaskPrivateDetailsView.as_view(), name="executor-task-private"),
     path("tasks/<uuid:task_id>/progress-reports/", ExecutorProgressReportView.as_view(), name="executor-task-progress"),
+    path("tasks/<uuid:task_id>/delivery/", ExecutorTaskDeliveryView.as_view(), name="executor-task-delivery"),
 ]

@@ -134,3 +134,43 @@ class ExecutorWorkspaceTests(APITestCase):
             {"progress_percent": 25, "description": "X", "on_schedule": True, "status": "COMPLETED"},
         ]:
             self.assertEqual(self.client.post(self.base + "progress-reports/", payload, format="json").status_code, 400)
+
+    def test_final_delivery_is_recorded_then_lifecycle_transitioned(self):
+        self.task.status = TaskStatus.IN_PROGRESS
+        self.task.save(update_fields=["status"])
+        response = self.client.post(self.base + "delivery/", {
+            "summary": "Final Figma screens and clickable prototype delivered",
+            "evidence_urls": ["https://www.figma.com/file/example"],
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.SUBMITTED)
+        delivery = TaskDelivery.objects.get(task=self.task)
+        event = TaskStatusHistory.objects.get(task=self.task, to_status=TaskStatus.SUBMITTED)
+        self.assertEqual(event.metadata["evidence_reference"], str(delivery.pk))
+        self.assertEqual(self.client.post(self.base + "delivery/", {
+            "summary": "Duplicate", "evidence_urls": [],
+        }, format="json").status_code, 409)
+        self.assertEqual(TaskDelivery.objects.count(), 1)
+        self.assertEqual(self.client.get(self.base + "delivery/").status_code, 200)
+
+    def test_invalid_delivery_rejected(self):
+        self.task.status = TaskStatus.IN_PROGRESS
+        self.task.save(update_fields=["status"])
+        response = self.client.post(self.base + "delivery/", {
+            "summary": "Done", "evidence_urls": ["http://example.com/file"],
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(TaskDelivery.objects.count(), 0)
+
+    @patch("payments.hold_gateway.read_verified_held_reservation")
+    def test_existing_start_endpoint_remains_finance_guarded(self, gateway):
+        gateway.return_value = VerifiedHeldReservation(
+            task_reference=str(self.task.pk), bid_reference=str(self.bid.pk),
+            escrow_reference="escrow", operation_reference="operation",
+            state=EscrowStatus.HELD,
+        )
+        started = self.client.post(f"/api/tasks/{self.task.pk}/start/", {}, format="json")
+        self.assertEqual(started.status_code, 200, started.data)
+        self.assertEqual(started.data["status"], TaskStatus.IN_PROGRESS)
+        self.assertEqual(self.client.get(self.base + "private-details/").status_code, 200)

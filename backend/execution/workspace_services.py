@@ -6,7 +6,8 @@ from offers.models import Bid, BidStatus
 from tasks.choices import TaskStatus
 from tasks.models import Task
 from tasks.lifecycle.errors import TaskTransitionConflict
-from .models import TaskProgressReport
+from tasks.lifecycle import transition_task_locked
+from .models import TaskProgressReport, TaskDelivery
 
 
 ACTIVE_EXECUTION_STATUSES = frozenset({
@@ -66,3 +67,27 @@ def record_progress(*, task_id, actor, progress_percent, description, on_schedul
         task=task, executor_profile=profile, progress_percent=progress_percent,
         description=description, on_schedule=on_schedule,
     )
+
+
+@transaction.atomic
+def submit_delivery(*, task_id, actor, summary, evidence_urls):
+    profile = approved_executor_profile(user=actor)
+    try:
+        task = Task.objects.select_for_update().get(pk=task_id, deleted_at__isnull=True)
+    except Task.DoesNotExist:
+        raise NotFound("Assigned task not found.") from None
+    _assigned_bid(task=task, profile=profile)
+    if task.status != TaskStatus.IN_PROGRESS:
+        _conflict(task, "Only an IN_PROGRESS task can be delivered.", TaskStatus.SUBMITTED)
+    # The evidence reference must be a server-generated, persisted row, not
+    # an arbitrary reference supplied by the client.
+    delivery = TaskDelivery.objects.create(
+        task=task, executor_profile=profile,
+        summary=summary, evidence_urls=evidence_urls,
+    )
+    transition_task_locked(
+        task=task, target=TaskStatus.SUBMITTED, event="delivery_submitted",
+        actor=actor, reason="Executor submitted delivery evidence",
+        metadata={"evidence_reference": str(delivery.pk)},
+    )
+    return delivery

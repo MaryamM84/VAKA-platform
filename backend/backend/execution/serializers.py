@@ -73,6 +73,26 @@ class ExecutorTaskDetailSerializer(ExecutorTaskCardSerializer):
     version = serializers.IntegerField()
 
 
+class PrivateLocationSerializer(serializers.Serializer):
+    task_location_id = serializers.UUIDField()
+    location_type = serializers.CharField()
+    stop_order = serializers.IntegerField()
+    city = serializers.CharField()
+    region = serializers.CharField()
+    latitude = serializers.FloatField(allow_null=True)
+    longitude = serializers.FloatField(allow_null=True)
+    location_notes = serializers.CharField(allow_blank=True, allow_null=True)
+    exact_address = serializers.CharField(allow_null=True)
+
+
+class TaskPrivateDetailsSerializer(serializers.Serializer):
+    task_id = serializers.UUIDField()
+    employer_user_id = serializers.UUIDField()
+    employer_name = serializers.CharField(allow_blank=True)
+    employer_phone = serializers.CharField()
+    locations = PrivateLocationSerializer(many=True)
+
+
 class ExecutorTaskListResponseSerializer(serializers.Serializer):
     count = serializers.IntegerField()
     next = serializers.URLField(allow_null=True)

@@ -83,3 +83,12 @@ class ExecutorWorkspaceTests(APITestCase):
     def test_employer_cannot_act_as_executor(self):
         self.client.force_authenticate(user=self.employer)
         self.assertEqual(self.client.get("/api/executor/tasks/").status_code, 403)
+
+    def test_private_details_denied_until_actual_task_start(self):
+        self.assertEqual(self.client.get(self.base + "private-details/").status_code, 403)
+        self.task.status = TaskStatus.IN_PROGRESS
+        self.task.save(update_fields=["status"])
+        response = self.client.get(self.base + "private-details/")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["employer_phone"], self.employer.phone)
+        self.assertEqual(response.data["locations"], [])

@@ -548,8 +548,8 @@ function ServiceAreaSection() {
   ) => {
     updateArea((previous) => ({
       ...previous,
-      latitude,
-      longitude,
+      latitude: Number(latitude.toFixed(6)),
+      longitude: Number(longitude.toFixed(6)),
       locationSelected: true,
       city: details?.city || previous.city,
       region: details?.region || previous.region,

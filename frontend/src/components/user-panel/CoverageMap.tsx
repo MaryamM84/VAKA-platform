@@ -189,6 +189,10 @@ export default function CoverageMap({
   const [searchError, setSearchError] = useState("");
   const [boundaryError, setBoundaryError] = useState("");
 
+  useEffect(() => {
+    if (!locationSelected || coversEntireCity) geocodeRequestRef.current += 1;
+  }, [locationSelected, coversEntireCity]);
+
   if (addressValue !== previousAddressValue) {
     setPreviousAddressValue(addressValue);
     setSearchQuery(addressValue);
@@ -208,6 +212,8 @@ export default function CoverageMap({
 
     async function selectPoint(lat: number, lng: number, result?: NominatimResult) {
       if (coversEntireCityRef.current) return;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90) return;
+      lng = ((lng + 180) % 360 + 360) % 360 - 180;
 
       const requestId = ++geocodeRequestRef.current;
       const initialAddress = result?.display_name
@@ -278,7 +284,7 @@ export default function CoverageMap({
         if (!response.ok) return;
 
         const reverse = (await response.json()) as NominatimResult;
-        if (requestId !== geocodeRequestRef.current || disposed) return;
+        if (requestId !== geocodeRequestRef.current || disposed || coversEntireCityRef.current) return;
 
         if (reverse.display_name) {
           const resolvedAddress = toPersianDigits(reverse.display_name);

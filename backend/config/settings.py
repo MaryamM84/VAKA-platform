@@ -98,6 +98,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 
 MIDDLEWARE = [
+    "config.error_middleware.APIErrorEnvelopeMiddleware",
     'django.middleware.security.SecurityMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -188,6 +189,7 @@ MAILERS = {
 }
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "config.exception_handler.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -234,4 +236,30 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
+
+# Safe diagnostics for API exceptions.
+# Do not log request bodies, tokens, SQL or user identifiers.
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "api_safe": {
+            "format": "%(levelname)s %(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "api_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "api_safe",
+        },
+    },
+    "loggers": {
+        "vaka.api_errors": {
+            "handlers": ["api_console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
 

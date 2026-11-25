@@ -30,6 +30,10 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
 
 load_dotenv(BASE_DIR / ".env")
+# Wallet deposit mode: GATEWAY or SIMULATED (demo/development only).
+VAKA_WALLET_DEPOSIT_MODE = os.getenv(
+    "VAKA_WALLET_DEPOSIT_MODE", "GATEWAY"
+).strip().upper()
 
 VERIFICATION_PII_ENCRYPTION_KEY = os.getenv("VERIFICATION_PII_ENCRYPTION_KEY", "").strip()
 VERIFICATION_PII_HASH_KEY = os.getenv("VERIFICATION_PII_HASH_KEY", "").strip()

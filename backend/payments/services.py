@@ -10,7 +10,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.module_loading import import_string
-from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 
 from offers.models import BidStatus
 
@@ -323,13 +323,134 @@ def _validate_gateway_result(result):
     return provider, provider_reference, payment_url, expires_at
 
 
+
+# A credit created here is a DEMO balance, never evidence of money received.
+SIMULATED_DEPOSIT_MAX_AMOUNT = 100_000_000  # IRR, per request
+SIMULATED_DEPOSIT_PROVIDER = "VAKA_SIMULATED"
+
+
+@transaction.atomic
+def _create_simulated_wallet_deposit(*, user, amount, idempotency_key):
+    """Commit simulated credit, deposit receipt and immutable ledger together.
+
+    The Wallet row lock serializes requests for the same user. The database's
+    unique constraints additionally protect against duplicate idempotency keys.
+    """
+    if amount > SIMULATED_DEPOSIT_MAX_AMOUNT:
+        raise ValidationError({
+            "amount": "Simulated deposits may not exceed 100000000 IRR per request."
+        })
+
+    wallet = get_or_create_wallet(user=user)
+    wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+    request_hash = _deposit_request_hash(
+        amount=amount, currency_code=wallet.currency_code,
+    )
+
+    existing = (
+        WalletDeposit.objects.select_for_update()
+        .filter(wallet=wallet, idempotency_key=idempotency_key)
+        .first()
+    )
+    if existing is not None:
+        if (existing.request_hash != request_hash
+                or existing.provider != SIMULATED_DEPOSIT_PROVIDER):
+            raise WalletOperationConflict(
+                "This Idempotency-Key was already used for another deposit."
+            )
+        entry = existing.ledger_transaction
+        if (
+            existing.status != WalletDepositStatus.SUCCEEDED
+            or entry is None
+            or entry.wallet_id != wallet.pk
+            or entry.transaction_type != WalletTransactionType.DEPOSIT
+            or entry.direction != WalletTransactionDirection.CREDIT
+            or entry.amount != amount
+            or entry.available_balance_delta != amount
+            or entry.reserved_balance_delta != 0
+            or entry.currency_code != wallet.currency_code
+            or entry.idempotency_key != idempotency_key
+        ):
+            raise WalletOperationConflict(
+                "The previous simulated deposit has no valid posted ledger entry."
+            )
+        return existing, False
+
+    # Protect both the ledger's idempotency constraint and BigInteger balance.
+    if WalletTransaction.objects.filter(
+        wallet=wallet,
+        transaction_type=WalletTransactionType.DEPOSIT,
+        idempotency_key=idempotency_key,
+    ).exists():
+        raise WalletOperationConflict(
+            "This Idempotency-Key already exists in the wallet ledger."
+        )
+    if wallet.available_balance > (2**63 - 1) - amount:
+        raise WalletOperationConflict("Wallet balance limit exceeded.")
+
+    deposit = WalletDeposit(
+        wallet=wallet,
+        amount=amount,
+        currency_code=wallet.currency_code,
+        status=WalletDepositStatus.PROCESSING,
+        provider=SIMULATED_DEPOSIT_PROVIDER,
+        idempotency_key=idempotency_key,
+        request_hash=request_hash,
+        payment_url="",
+    )
+    deposit.full_clean()
+    deposit.save(force_insert=True)
+
+    entry = WalletTransaction(
+        wallet=wallet,
+        transaction_type=WalletTransactionType.DEPOSIT,
+        direction=WalletTransactionDirection.CREDIT,
+        amount=amount,
+        available_balance_delta=amount,
+        reserved_balance_delta=0,
+        currency_code=wallet.currency_code,
+        idempotency_key=idempotency_key,
+        description="SIMULATED CREDIT - NO REAL MONEY RECEIVED",
+    )
+    entry.full_clean()
+    entry.save(force_insert=True)
+
+    wallet.available_balance += amount
+    wallet.save(update_fields=["available_balance", "updated_at"])
+
+    deposit.status = WalletDepositStatus.SUCCEEDED
+    deposit.provider_reference = str(deposit.pk)
+    deposit.ledger_transaction = entry
+    deposit.confirmed_at = timezone.now()
+    deposit.save(update_fields=[
+        "status", "provider_reference", "ledger_transaction",
+        "confirmed_at", "updated_at",
+    ])
+    return deposit, True
+
+
 def initiate_wallet_deposit(*, user, amount, idempotency_key):
-    """Create a provider payment link without crediting the wallet prematurely."""
+    """Credit a demo wallet or create a provider payment link, by server mode."""
     if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
         raise WalletOperationConflict("Deposit amount must be a positive integer.")
     if not isinstance(idempotency_key, str) or not idempotency_key.strip() or len(idempotency_key) > 128:
         raise WalletOperationConflict("A valid Idempotency-Key is required.")
     idempotency_key = idempotency_key.strip()
+
+    deposit_mode = getattr(settings, "VAKA_WALLET_DEPOSIT_MODE", "GATEWAY")
+    if deposit_mode not in {"GATEWAY", "SIMULATED"}:
+        raise PaymentGatewayUnavailable("Wallet deposit mode is invalid.")
+
+    if deposit_mode == "SIMULATED":
+        # Explicit opt-in AND DEBUG are required. Never mint credits in a live
+        # payments environment; use an isolated demo/development database.
+        if not settings.DEBUG:
+            raise PaymentGatewayUnavailable(
+                "Simulated wallet deposits are disabled when DEBUG=False."
+            )
+        return _create_simulated_wallet_deposit(
+            user=user, amount=amount, idempotency_key=idempotency_key,
+        )
 
     # Fail closed before creating a pending deposit when no provider exists.
     gateway = get_payment_gateway()

@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-
+from django.test import override_settings
 from accounts.models import User
 from payments.models import (
     Wallet,
@@ -16,6 +16,7 @@ from payments.models import (
 from payments.services import PaymentGatewayUnavailable
 
 
+@override_settings(VAKA_WALLET_DEPOSIT_MODE="GATEWAY")
 class WalletAPITests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(

@@ -159,3 +159,74 @@ Category management is exposed under `/api/manage/task-categories/` with permiss
 - Client should display API validation errors rather than assume creation or publication succeeded.
 - Keep access tokens out of logs, Git commits, issue trackers and screenshots.
 - Use the generated OpenAPI spec for exact request/response fields and security requirements.
+
+## Expense claims and receipt reimbursement (MVP)
+
+## Business flow
+
+The accepted, verified executor uploads one to three JPEG/PNG/WebP receipt images
+and the **requested amount in IRR**, during `ASSIGNED` or `IN_PROGRESS`.
+The employer reviews the pending claim and either rejects with a reason, or
+approves it. Approval moves the exact amount **from the employer's reserved
+wallet balance to the executor's available wallet balance** in a single DB
+transaction. An approved claim is idempotent; a second approval is a read-only
+replay. Expense payments do not alter task status, release labor compensation,
+or charge commission on materials.
+
+This is **internal, simulated VAKA credit** until a real gateway/payment
+settlement integration exists. It does NOT transfer money to a bank account,
+verify that the receipt reflects a real purchase, or solve funding for workers
+who do not have enough cash to buy goods up front.
+
+## API
+
+All endpoints require authentication:
+
+| Method | Path | Access |
+| --- | --- | --- |
+| POST | `/api/tasks/{task_id}/expense-claims/` | Assigned verified executor |
+| GET | `/api/tasks/{task_id}/expense-claims/?page=1&page_size=10` | Employer or accepted executor |
+| POST | `/api/tasks/{task_id}/expense-claims/{claim_id}/approve/` | Task employer |
+| POST | `/api/tasks/{task_id}/expense-claims/{claim_id}/reject/` | Task employer |
+| GET | `/api/tasks/{task_id}/expense-claims/{claim_id}/receipts/{receipt_id}/` | Employer or accepted executor |
+
+Create uses `multipart/form-data`: `amount_irr` integer, `description` string,
+`receipts` repeated file field (1-3 files). Supports JPEG/PNG/WebP, <=5 MiB and
+<=16 megapixels each. Receipt images live in `PRIVATE_MEDIA_ROOT`, not
+`MEDIA_ROOT` or a public URL. Responses contain authenticated image-view URLs.
+Reject uses JSON: `{ "reason": "Unreadable invoice" }`. Approve takes no body.
+Read responses show `status` (`PENDING`, `APPROVED`, `REJECTED`), `amount_irr`,
+review timestamp, rejection reason, and attached receipts.
+
+Example: 1,700,000 **toman** must be sent as **17,000,000 IRR**.
+The employer's available balance was reduced when the escrow hold was placed.
+Approval debits the reserved balance, not the available balance again.
+
+## Important constraints and tests
+
+- Claims are bound to one accepted bid, escrow and task.
+- Pending claims plus approved claims cannot exceed the expense cap at submission.
+- Approval checks approved total against the expense cap inside a transaction.
+- The task row and escrow are locked to serialize competing approvals.
+- The employer debit and worker credit each have immutable ledger entries;
+  paired references are stored on the approved claim.
+- The existing HELD escrow remains valid after partial expense payout;
+  verified held amount becomes `labor_amount + expense_amount - approved expenses`.
+- Rejected claims can be resubmitted as new claims; no transfer happens on rejection.
+- Once a claim is approved, its images, amount, and status are not editable via API.
+- Future final labor settlement/refunds must read the already reimbursed expense
+  claims to avoid paying the same expense again. The final settlement workflow is
+  intentionally **not implemented** by this feature.
+
+## Run tests
+
+From `backend/`, after activating your normal venv and database:
+
+```powershell
+python manage.py makemigrations --check --dry-run
+python manage.py migrate
+python manage.py test tests.test_expense_claims tests.test_wallet_api tests.test_executor_workspace --keepdb
+python manage.py test tests --keepdb
+```
+
+Use a dedicated task branch, review the PR and merge into main only after checks.

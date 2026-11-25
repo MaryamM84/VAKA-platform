@@ -110,11 +110,14 @@ class WalletDepositView(APIView):
     @extend_schema(
         tags=["Wallet"],
         operation_id="wallet_deposit_create",
-        summary="Create a wallet deposit payment request",
+        summary="Create a wallet deposit (simulated or via payment gateway)",
         description=(
-            "Creates a payment link through the configured payment gateway. "
-            "The wallet is not credited by this endpoint; only a verified "
-            "provider callback may post the deposit to the wallet ledger."
+            "Mode is configured on the server. In SIMULATED mode (development "
+            "only), credits demo IRR immediately and returns SUCCEEDED with "
+            "an empty payment_url. In GATEWAY mode, returns a payment link "
+            "and does NOT credit the wallet until provider confirmation. "
+            "Requires Idempotency-Key; repeated identical requests do not "
+            "credit the wallet again. Simulated funds are not real money."
         ),
         request=WalletDepositRequestSerializer,
         parameters=[
@@ -131,7 +134,7 @@ class WalletDepositView(APIView):
             400: OpenApiResponse(description="Invalid amount or Idempotency-Key."),
             401: OpenApiResponse(description="Authentication required."),
             409: OpenApiResponse(description="Idempotency conflict."),
-            503: OpenApiResponse(description="Payment gateway unavailable."),
+            503: OpenApiResponse(description="Gateway unavailable or simulated mode disabled."),
         },
     )
     def post(self, request):

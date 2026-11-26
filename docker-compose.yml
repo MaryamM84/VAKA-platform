@@ -1,0 +1,36 @@
+services:
+  db:
+    image: docker.kernel.ir/postgis/postgis:16-3.4
+    container_name: vaka-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vaka
+      POSTGRES_USER: vaka
+      POSTGRES_PASSWORD: Fa78236994
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: vaka-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: vaka-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

@@ -133,9 +133,14 @@ class SimulatedWalletDepositTests(APITestCase):
         self.assertFalse(WalletTransaction.objects.filter(wallet=other_wallet).exists())
 
     def test_ledger_failure_rolls_back_deposit_and_balance(self):
-        with patch("payments.services.WalletTransaction.save", side_effect=IntegrityError("simulated failure")):
-            with self.assertRaises(IntegrityError):
-                self.deposit(1000)
+        with patch(
+            "payments.services.WalletTransaction.save",
+            side_effect=IntegrityError("simulated failure"),
+        ):
+            response = self.deposit(1000)
+
+        self.assertEqual(response.status_code, 500, response.data)
+
         self.assertFalse(WalletDeposit.objects.exists())
         self.assertFalse(WalletTransaction.objects.exists())
         self.assertFalse(Wallet.objects.filter(user=self.user).exists())

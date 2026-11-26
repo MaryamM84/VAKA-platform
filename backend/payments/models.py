@@ -228,6 +228,7 @@ class WalletTransactionType(models.TextChoices):
     ESCROW_RESERVATION = "ESCROW_RESERVATION", "Escrow reservation"
     ESCROW_RELEASE = "ESCROW_RELEASE", "Escrow release"
     ESCROW_REFUND = "ESCROW_REFUND", "Escrow refund"
+    EXPENSE_REIMBURSEMENT = "EXPENSE_REIMBURSEMENT", "Expense reimbursement"
     PLATFORM_FEE = "PLATFORM_FEE", "Platform fee"
     WITHDRAWAL = "WITHDRAWAL", "Withdrawal"
     WITHDRAWAL_FEE = "WITHDRAWAL_FEE", "Withdrawal fee"
@@ -383,6 +384,24 @@ class WalletTransaction(models.Model):
             ):
                 errors["amount"] = "Escrow refund must move funds from reserved to available."
 
+        if self.transaction_type == WalletTransactionType.EXPENSE_REIMBURSEMENT:
+            valid_debit = (
+                self.direction == WalletTransactionDirection.DEBIT
+                and self.escrow_reservation_id is not None
+                and self.task_id is not None
+                and self.available_balance_delta == 0
+                and self.reserved_balance_delta == -self.amount
+            )
+            valid_credit = (
+                self.direction == WalletTransactionDirection.CREDIT
+                and self.escrow_reservation_id is None
+                and self.task_id is not None
+                and self.available_balance_delta == self.amount
+                and self.reserved_balance_delta == 0
+            )
+            if not (valid_debit or valid_credit):
+                errors["amount"] = "Expense reimbursement must debit escrow or credit a worker wallet."
+
         if errors:
             raise ValidationError(errors)
 
@@ -534,3 +553,7 @@ class WalletDeposit(models.Model):
 
     def __str__(self):
         return f"Deposit {self.deposit_id} - {self.status}"
+
+
+# Imported for Django model discovery; keep after the ledger models.
+from .expense_models import ExpenseClaim, ExpenseClaimStatus, ExpenseReceipt  # noqa: E402,F401

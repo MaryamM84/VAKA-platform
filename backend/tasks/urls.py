@@ -18,7 +18,22 @@ from .views import (
     EmployerTaskCancelView,
 )
 
+from payments.expense_views import (
+    ExpenseClaimListCreateView, ExpenseClaimApproveView,
+    ExpenseClaimRejectView, ExpenseReceiptDownloadView,
+)
+
+
 urlpatterns = [
+    # Expense claims: employer and accepted executor share a task-scoped resource.
+    path("tasks/<uuid:task_id>/expense-claims/",
+         ExpenseClaimListCreateView.as_view(), name="expense-claim-list-create"),
+    path("tasks/<uuid:task_id>/expense-claims/<uuid:claim_id>/approve/",
+         ExpenseClaimApproveView.as_view(), name="expense-claim-approve"),
+    path("tasks/<uuid:task_id>/expense-claims/<uuid:claim_id>/reject/",
+         ExpenseClaimRejectView.as_view(), name="expense-claim-reject"),
+    path("tasks/<uuid:task_id>/expense-claims/<uuid:claim_id>/receipts/<uuid:receipt_id>/",
+         ExpenseReceiptDownloadView.as_view(), name="expense-claim-receipt"),
     # Existing employer endpoints: preserve their behavior and names.
     path("tasks/", TaskListCreateView.as_view(), name="task-list-create"),
     path(

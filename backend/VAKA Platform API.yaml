@@ -2578,6 +2578,180 @@ components:
           nullable: true
         rejection_reason:
           type: string
+        required: true
+      tags:
+      - Wallet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletDepositRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WalletDepositRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WalletDepositRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDepositResponse'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDepositResponse'
+          description: ''
+        '400':
+          description: Invalid amount or Idempotency-Key.
+        '401':
+          description: Authentication required.
+        '409':
+          description: Idempotency conflict.
+        '503':
+          description: Gateway unavailable or simulated mode disabled.
+  /api/wallet/summary/:
+    get:
+      operationId: wallet_summary
+      summary: Get current user's wallet summary
+      tags:
+      - Wallet
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletSummary'
+          description: ''
+        '401':
+          description: Authentication required.
+  /api/wallet/transactions/:
+    get:
+      operationId: wallet_transactions_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - wallet
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWalletTransactionList'
+          description: ''
+  /api/wallet/transactions/{transaction_id}/:
+    get:
+      operationId: wallet_transactions_retrieve
+      parameters:
+      - in: path
+        name: transaction_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - wallet
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletTransaction'
+          description: ''
+components:
+  schemas:
+    AdminWorkerVerificationDetail:
+      type: object
+      properties:
+        executor_profile_id:
+          type: string
+          format: uuid
+          readOnly: true
+        applicant:
+          allOf:
+          - $ref: '#/components/schemas/VerificationApplicant'
+          readOnly: true
+        bio:
+          type: string
+          readOnly: true
+          nullable: true
+        work_interests:
+          readOnly: true
+        service_area_city:
+          type: string
+          readOnly: true
+        service_area_region:
+          type: string
+          readOnly: true
+        service_area_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
+        service_area_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          readOnly: true
+          nullable: true
+        service_area_radius_km:
+          type: integer
+          readOnly: true
+          nullable: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationStatusEnum'
+          readOnly: true
+        application_submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_by_user:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        rejection_reason:
+          type: string
           readOnly: true
           nullable: true
         documents:
@@ -3668,6 +3842,69 @@ components:
       - description
       - receipts
     ExpenseClaimRead:
+      - name
+    DeliveryInputRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        evidence_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+            minLength: 1
+            maxLength: 2048
+          maxItems: 10
+      required:
+      - summary
+    DeliveryRead:
+      type: object
+      properties:
+        delivery_id:
+          type: string
+          format: uuid
+        task_id:
+          type: string
+          format: uuid
+        summary:
+          type: string
+        evidence_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+      required:
+      - created_at
+      - delivery_id
+      - evidence_urls
+      - status
+      - summary
+      - task_id
+    DirectionEnum:
+      enum:
+      - CREDIT
+      - DEBIT
+      type: string
+      description: |-
+        * `CREDIT` - Credit
+        * `DEBIT` - Debit
+    DocumentTypeEnum:
+      enum:
+      - NATIONAL_CARD_FRONT
+      - NATIONAL_CARD_BACK
+      type: string
+      description: |-
+        * `NATIONAL_CARD_FRONT` - NATIONAL_CARD_FRONT
+        * `NATIONAL_CARD_BACK` - NATIONAL_CARD_BACK
+    EmployerBidDetail:
       type: object
       properties:
         claim_id:
@@ -3765,6 +4002,270 @@ components:
           maxLength: 1000
       required:
       - reason
+      - bid_id
+      - created_at
+      - executor_bio
+      - executor_name
+      - executor_profile_id
+      - executor_verification_status
+      - expires_at
+      - message
+      - proposed_duration_minutes
+      - proposed_wage_amount
+      - status
+      - task_currency_code
+      - task_id
+      - task_title
+    ExecutorTaskCard:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+        status:
+          type: string
+        accepted_bid_id:
+          type: string
+          format: uuid
+        agreed_wage_amount:
+          type: integer
+        currency_code:
+          type: string
+        proposed_duration_minutes:
+          type: integer
+        assigned_at:
+          type: string
+          format: date-time
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        remaining_seconds:
+          type: integer
+          nullable: true
+        server_time:
+          type: string
+          format: date-time
+        progress_percent:
+          type: integer
+        reports_count:
+          type: integer
+        escrow_verified:
+          type: boolean
+        secured_amount:
+          type: integer
+          nullable: true
+        net_worker_amount:
+          type: integer
+          nullable: true
+        platform_fee_amount:
+          type: integer
+          nullable: true
+        can_start:
+          type: boolean
+        can_report_progress:
+          type: boolean
+        can_submit_delivery:
+          type: boolean
+        can_view_private_details:
+          type: boolean
+      required:
+      - accepted_bid_id
+      - agreed_wage_amount
+      - assigned_at
+      - can_report_progress
+      - can_start
+      - can_submit_delivery
+      - can_view_private_details
+      - category_id
+      - category_name
+      - currency_code
+      - description
+      - due_at
+      - escrow_verified
+      - execution_window_end_at
+      - execution_window_start_at
+      - net_worker_amount
+      - platform_fee_amount
+      - progress_percent
+      - proposed_duration_minutes
+      - remaining_seconds
+      - reports_count
+      - secured_amount
+      - server_time
+      - started_at
+      - status
+      - task_id
+      - title
+    ExecutorTaskDetail:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+        status:
+          type: string
+        accepted_bid_id:
+          type: string
+          format: uuid
+        agreed_wage_amount:
+          type: integer
+        currency_code:
+          type: string
+        proposed_duration_minutes:
+          type: integer
+        assigned_at:
+          type: string
+          format: date-time
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        execution_window_start_at:
+          type: string
+          format: date-time
+        execution_window_end_at:
+          type: string
+          format: date-time
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        remaining_seconds:
+          type: integer
+          nullable: true
+        server_time:
+          type: string
+          format: date-time
+        progress_percent:
+          type: integer
+        reports_count:
+          type: integer
+        escrow_verified:
+          type: boolean
+        secured_amount:
+          type: integer
+          nullable: true
+        net_worker_amount:
+          type: integer
+          nullable: true
+        platform_fee_amount:
+          type: integer
+          nullable: true
+        can_start:
+          type: boolean
+        can_report_progress:
+          type: boolean
+        can_submit_delivery:
+          type: boolean
+        can_view_private_details:
+          type: boolean
+        employer:
+          $ref: '#/components/schemas/TaskEmployerSummary'
+        delivery_criteria:
+          type: string
+        item_cost_cap_amount:
+          type: integer
+          nullable: true
+        receipt_required:
+          type: boolean
+        required_skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskRequirement'
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskArea'
+        version:
+          type: integer
+      required:
+      - accepted_bid_id
+      - agreed_wage_amount
+      - assigned_at
+      - can_report_progress
+      - can_start
+      - can_submit_delivery
+      - can_view_private_details
+      - category_id
+      - category_name
+      - currency_code
+      - delivery_criteria
+      - description
+      - due_at
+      - employer
+      - escrow_verified
+      - execution_window_end_at
+      - execution_window_start_at
+      - item_cost_cap_amount
+      - locations
+      - net_worker_amount
+      - platform_fee_amount
+      - progress_percent
+      - proposed_duration_minutes
+      - receipt_required
+      - remaining_seconds
+      - reports_count
+      - required_skills
+      - secured_amount
+      - server_time
+      - started_at
+      - status
+      - task_id
+      - title
+      - version
+    ExecutorTaskListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+          nullable: true
+        previous:
+          type: string
+          format: uri
+          nullable: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutorTaskCard'
+      required:
+      - count
+      - next
+      - previous
+      - results
     LocationInput:
       type: object
       properties:

@@ -3,6 +3,7 @@ from django.urls import path
 
 from .worker_verification_admin_views import (
     AdminWorkerVerificationListView,
+    AdminVerificationApplicationsView,
     AdminWorkerVerificationDetailView,
     AdminWorkerVerificationApproveView,
     AdminWorkerVerificationRejectView,
@@ -14,6 +15,7 @@ app_name = "worker_verification_admin"
 
 
 urlpatterns = [
+    path("applications/", AdminVerificationApplicationsView.as_view(), name="applications"),
 
     path(
         "",

@@ -105,3 +105,20 @@ class WorkerVerificationRejectSerializer(serializers.Serializer):
         trim_whitespace=True,
         allow_blank=False,
     )
+
+
+class AdminVerificationApplicationSummarySerializer(AdminWorkerVerificationListSerializer):
+    """List-safe status and review metadata; never includes identity documents."""
+
+    class Meta(AdminWorkerVerificationListSerializer.Meta):
+        fields = AdminWorkerVerificationListSerializer.Meta.fields + [
+            "reviewed_at", "approved_at", "rejection_reason",
+        ]
+        read_only_fields = fields
+
+
+class AdminVerificationApplicationPageSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = AdminVerificationApplicationSummarySerializer(many=True)

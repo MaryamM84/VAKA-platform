@@ -11,9 +11,12 @@ from accounts.profile_metrics import get_executor_profile_metrics
 from offers.models import Bid, BidStatus
 from tasks.choices import TaskStatus
 from tasks.models import Task
+from tasks.pagination import TaskDiscoveryPagination
 from tasks.permissions import IsEmployer
 
 from .employer_serializers import EmployerAssignedExecutorSerializer
+from .models import TaskProgressReport
+from .serializers import ProgressReportReadSerializer, ProgressReportListResponseSerializer
 
 
 PHONE_VISIBLE_STATUSES = frozenset({
@@ -82,3 +85,28 @@ class EmployerAssignedExecutorView(APIView):
         response["Cache-Control"] = "private, no-store"
         return response
 
+
+class EmployerTaskProgressReportsView(APIView):
+    permission_classes = [IsAuthenticated, IsEmployer]
+
+    @extend_schema(
+        tags=["Employer Task Monitoring"],
+        operation_id="employer_task_progress_reports_list",
+        summary="View executor progress reports for my task",
+        responses={200: ProgressReportListResponseSerializer,
+                   404: OpenApiResponse(description="Task or assigned executor not found.")},
+    )
+    def get(self, request, task_id):
+        task = owned_task_or_404(request=request, task_id=task_id)
+        bid = accepted_bid_or_404(task=task)
+        queryset = TaskProgressReport.objects.filter(
+            task_id=task.pk,
+            executor_profile_id=bid.executor_profile_id,
+        ).order_by("-created_at", "-report_id")
+        paginator = TaskDiscoveryPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        response = paginator.get_paginated_response(
+            ProgressReportReadSerializer(page, many=True).data
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response

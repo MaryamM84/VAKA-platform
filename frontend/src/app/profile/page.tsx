@@ -1,9 +1,15 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./ProfilePage.module.css";
-import { getMyProfile, getMyAvatar, type MyProfile, type ProfileAvatar } from "@/lib/profile-api";
+import {
+  getMyProfile,
+  getMyAvatar,
+  type MyProfile,
+  type ProfileAvatar,
+} from "@/lib/profile-api";
 
 function getVerificationLabel(status?: string) {
   switch (status?.toUpperCase()) {
@@ -47,6 +53,7 @@ export default function ProfilePage() {
 
       const data = await getMyProfile();
       setProfile(data);
+
       const avatarData = await getMyAvatar().catch(() => null);
       setAvatar(avatarData);
     } catch (err) {
@@ -63,11 +70,20 @@ export default function ProfilePage() {
   useEffect(() => {
     const refreshAvatar = (event: Event) => {
       const detail = (event as CustomEvent<ProfileAvatar>).detail;
-      if (detail?.avatar_url !== undefined) setAvatar(detail);
-      else void getMyAvatar().then(setAvatar).catch(() => undefined);
+
+      if (detail?.avatar_url !== undefined) {
+        setAvatar(detail);
+      } else {
+        void getMyAvatar()
+          .then(setAvatar)
+          .catch(() => undefined);
+      }
     };
+
     window.addEventListener("vaka:profile-updated", refreshAvatar);
-    return () => window.removeEventListener("vaka:profile-updated", refreshAvatar);
+
+    return () =>
+      window.removeEventListener("vaka:profile-updated", refreshAvatar);
   }, []);
 
   useEffect(() => {
@@ -77,6 +93,7 @@ export default function ProfilePage() {
       try {
         const data = await getMyProfile();
         const avatarData = await getMyAvatar().catch(() => null);
+
         if (isMounted) {
           setProfile(data);
           setAvatar(avatarData);
@@ -191,6 +208,15 @@ export default function ProfilePage() {
               {verificationLabel}
             </span>
           </div>
+
+          {/* Wallet navigation button */}
+          <Link
+            href="/profile/wallet"
+            className={styles.verificationButton}
+          >
+            مشاهده کیف پول
+            <span>←</span>
+          </Link>
         </section>
 
         <section className={styles.verificationCard}>

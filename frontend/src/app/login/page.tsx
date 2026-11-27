@@ -1,5 +1,6 @@
 "use client";
 
+import { getLoginDestination } from "@/lib/admin-api";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,7 +16,6 @@ import {
   type FieldStatus,
 } from "@/components/ui/form-feedback";
 import {
-  getAuthRedirectPath,
   loginWithPassword,
   resendOtp,
   saveAuthSession,
@@ -94,7 +94,7 @@ export default function LoginPage() {
 
       const auth = await loginWithPassword(phone, password);
       saveAuthSession(auth, remember);
-      router.replace(getAuthRedirectPath());
+      router.replace(await getLoginDestination());
     } catch (error) {
       setFormError(getErrorMessage(error));
     } finally {
@@ -108,7 +108,7 @@ export default function LoginPage() {
     try {
       const auth = await verifyLoginOtp({ phone, code });
       saveAuthSession(auth, remember);
-      router.replace(getAuthRedirectPath());
+      router.replace(await getLoginDestination());
     } catch (error) {
       setOtpError(getErrorMessage(error));
     } finally {

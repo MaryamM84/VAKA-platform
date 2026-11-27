@@ -378,3 +378,6 @@
     width: 100%;
   }
 }
+
+/* Accept is a navigation link to the escrow preview, not an immediate mutation. */
+a.acceptButton { display: inline-flex; align-items: center; justify-content: center; padding: .6rem 1rem; border-radius: var(--vaka-radius-pill); text-decoration: none; font-size: .8rem; font-weight: 600; }

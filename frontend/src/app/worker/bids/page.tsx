@@ -1,6 +1,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
 import {
@@ -358,6 +359,8 @@ export default function MyBidsPage() {
                         مشاهده جزئیات
                       </button>
 
+                      {bid.status === "ACCEPTED" && <Link className="vaka-secondary-button" href={`/worker/tasks/${encodeURIComponent(bid.task_id)}`}>پیگیری مأموریت</Link>}
+                      {bid.status === "ACCEPTED" && <Link className="vaka-secondary-button" href={`/worker/tasks/${encodeURIComponent(bid.task_id)}/expenses`}>ثبت فاکتور و درخواست هزینه</Link>}
                       {bid.status === "ACTIVE" && (
                         <button
                           type="button"

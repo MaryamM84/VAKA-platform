@@ -10,7 +10,8 @@ import {
   EmployerTaskApi,
   getEmployerTasks,
   getTaskBids,
-  acceptEmployerBid,
+  assignmentPath,
+  trackingPath,
   rejectEmployerBid,
 } from "@/lib/employer-api";
 import styles from "./Proposals.module.css";
@@ -78,7 +79,7 @@ function ReceivedProposalsContent() {
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
-  const [pendingAction, setPendingAction] = useState<{ bidId: string; action: "accept" | "reject" } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ bidId: string; action: "reject" } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,12 +153,11 @@ function ReceivedProposalsContent() {
     (proposal) => proposal.status === "ACTIVE"
   ).length;
 
-  async function handleBidAction(bidId: string, action: "accept" | "reject") {
+  async function handleBidAction(bidId: string) {
     setActionLoading((previous) => ({ ...previous, [bidId]: true }));
     setActionErrors((previous) => ({ ...previous, [bidId]: "" }));
     try {
-      if (action === "accept") await acceptEmployerBid(bidId);
-      else await rejectEmployerBid(bidId);
+      await rejectEmployerBid(bidId);
       const refreshed = await getTaskBids(taskId);
       setProposals(refreshed);
     } catch (err) {
@@ -351,7 +351,8 @@ function ReceivedProposalsContent() {
                       مشاهده پروفایل مجری
                     </Link>
 
-                    {canReviewProposals && proposal.status === "ACTIVE" && (
+                    {proposal.status === "ACCEPTED" && <Link href={trackingPath(taskId)} className={styles.acceptButton}>پیگیری مأموریت</Link>}
+                      {canReviewProposals && proposal.status === "ACTIVE" && (
                       <div className={styles.actionButtons}>
                         <button
                           type="button"
@@ -362,14 +363,7 @@ function ReceivedProposalsContent() {
                           {actionLoading[proposal.bid_id] ? "در حال انجام..." : "رد پیشنهاد"}
                         </button>
 
-                        <button
-                          type="button"
-                          className={styles.acceptButton}
-                          disabled={!!actionLoading[proposal.bid_id]}
-                          onClick={() => setPendingAction({ bidId: proposal.bid_id, action: "accept" })}
-                        >
-                          {actionLoading[proposal.bid_id] ? "در حال انجام..." : "پذیرش پیشنهاد"}
-                        </button>
+                        <Link href={assignmentPath(taskId, proposal.bid_id)} className={styles.acceptButton}>پذیرش پیشنهاد</Link>
                       </div>
                     )}
                   </div>
@@ -394,15 +388,15 @@ function ReceivedProposalsContent() {
       </section>
       <VakaDialog
         open={!!pendingAction}
-        title={pendingAction?.action === "accept" ? "پذیرش پیشنهاد مجری" : "رد پیشنهاد مجری"}
-        description={pendingAction?.action === "accept" ? "آیا از پذیرش این پیشنهاد مطمئن هستید؟" : "آیا از رد این پیشنهاد مطمئن هستید؟"}
-        confirmLabel={pendingAction?.action === "accept" ? "بله، پذیرش پیشنهاد" : "بله، رد پیشنهاد"}
+        title="رد پیشنهاد مجری"
+        description="آیا از رد این پیشنهاد مطمئن هستید؟"
+        confirmLabel="بله، رد پیشنهاد"
         onCancel={() => setPendingAction(null)}
         onConfirm={() => {
           if (!pendingAction) return;
           const current = pendingAction;
           setPendingAction(null);
-          void handleBidAction(current.bidId, current.action);
+          void handleBidAction(current.bidId);
         }}
       />
     </DashboardLayout>

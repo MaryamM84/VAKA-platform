@@ -1,0 +1,705 @@
+
+.walletPage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    direction: rtl;
+    width: 100%;
+    min-height: 0;
+  }
+  
+  /* Heading */
+  
+  .walletHeading {
+    margin-bottom: 0;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .walletHeading h2 {
+    margin: 0;
+    color: #253747;
+    font-size: 22px;
+    font-weight: 800;
+  }
+  
+  .walletHeading p {
+    margin: 5px 0 0;
+    color: #91a2b4;
+    font-size: 12px;
+  }
+  
+  /* Balance Cards */
+  
+  .balanceGrid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+  
+  .balanceCard {
+    min-width: 0;
+    min-height: 96px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #edf2ef;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgb(24 37 34 / 4%);
+  }
+  
+  .balanceIcon {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 15px;
+    background: #dff3ec;
+    color: #087968;
+    font-size: 25px;
+  }
+  
+  .balanceCard > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 5px;
+  }
+  
+  .balanceCard span {
+    width: 100%;
+    color: #82958e;
+    font-size: 11px;
+  }
+  
+  .balanceCard strong {
+    color: #182522;
+    font-size: 21px;
+    font-weight: 800;
+  }
+  
+  .balanceCard small {
+    color: #82958e;
+    font-size: 10px;
+  }
+  
+  .pendingCard {
+    background: #fffafa;
+    border-color: #ffe0dc;
+  }
+  
+  .pendingCard .balanceIcon {
+    color: #fa716b;
+    background: #ffe8e5;
+  }
+  
+  /* Wallet Actions */
+  
+  .walletActions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  
+  .depositButton,
+  .historyButton {
+    min-height: 48px;
+    padding: 0 25px;
+    border-radius: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 150ms ease;
+  }
+  
+  .depositButton {
+    border: 1px solid #087968;
+    background: #087968;
+    color: #fff;
+  }
+  
+  .depositButton:hover {
+    background: #07594e;
+  }
+  
+  .historyButton {
+    border: 1.5px solid #087968;
+    background: #fff;
+    color: #087968;
+  }
+  
+  .historyButton:hover {
+    background: #eff8f4;
+  }
+  
+  .depositButton span,
+  .historyButton span {
+    font-size: 20px;
+  }
+  
+  /* Transactions */
+  
+  .transactionsCard {
+    position: relative;
+    z-index: 1;
+    padding: 26px;
+    border: 1px solid #edf2ef;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgb(24 37 34 / 5%);
+  }
+  
+  .transactionsCard h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 18px;
+    padding-bottom: 17px;
+    border-bottom: 1px solid #e9efeb;
+    color: #253747;
+    font-size: 19px;
+    font-weight: 800;
+  }
+  
+  .transactionsIcon {
+    width: 35px;
+    height: 35px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: #e6f5ef;
+    color: #087968;
+  }
+  
+  .transactionRow {
+    min-height: 78px;
+    padding: 14px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #edf2ef;
+  }
+  
+  .transactionInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  
+  .transactionIcon {
+    width: 43px;
+    height: 43px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    font-size: 22px;
+  }
+  
+  .incomeIcon {
+    background: #def3e9;
+    color: #087968;
+  }
+  
+  .expenseIcon {
+    background: #ffeded;
+    color: #f15c5c;
+  }
+  
+  .transactionInfo > div:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+  
+  .transactionInfo strong {
+    color: #253747;
+    font-size: 12px;
+  }
+  
+  .transactionInfo span {
+    color: #91a2b4;
+    font-size: 10px;
+  }
+  
+  .incomeAmount,
+  .expenseAmount {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 800;
+    direction: rtl;
+  }
+  
+  .incomeAmount {
+    color: #087968;
+  }
+  
+  .expenseAmount {
+    color: #fa5252;
+  }
+  
+  .allTransactionsButton {
+    display: block;
+    min-height: 39px;
+    margin: 20px auto 0;
+    padding: 0 22px;
+    border: 1px solid #087968;
+    border-radius: 25px;
+    background: #fff;
+    color: #087968;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  
+  .allTransactionsButton:hover {
+    background: #eff8f4;
+  }
+  
+  /* Responsive */
+  
+  @media (max-width: 900px) {
+    .balanceGrid {
+      grid-template-columns: 1fr;
+    }
+  
+    .balanceCard {
+      min-height: 85px;
+    }
+  }
+  
+  @media (max-width: 600px) {
+    .walletHeading h2 {
+      font-size: 19px;
+    }
+  
+    .transactionsCard {
+      padding: 18px 13px;
+    }
+  
+    .transactionsCard h3 {
+      font-size: 16px;
+    }
+  
+    .transactionRow {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  
+    .walletActions {
+      flex-direction: column;
+    }
+  
+    .depositButton,
+    .historyButton {
+      width: 100%;
+    }
+  }
+  
+
+/* =========================
+   Deposit Modal
+========================= */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(15 30 25 / 48%);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 180ms ease;
+}
+
+.depositModal {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 20px 70px rgb(0 0 0 / 18%);
+  text-align: center;
+  animation: modalEnter 220ms ease;
+}
+
+.modalClose {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: #f2f6f4;
+  color: #63766e;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.modalIcon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+  background: #dff3ec;
+  color: #087968;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.depositModal h2 {
+  margin: 0;
+  color: #253747;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.modalDescription {
+  margin: 9px 0 26px;
+  color: #91a2b4;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.amountSection {
+  text-align: right;
+}
+
+.amountLabel,
+.customAmountSection label {
+  display: block;
+  margin-bottom: 12px;
+  color: #354a42;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.amountOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.amountOption,
+.amountOptionActive {
+  min-height: 65px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #e3eee8;
+  border-radius: 13px;
+  background: #fff;
+  color: #253747;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.amountOption:hover {
+  border-color: #087968;
+  background: #f4faf7;
+}
+
+.amountOptionActive {
+  border: 2px solid #087968;
+  background: #eaf7f1;
+  color: #087968;
+}
+
+.amountOption small {
+  color: #91a2b4;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.customAmountSection {
+  margin-top: 23px;
+  text-align: right;
+}
+
+.amountInputWrapper {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid #dfeae4;
+  border-radius: 12px;
+  background: #fff;
+  transition: 150ms ease;
+}
+
+.amountInputWrapper:focus-within {
+  border-color: #087968;
+  box-shadow: 0 0 0 3px rgb(8 121 104 / 9%);
+}
+
+.amountInputWrapper input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #253747;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.amountInputWrapper input::placeholder {
+  color: #b2c0ba;
+  font-weight: 400;
+}
+
+.amountInputWrapper span {
+  flex-shrink: 0;
+  color: #82958e;
+  font-size: 11px;
+}
+
+.customAmountSection > small {
+  display: block;
+  margin-top: 8px;
+  color: #a0afa8;
+  font-size: 10px;
+}
+
+.depositSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 24px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #f2f8f5;
+}
+
+.depositSummary span {
+  color: #71867c;
+  font-size: 12px;
+}
+
+.depositSummary strong {
+  color: #087968;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.errorMessage {
+  margin: 12px 0 0;
+  color: #e14c4c;
+  font-size: 11px;
+  text-align: right;
+}
+
+.confirmDepositButton,
+.cancelDepositButton {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 16px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 150ms ease;
+}
+
+.confirmDepositButton {
+  border: 1px solid #087968;
+  background: #087968;
+  color: #fff;
+}
+
+.confirmDepositButton:hover {
+  background: #07594e;
+}
+
+.cancelDepositButton {
+  min-height: 40px;
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: #82958e;
+}
+
+.cancelDepositButton:hover {
+  background: #f6f8f7;
+}
+
+.demoNotice {
+  margin: 14px 0 0;
+  color: #a0aaa5;
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+/* =========================
+   Success Message
+========================= */
+
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border: 1px solid #ccebdc;
+  border-radius: 12px;
+  background: #effaf4;
+  color: #087968;
+}
+
+.successMessage > span {
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d6f1e2;
+  font-weight: 800;
+}
+
+.successMessage p {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.successMessage button {
+  border: none;
+  background: transparent;
+  color: #087968;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Responsive */
+
+@media (max-width: 480px) {
+  .depositModal {
+    padding: 26px 18px;
+    border-radius: 20px;
+  }
+
+  .depositModal h2 {
+    font-size: 18px;
+  }
+
+  .amountOption,
+  .amountOptionActive {
+    min-height: 58px;
+    font-size: 13px;
+  }
+}
+
+
+/* =========================
+   Wallet API loading and error states
+   Added without changing existing wallet styles.
+========================= */
+
+.loadingMessage {
+  padding: 35px 20px;
+  text-align: center;
+  color: #087968;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pageError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 1px solid #ffd6d6;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: #c94242;
+  font-size: 12px;
+}
+
+.pageError p {
+  margin: 0;
+}
+
+.pageError button {
+  padding: 8px 16px;
+  border: 1px solid #c94242;
+  border-radius: 20px;
+  background: #fff;
+  color: #c94242;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.emptyTransactions {
+  padding: 25px 10px;
+  color: #91a2b4;
+  font-size: 12px;
+  text-align: center;
+}
+
+.confirmDepositButton:disabled,
+.cancelDepositButton:disabled,
+.amountOption:disabled,
+.amountOptionActive:disabled,
+.modalClose:disabled,
+.allTransactionsButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -15,3 +15,4 @@ urlpatterns = [
     path("tasks/<uuid:task_id>/progress-reports/", ExecutorProgressReportView.as_view(), name="executor-task-progress"),
     path("tasks/<uuid:task_id>/delivery/", ExecutorTaskDeliveryView.as_view(), name="executor-task-delivery"),
 ]
+

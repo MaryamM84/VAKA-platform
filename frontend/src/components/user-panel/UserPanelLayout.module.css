@@ -8,7 +8,7 @@
 
 .container {
   position: relative;
-  width: min(100%, 1240px);
+  width: min(100%, 1120px);
   margin-inline: auto;
 }
 
@@ -41,10 +41,10 @@
 
 .columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 380px);
+  grid-template-columns: minmax(0, 1fr) 335px;
   grid-template-areas: "main side";
   align-items: start;
-  gap: 22px;
+  gap: 34px;
   direction: ltr;
 }
 
@@ -61,31 +61,6 @@
   direction: rtl;
 }
 
-.sidebar::before,
-.sidebar::after {
-  position: absolute;
-  z-index: 0;
-  display: block;
-  border-radius: 38px;
-  content: "";
-  pointer-events: none;
-}
-
-.sidebar::before {
-  top: 540px;
-  right: -34px;
-  width: 230px;
-  height: 270px;
-  background: color-mix(in srgb, var(--vaka-primary) 20%, transparent);
-}
-
-.sidebar::after {
-  top: 720px;
-  right: 34px;
-  width: 230px;
-  height: 250px;
-  background: color-mix(in srgb, var(--vaka-warning) 28%, transparent);
-}
 
 .profileCard {
   position: sticky;
@@ -441,7 +416,7 @@
   stroke-width: 2;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 900px) {
   .columns {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:

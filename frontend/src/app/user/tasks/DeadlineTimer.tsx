@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import styles from "./tasks.module.css";
+import { TaskIcon } from "./TaskVisuals";
 
 const MAX_DURATION_SECONDS = 300 * 60;
 
@@ -31,5 +32,5 @@ export default function DeadlineTimer({ deadline, startedAt, remainingSeconds }:
     const interval = window.setInterval(update, 1000);
     return () => { window.clearTimeout(first); window.clearInterval(interval); };
   }, [deadline, startedAt, remainingSeconds]);
-  return <div className={styles.timer}><span>◷</span><div><small>زمان‌سنج مهلت تحویل تسک</small><strong dir="ltr">{value ?? "زمان معتبر در دسترس نیست"}</strong><small>{value === "۰۰:۰۰:۰۰" ? "مهلت تحویل پایان یافته است" : "زمان باقی‌مانده تا تحویل نهایی"}</small></div></div>;
+  return <div className={styles.timer}><span className={styles.timerIcon}><TaskIcon name="timer"/></span><div className={styles.timerText}><small>زمان‌سنج مهلت تحویل کار</small><div className={styles.timerValue}><strong dir="ltr" role="timer" aria-label="زمان باقی‌مانده">{value ?? "—"}</strong><small>{value === "۰۰:۰۰:۰۰" ? "مهلت تحویل پایان یافته است" : "فرصت باقی‌مانده تا تحویل نهایی"}</small></div></div></div>;
 }

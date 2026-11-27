@@ -11,7 +11,7 @@ function loadClient(request) {
   vm.runInNewContext(code, { exports, require: name => {
     if (name === "./task-api") return { apiRequest: request };
     throw new Error(`Unexpected import: ${name}`);
-  }, URL });
+  }, URL, process: { env: { NEXT_PUBLIC_API_BASE_URL: "https://api.example" } } });
   return exports;
 }
 
@@ -39,6 +39,28 @@ test("maps detail and keeps private data separate until explicitly requested", a
   const enriched = client.addPrivateDetails(task, { task_id: "id", employer_phone: "123", locations: [{ city: "city", region: "region", latitude: 35, longitude: 51, exact_address: null }] });
   assert.equal(enriched.employer_phone, "123");
   assert.throws(() => client.addPrivateDetails(task, { task_id: "other", locations: [] }));
+});
+
+test("resolves the employer's preset and uploaded avatar without using the worker profile", async () => {
+  const details = { ...card, delivery_criteria: "", employer: { user_id: "employer", full_name: "Employer", avatar_type: "preset", avatar_id: "avatar_2", avatar_url: null, completed_tasks_count: 0, average_rating: null }, locations: [] };
+  const client = loadClient(async () => details);
+  assert.equal((await client.getAssignedTask("id")).employer_avatar_url, "/images/avatars/avatar-02-hijab.png");
+  details.employer = { ...details.employer, avatar_type: "upload", avatar_url: "/media/avatars/employer.png" };
+  assert.equal((await client.getAssignedTask("id")).employer_avatar_url, "https://api.example/media/avatars/employer.png");
+});
+
+test("keeps financial amounts and structured delivery requirements from the server", async () => {
+  const client = loadClient(async () => ({ ...card, assigned_at: "2026-11-27T07:00:00Z", secured_amount: 150, net_worker_amount: 0,
+    delivery_criteria: "طراحی در فیگما: تحویل فایل اصلی\n• نسخه فارسی\n\nدیزاین سیستم: تحویل کتابخانه رنگ",
+    employer: { full_name: "Employer", avatar_url: null }, locations: [] }));
+  const task = await client.getAssignedTask("id");
+  assert.equal(task.secured_amount, 150);
+  assert.equal(task.net_worker_amount, 0);
+  assert.equal(task.assigned_at, "2026-11-27T07:00:00Z");
+  assert.equal(task.requirements.length, 3);
+  assert.equal(task.requirements[0].title, "طراحی در فیگما");
+  assert.equal(task.requirements[0].description, "تحویل فایل اصلی");
+  assert.equal(task.requirements[1].title, "نسخه فارسی");
 });
 
 test("uses documented start and progress request contracts", async () => {

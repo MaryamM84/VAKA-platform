@@ -43,6 +43,7 @@ urlpatterns = [
     path("api/executor/", include("execution.urls")),
     path("api/wallet/", include("payments.urls")),
 
+    path("api/admin/executors/", include("accounts.admin_executor_urls")),
     path("api/admin/worker-verifications/",include("accounts.worker_verification_admin_urls"),),
     
     path("api/schema/",SpectacularAPIView.as_view(),name="schema",),

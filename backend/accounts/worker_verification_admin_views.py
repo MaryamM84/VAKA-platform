@@ -5,9 +5,11 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
     extend_schema,
     OpenApiResponse,
+    OpenApiParameter,
 )
 
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,7 +21,11 @@ from .models import (
 
 from .permissions import IsVerificationAdmin
 
+from tasks.pagination import TaskDiscoveryPagination
+
 from .worker_verification_admin_serializers import (
+    AdminVerificationApplicationSummarySerializer,
+    AdminVerificationApplicationPageSerializer,
     AdminWorkerVerificationListSerializer,
     AdminWorkerVerificationDetailSerializer,
     WorkerVerificationRejectSerializer,
@@ -254,3 +260,53 @@ class AdminWorkerVerificationDocumentDownloadView(APIView):
         response["X-Content-Type-Options"] = "nosniff"
 
         return response
+
+
+class AdminVerificationApplicationsView(APIView):
+    """Paginated applications by status, separate from the legacy pending list."""
+
+    permission_classes = [IsAuthenticated, IsVerificationAdmin]
+    VALID_STATUSES = {
+        "ALL",
+        ExecutorProfile.VerificationStatus.PENDING,
+        ExecutorProfile.VerificationStatus.APPROVED,
+        ExecutorProfile.VerificationStatus.REJECTED,
+    }
+
+    @extend_schema(
+        tags=["Admin Worker Verification"],
+        operation_id="admin_worker_verification_applications_list",
+        summary="List pending, approved, rejected or all submitted applications",
+        parameters=[
+            OpenApiParameter(
+                name="status", type=str, required=False,
+                enum=["ALL", "PENDING", "APPROVED", "REJECTED"],
+                description="Defaults to ALL. NOT_SUBMITTED is not an application.",
+            ),
+        ],
+        responses={200: AdminVerificationApplicationPageSerializer},
+    )
+    def get(self, request):
+        selected = request.query_params.get("status", "ALL").upper()
+        if selected not in self.VALID_STATUSES:
+            raise ValidationError({"status": "Use ALL, PENDING, APPROVED or REJECTED."})
+
+        queryset = (
+            ExecutorProfile.objects
+            .filter(verification_status__in=[
+                ExecutorProfile.VerificationStatus.PENDING,
+                ExecutorProfile.VerificationStatus.APPROVED,
+                ExecutorProfile.VerificationStatus.REJECTED,
+            ])
+            .select_related("user")
+        )
+        if selected != "ALL":
+            queryset = queryset.filter(verification_status=selected)
+        queryset = queryset.order_by("-application_submitted_at", "-executor_profile_id")
+        paginator = TaskDiscoveryPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        result = paginator.get_paginated_response(
+            AdminVerificationApplicationSummarySerializer(page, many=True).data
+        )
+        result["Cache-Control"] = "private, no-store"
+        return result

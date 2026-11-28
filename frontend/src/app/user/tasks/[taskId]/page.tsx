@@ -7,6 +7,7 @@ import TaskLocations from "../TaskMap";
 import DeadlineTimer from "../DeadlineTimer";
 import TaskSideCards from "../TaskSideCards";
 import TaskDialogs from "../TaskDialogs";
+import ExpenseRequestCard from "./ExpenseRequestCard";
 import { TaskIcon, taskDuration, taskNumber } from "../TaskVisuals";
 import styles from "../tasks.module.css";
 
@@ -111,6 +112,7 @@ function TaskDetails({ taskId }: { taskId: string }) {
                   <div className={styles.phoneBox}><h3><TaskIcon name="phone"/>شماره تماس مستقیم کارفرما</h3><div className={styles.phoneRow}>{task.employer_phone ? <><a className={styles.callButton} href={`tel:${task.employer_phone}`} aria-label="تماس با کارفرما"><TaskIcon name="phone"/>تماس</a><a dir="ltr" href={`tel:${task.employer_phone}`}>{task.employer_phone}</a></> : <><button className={styles.callButton} disabled><TaskIcon name="phone"/>تماس</button><span>شماره تماس در دسترس نیست.</span></>}</div></div>
                   <TaskLocations locations={task.locations}/>
                 </section>}
+                <ExpenseRequestCard taskId={task.task_id} canRequest={task.escrow_status === "FUNDED" && task.currency === "IRR"}/>
                 <section className={`${styles.card} ${styles.requirements}`}>
                   <div className={styles.sectionTitle}><TaskIcon name={active ? "checklist" : "list"}/><h2>توضیحات و الزامات {active ? "تحویل کار" : "کار"}</h2>{active && task.requirements.length > 0 && <small>{taskNumber(task.requirements.length)} گام کلیدی تعریف شده</small>}</div>
                   <p className={styles.description}>{task.description}</p>

@@ -304,60 +304,6 @@
 /* =========================
    Wallet API loading and error states
    Added without changing existing wallet styles.
-========================= */
-
-.loadingMessage {
-  padding: 35px 20px;
-  text-align: center;
-  color: #087968;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.pageError {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 14px 18px;
-  border: 1px solid #ffd6d6;
-  border-radius: 12px;
-  background: #fff5f5;
-  color: #c94242;
-  font-size: 12px;
-}
-
-.pageError p {
-  margin: 0;
-}
-
-.pageError button {
-  padding: 8px 16px;
-  border: 1px solid #c94242;
-  border-radius: 20px;
-  background: #fff;
-  color: #c94242;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.emptyTransactions {
-  padding: 25px 10px;
-  color: #91a2b4;
-  font-size: 12px;
-  text-align: center;
-}
-
-.confirmDepositButton:disabled,
-.cancelDepositButton:disabled,
-.amountOption:disabled,
-.amountOptionActive:disabled,
-.modalClose:disabled,
-.allTransactionsButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 /* =========================
    Deposit Modal

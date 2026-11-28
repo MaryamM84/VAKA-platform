@@ -8,6 +8,7 @@ import VakaDialog from "@/components/ui/VakaDialog";
 import styles from "./MyTasks.module.css";
 import {
   getEmployerTasks,
+  trackingPath,
   getEmployerBids,
   cancelEmployerTask,
   updateEmployerTask,
@@ -423,6 +424,9 @@ export default function MyTasksPage() {
                         )}
                     </div>
 
+                    {["ASSIGNED", "IN_PROGRESS", "SUBMITTED", "APPROVED", "DISPUTED", "CANCELLATION_REVIEW", "COMPLETED"].includes(task.raw.status) && (
+                      <Link href={trackingPath(task.id)} className={styles.receivedBidsButton}>پیگیری مأموریت <span>←</span></Link>
+                    )}
                     {/* فقط برای کارهای در انتظار پذیرش */}
                     {task.status === "pending" && (
                       <Link

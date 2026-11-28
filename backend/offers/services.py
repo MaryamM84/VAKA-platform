@@ -97,7 +97,16 @@ def submit_bid(
     try:
         with transaction.atomic():
 
-            # 4. Lock and validate executor profile
+            # Lock order is Task -> Bid/Profile across bid submission,
+            # withdrawal, update and employer assignment. This avoids a
+            # profile/task lock inversion during concurrent assignment.
+            locked_task = (
+                Task.objects
+                .select_for_update()
+                .get(task_id=task.pk)
+            )
+
+            # Lock and validate executor profile only after the Task lock.
             profile = (
                 ExecutorProfile.objects
                 .select_for_update()
@@ -116,13 +125,6 @@ def submit_bid(
                 raise PermissionDenied(
                     "Your executor profile is not active."
                 )
-
-            # 5. Lock task to prevent concurrent bid submissions
-            locked_task = (
-                Task.objects
-                .select_for_update()
-                .get(task_id=task.pk)
-            )
 
             # 6. Prevent bidding on own task
             if locked_task.employer_user_id == user.pk:

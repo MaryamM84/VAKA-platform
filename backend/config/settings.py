@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +31,10 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
 
 load_dotenv(BASE_DIR / ".env")
+# Wallet deposit mode: GATEWAY or SIMULATED (demo/development only).
+VAKA_WALLET_DEPOSIT_MODE = os.getenv(
+    "VAKA_WALLET_DEPOSIT_MODE", "GATEWAY"
+).strip().upper()
 
 VERIFICATION_PII_ENCRYPTION_KEY = os.getenv("VERIFICATION_PII_ENCRYPTION_KEY", "").strip()
 VERIFICATION_PII_HASH_KEY = os.getenv("VERIFICATION_PII_HASH_KEY", "").strip()
@@ -52,22 +57,36 @@ OTP_MAX_ATTEMPTS = 5
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+%+#c)xq7c1so5h%d!%$hs!@#h3ti#ofadzb%ykj1i2pq*xt(c'
+SECRET_KEY = os.getenv("SECRET_KEY", "vaka-secret-key")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
+    host.strip()
+    for host in os.getenv(
+        "ALLOWED_HOSTS", "localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:3000"
+    ).split(",")
+    if origin.strip()
 ]
 
-# Application definition
+CORS_ALLOW_HEADERS = (
+    *default_headers,
+    "idempotency-key",
+)
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -98,6 +117,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 
 MIDDLEWARE = [
+    "config.error_middleware.APIErrorEnvelopeMiddleware",
     'django.middleware.security.SecurityMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -175,8 +195,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
-
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
@@ -188,6 +208,7 @@ MAILERS = {
 }
 
 REST_FRAMEWORK = {
+    "EXCEPTION_HANDLER": "config.exception_handler.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -234,4 +255,30 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
+
+# Safe diagnostics for API exceptions.
+# Do not log request bodies, tokens, SQL or user identifiers.
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "api_safe": {
+            "format": "%(levelname)s %(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "api_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "api_safe",
+        },
+    },
+    "loggers": {
+        "vaka.api_errors": {
+            "handlers": ["api_console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
 

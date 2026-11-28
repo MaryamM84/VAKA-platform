@@ -221,10 +221,10 @@ async function sendRequest(
   });
 }
 
-export async function apiRequest<T>(
+export async function apiResponse(
   path: string,
   options: RequestInit = {}
-): Promise<T> {
+): Promise<Response> {
   const method = (options.method ?? "GET").toUpperCase();
 
   const token = getAccessToken();
@@ -256,13 +256,15 @@ export async function apiRequest<T>(
     );
   }
 
-  const payload = await parseResponse(response);
-
   if (!response.ok) {
+    const payload = await parseResponse(response);
     throw new ApiRequestError(getErrorMessage(payload, response.status), response.status);
   }
+  return response;
+}
 
-  return payload as T;
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return await parseResponse(await apiResponse(path, options)) as T;
 }
 
 /** دریافت دسته‌بندی‌های فعال */
@@ -279,4 +281,27 @@ export function createTask(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+export async function apiBlob(
+  path: string,
+  options: RequestInit = {}
+): Promise<Blob> {
+  const response = await apiResponse(path, options);
+  return response.blob();
+}
+/** Follow pagination without forwarding credentials to a server-supplied origin. */
+export async function readAllPages<T>(path: string, signal?: AbortSignal): Promise<T[]> {
+  const results: T[] = []; const visited = new Set<string>();
+  let next: string | null = path;
+  while (next) {
+    if (visited.has(next)) throw new Error("چرخه نامعتبر در صفحه‌بندی سرور");
+    visited.add(next);
+    const page: {results: T[]; next: string | null} = await apiRequest(next, {signal});
+    results.push(...page.results);
+    if (!page.next) break;
+    const url: URL = new URL(page.next, getApiUrl(next));
+    if (url.pathname !== path.split("?")[0]) throw new Error("مسیر صفحه‌بندی نامعتبر است");
+    next = url.pathname + url.search;
+  }
+  return results;
 }

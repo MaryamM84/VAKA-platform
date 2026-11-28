@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
+import { AdminAccessProvider } from "@/components/admin/AdminAccess";
 import SiteHeaderGate from "@/components/layout/SiteHeaderGate";
 
 const vazirmatn = Vazirmatn({
@@ -23,11 +24,13 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl">
       <body className={`${vazirmatn.className} antialiased`}>
+        <AdminAccessProvider>
         <Suspense fallback={null}>
           <SiteHeaderGate />
         </Suspense>
 
         {children}
+        </AdminAccessProvider>
       </body>
     </html>
   );

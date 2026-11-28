@@ -192,6 +192,7 @@ export function saveAuthSession(auth: AuthResponse, rememberMe: boolean): void {
     window.sessionStorage.removeItem(key);
     const storage = rememberMe ? window.localStorage : window.sessionStorage;
     storage.setItem(key, JSON.stringify(auth));
+    window.dispatchEvent(new Event("vaka:auth-changed"));
   } catch {
     throw new Error(
       "ورود موفق بود، اما مرورگر اجازه ذخیره نشست را نداد. تنظیمات ذخیره‌سازی مرورگر را بررسی کنید."

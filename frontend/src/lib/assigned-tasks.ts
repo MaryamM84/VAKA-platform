@@ -14,12 +14,20 @@ interface ExecutorTaskDetail extends ExecutorTaskCard {
   delivery_criteria: string;
   required_skills?: { skill_id: string; skill_name: string }[];
   employer: { user_id: string; full_name: string; avatar_type: string | null; avatar_id: string | null; avatar_url: string | null; completed_tasks_count: number; average_rating: number | null };
-  locations: { city: string; region: string }[];
+  locations: TaskArea[];
+}
+
+interface TaskArea {
+  task_location_id?: string;
+  location_type?: string;
+  stop_order?: number;
+  city: string;
+  region: string;
 }
 
 interface PrivateDetails {
   task_id: string; employer_phone: string;
-  locations: { city: string; region: string; latitude: number | null; longitude: number | null; exact_address: string | null; location_notes?: string | null }[];
+  locations: (TaskArea & { latitude: number | null; longitude: number | null; exact_address: string | null; location_notes?: string | null })[];
 }
 
 interface TaskListResponse { results: ExecutorTaskCard[]; next: string | null }
@@ -38,7 +46,7 @@ export interface AssignedTask {
   employer_rating?: number | null; employer_completed_tasks?: number | null;
   employer_profile_url?: string | null; conversation_url?: string | null;
   escrow_status?: "FUNDED" | "PENDING" | null;
-  locations: { city: string; region: string; latitude?: number | null; longitude?: number | null; address?: string | null; notes?: string | null }[];
+  locations: (TaskArea & { latitude?: number | null; longitude?: number | null; address?: string | null; notes?: string | null })[];
 }
 
 function mapTask(task: ExecutorTaskCard, detail?: ExecutorTaskDetail): AssignedTask {

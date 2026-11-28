@@ -7,6 +7,8 @@ import styles from "./tasks.module.css";
 
 export default function TaskSideCards({ task }: { task: AssignedTask }) {
   const active = task.status === "IN_PROGRESS";
+  const reported = active && task.progress_percent > 0;
+  const step = reported ? 4 : active ? 3 : 2;
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   return <aside className={`${styles.taskAside} ${active ? styles.activeAside : ""}`} aria-label="کارفرما و مراحل انجام کار">
     <section className={`${styles.card} ${styles.employer}`}>
@@ -30,12 +32,12 @@ export default function TaskSideCards({ task }: { task: AssignedTask }) {
       </div>
     </section>
     <section className={`${styles.card} ${styles.timeline}`}>
-      <h2>مراحل انجام کار {active && <small>گام ۲ از ۴</small>}</h2>
+      <h2>مراحل انجام کار <small>گام {taskNumber(step)} از ۴</small></h2>
       <ol>
         <li className={styles.done}><span><TaskIcon name="check"/></span><div><b>تخصیص مجری و توافق</b><small>{taskDate(task.assigned_at) || "انجام شد"}{active && task.assigned_at ? " (انجام شد)" : ""}</small></div></li>
-        <li className={styles.current}><span>{active ? <TaskIcon name="play"/> : <i/>}</span><div><b>شروع رسمی کار توسط شما</b><small>{active ? `شروع شده${task.started_at ? ` (${taskDate(task.started_at)})` : ""}` : "در انتظار تأیید شما"}</small></div>{active && <em>فعال</em>}</li>
-        <li><span>{active ? <TaskIcon name="upload"/> : <i/>}</span><div><b>{active ? "ثبت گزارش پیشرفت" : "ارسال پیش‌نمایش و بازخورد"}</b><small>مرحله میانی</small></div></li>
-        <li><span>{active ? <TaskIcon name="money"/> : <i/>}</span><div><b>تحویل نهایی و آزادسازی وجه</b><small>{active ? "مرحله پایانی و تسویه حساب" : "مرحله پایانی"}</small></div></li>
+        <li className={active ? styles.done : styles.current} aria-current={step === 2 ? "step" : undefined}><span>{active ? <TaskIcon name="check"/> : <i/>}</span><div><b>شروع رسمی کار توسط شما</b><small>{active ? `شروع شده${task.started_at ? ` (${taskDate(task.started_at)})` : ""}` : "در انتظار تأیید شما"}</small></div></li>
+        <li className={reported ? styles.done : active ? styles.current : undefined} aria-current={step === 3 ? "step" : undefined}><span>{active ? <TaskIcon name={reported ? "check" : "upload"}/> : <i/>}</span><div><b>{active ? "ثبت گزارش پیشرفت" : "ارسال پیش‌نمایش و بازخورد"}</b><small>{reported ? "گزارش ثبت شد" : "مرحله میانی"}</small></div>{step === 3 && <em>فعال</em>}</li>
+        <li className={reported ? styles.current : undefined} aria-current={step === 4 ? "step" : undefined}><span>{active ? <TaskIcon name="money"/> : <i/>}</span><div><b>تحویل نهایی و آزادسازی وجه</b><small>{active ? "مرحله پایانی و تسویه حساب" : "مرحله پایانی"}</small></div>{step === 4 && <em>فعال</em>}</li>
       </ol>
     </section>
     <section className={`${styles.card} ${styles.guarantee}`}>

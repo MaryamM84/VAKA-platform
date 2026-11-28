@@ -6,22 +6,25 @@ export interface TaskTimerInput {
   serverTime: string;
 }
 
-// The accepted duration and server timestamps must bound an inconsistent remaining_seconds.
 export function taskRemainingSeconds(input: TaskTimerInput, now = Date.now()): number | null {
-  if (!Number.isInteger(input.durationMinutes) || input.durationMinutes < 1) return null;
-  const duration = Math.min(300, input.durationMinutes) * 60;
+  const duration = Number.isInteger(input.durationMinutes) && input.durationMinutes > 0
+    ? input.durationMinutes * 60
+    : Infinity;
   const server = Date.parse(input.serverTime);
   const reference = Number.isFinite(server) ? server : now;
   const start = input.startedAt ? Date.parse(input.startedAt) : NaN;
-  const end = input.deadline ? Date.parse(input.deadline) : NaN;
-  const candidates: number[] = [];
-  if (typeof input.remainingSeconds === "number" && Number.isFinite(input.remainingSeconds)) {
-    candidates.push(input.remainingSeconds);
+
+  // The workspace API's due_at and remaining_seconds describe the scheduling window.
+  if (Number.isFinite(start) && Number.isFinite(duration)) {
+    return Math.max(0, duration - Math.max(0, (reference - start) / 1000));
   }
-  if (Number.isFinite(start)) candidates.push(duration - Math.max(0, (reference - start) / 1000));
-  if (Number.isFinite(end)) candidates.push((end - reference) / 1000);
-  if (!candidates.length) return null;
-  return Math.max(0, Math.floor(Math.min(duration, ...candidates)));
+
+  const end = input.deadline ? Date.parse(input.deadline) : NaN;
+  if (Number.isFinite(end)) return Math.max(0, Math.min(duration, (end - reference) / 1000));
+  if (typeof input.remainingSeconds === "number" && Number.isFinite(input.remainingSeconds)) {
+    return Math.max(0, Math.min(duration, input.remainingSeconds));
+  }
+  return null;
 }
 
 export function taskCountdown(initialSeconds: number, elapsedMilliseconds: number): string {

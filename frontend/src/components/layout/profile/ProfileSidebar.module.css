@@ -234,6 +234,24 @@
   flex: 1;
 }
 
+.taskToggle {
+  width: 100%;
+  border: 0;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.taskSubmenu {
+  margin-block-start: 5px;
+  padding-inline-start: 14px;
+}
+
+.taskSubmenu [aria-current="page"] {
+  color: #08715f;
+  background: #edf7f3;
+}
+
 .active {
   color: #08715f;
   background: #e8f5f0;

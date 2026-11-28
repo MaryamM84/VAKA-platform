@@ -172,8 +172,22 @@
 .location { margin-top: 16px; }
 .location p { color: #818c88; font-size: 10px; margin: 7px 0; }
 .map { height: 180px; width: 100%; border-radius: 14px; overflow: hidden; direction: ltr; z-index: 0; }
-.mapMarker { display: grid; place-items: center; background: #005e50; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 5px #123d3040; }
+.mapMarker { display: grid; place-items: center; background: #005e50; color: #fff; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 5px #123d3040; }
 .mapLabel { border: none; border-radius: 20px; background: #fff; padding: 4px 10px; color: #16352a; font-family: var(--vaka-font); direction: rtl; font-size: 10px; box-shadow: 0 2px 5px #123d3020; }
+.routeEndpoints { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0 12px; }
+.routeEndpoint { position: relative; display: grid; align-content: start; gap: 3px; padding: 10px 27px 10px 12px; border-radius: 12px; background: #fff; }
+.routeEndpoint > span { color: #52625d; font-size: 11px; }
+.routeEndpoint > strong { color: #182522; font-size: 13px; overflow-wrap: anywhere; }
+.origin { --endpoint-color: #1d6b5f; }
+.destination { --endpoint-color: #ffaf77; }
+.routeEndpoint::before, .routeLabel > span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--endpoint-color); }
+.routeEndpoint::before { position: absolute; inset-block-start: 15px; inset-inline-start: 12px; }
+.routeMap { height: clamp(210px, 32vw, 270px); margin-bottom: 8px; background: #e8efeb; }
+.routeMap :global(.leaflet-tile-pane) { filter: saturate(.68) contrast(.88) brightness(1.08); }
+.mapMarker.origin, .mapMarker.destination { background: var(--endpoint-color); }
+.mapMarker.destination { color: #643510; }
+.routeLabel { padding: 4px 8px; max-width: 112px; overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+.routeLabel > span::before { width: 6px; height: 6px; margin-inline-end: 4px; }
 .error { color: #b52e26; font-size: 13px; line-height: 1.8; padding: 10px; background: #fff0ec; border-radius: 10px; }
 .notice { color: #006153; font-size: 13px; }
 .workspace button { font-family: inherit; }
@@ -232,10 +246,6 @@
 .reportLabel span { color: #c72020; }
 .progressModal textarea { width: 100%; height: 80px; resize: vertical; border: 0; border-radius: 14px; padding: 12px; background: #eaf5ef; box-shadow: inset 0 2px 4px #145b3e0b; font-size: 13px; color: #253a30; }
 .progressModal textarea::placeholder { color: #7e8d86; opacity: 1; }
-.attachmentField { margin-top: 14px; }
-.attachmentField small { color: #7e8d86; font-weight: 400; }
-.attachmentField input { display: block; width: 100%; padding: 9px; border: 1px dashed #bad6ca; border-radius: 12px; background: #eaf5ef; color: #63776d; font-size: 12px; }
-.attachmentField p { margin-top: 6px; color: #74857d; font-size: 11px; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-top: 18px; }
 .check input { width: 19px; height: 19px; accent-color: #005c4d; margin: 0; }
 .reportActions { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 10px; margin-top: 24px; }
@@ -283,9 +293,6 @@
   .percent button { min-height: 28px; font-size: 11px; }
   .reportLabel { font-size: 11px; margin-bottom: 6px; }
   .progressModal textarea { height: 64px; padding: 9px; font-size: 10px; }
-  .attachmentField { margin-top: 10px; }
-  .attachmentField input { padding: 6px; font-size: 10px; }
-  .attachmentField p { font-size: 9px; }
   .check { margin-top: 14px; font-size: 10px; }
   .check input { width: 15px; height: 15px; }
   .reportActions { margin-top: 18px; }

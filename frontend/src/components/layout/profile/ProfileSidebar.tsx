@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,6 +68,11 @@ const workerMenuItem = {
   icon: "messages-square",
 };
 
+const taskMenuItems = [
+  { label: "کار های برای انجام من", href: "/user/tasks", icon: "clipboard-check" },
+  { label: "کار های منتشر شده ی من", href: "/employer/tasks", icon: "send" },
+];
+
 const skillsMenuItem = {
   label: "مهارت‌ها و شرایط فعالیت",
   href: "/profile/skills",
@@ -95,6 +100,14 @@ function MenuIcon({ name }: { name: string }) {
         <rect x="5" y="4" width="14" height="17" rx="2" />
         <path d="M9 4.5h6M9 10h6M9 14h6M9 18h3" />
       </>
+    ),
+
+    "clipboard-check": (
+      <path d="M9 4h6m-6 0H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2m-6 0V3h6v1m-6 9 2 2 4-4" />
+    ),
+
+    send: (
+      <path d="m3 3 18 9-18 9 4-9-4-9Zm4 9h14" />
     ),
 
     "messages-square": (
@@ -155,6 +168,8 @@ function isVerified(status?: string) {
 
 function ProfileSidebarContent() {
   const pathname = usePathname();
+  const taskMenuId = useId();
+  const [tasksExpanded, setTasksExpanded] = useState(false);
 
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -340,6 +355,43 @@ const menuItems = [
               pathname === item.href ||
               (item.href !== "/profile" &&
                 pathname.startsWith(`${item.href}/`));
+
+            if (item === baseMenuItems[1]) {
+              const tasksActive = taskMenuItems.some(({ href }) => pathname === href || pathname.startsWith(`${href}/`));
+              return (
+                <div key={item.href}>
+                  <button
+                    type="button"
+                    className={`${styles.menuItem} ${styles.taskToggle} ${tasksActive ? styles.active : ""}`}
+                    aria-expanded={tasksExpanded}
+                    aria-controls={taskMenuId}
+                    onClick={() => setTasksExpanded(expanded => !expanded)}
+                  >
+                    <MenuIcon name={item.icon} />
+                    <span className={styles.menuLabel}>{item.label}</span>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d={tasksExpanded ? "m5 9 7 7 7-7" : "m14 5-7 7 7 7"} />
+                    </svg>
+                  </button>
+                  <div className={styles.taskSubmenu} id={taskMenuId} hidden={!tasksExpanded}>
+                    {taskMenuItems.map(subitem => {
+                      const current = pathname === subitem.href || pathname.startsWith(`${subitem.href}/`);
+                      return (
+                        <Link
+                          key={subitem.href}
+                          href={subitem.href}
+                          className={styles.menuItem}
+                          aria-current={current ? "page" : undefined}
+                        >
+                          <MenuIcon name={subitem.icon} />
+                          <span className={styles.menuLabel}>{subitem.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <Link

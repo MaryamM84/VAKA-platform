@@ -3,7 +3,7 @@
 import { Suspense, use, useEffect, useRef, useState } from "react";
 import ProfileSidebar from "@/components/layout/profile/ProfileSidebar";
 import { addPrivateDetails, getAssignedTask, getPrivateDetails, reportProgress, startTask, type AssignedTask } from "@/lib/assigned-tasks";
-import TaskMap from "../TaskMap";
+import TaskLocations from "../TaskMap";
 import DeadlineTimer from "../DeadlineTimer";
 import TaskSideCards from "../TaskSideCards";
 import TaskDialogs from "../TaskDialogs";
@@ -21,6 +21,7 @@ function TaskRoute({ params }: { params: Promise<{ taskId: string }> }) {
 
 function TaskDetails({ taskId }: { taskId: string }) {
   const [task, setTask] = useState<AssignedTask | null>(null);
+  const [timerMeasuredAt, setTimerMeasuredAt] = useState(0);
   const [error, setError] = useState("");
   const [modal, setModal] = useState<"start" | "progress" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,12 +36,13 @@ function TaskDetails({ taskId }: { taskId: string }) {
     void (async () => {
       try {
         let result = await getAssignedTask(taskId);
+        const measuredAt = performance.now();
         if (result.status !== "ASSIGNED" && result.status !== "IN_PROGRESS") throw new Error("این کار در مرحله قابل نمایش این صفحه نیست.");
         if (result.can_view_private_details && result.status === "IN_PROGRESS") {
           try { result = addPrivateDetails(result, await getPrivateDetails(taskId)); }
           catch { if (!cancelled) setError("دریافت اطلاعات محرمانه ناموفق بود. برای تلاش مجدد صفحه را بازخوانی کنید."); }
         }
-        if (!cancelled) { setTask(result); setPercent(Math.max(50, result.progress_percent)); }
+        if (!cancelled) { setTimerMeasuredAt(measuredAt); setTask(result); setPercent(Math.max(50, result.progress_percent)); }
       } catch (reason) { if (!cancelled) setError(reason instanceof Error ? reason.message : "دریافت کار ناموفق بود."); }
     })();
     return () => { cancelled = true; };
@@ -57,10 +59,12 @@ function TaskDetails({ taskId }: { taskId: string }) {
         setModal(null);
         try {
           let updated = await getAssignedTask(taskId);
+          const measuredAt = performance.now();
           if (updated.can_view_private_details && updated.status === "IN_PROGRESS") {
             try { updated = addPrivateDetails(updated, await getPrivateDetails(taskId)); }
             catch { setError("کار شروع شد، اما دریافت اطلاعات محرمانه ناموفق بود. صفحه را بازخوانی کنید."); }
           }
+          setTimerMeasuredAt(measuredAt);
           setTask(updated);
         } catch { setTask(null); setError("کار شروع شد، اما دریافت وضعیت جدید ناموفق بود. صفحه را بازخوانی کنید."); }
       } else {
@@ -91,7 +95,7 @@ function TaskDetails({ taskId }: { taskId: string }) {
           {error && !modal && <p role="alert" className={styles.error}>{error}</p>}
           {notice && <p role="status" className={styles.notice}>{notice}</p>}
           {!task ? !error && <p>در حال دریافت کار...</p> : <>
-            {active && <div className={styles.banner}><DeadlineTimer deadline={task.deadline_at} startedAt={task.started_at} remainingSeconds={task.remaining_seconds} durationMinutes={task.duration_minutes} serverTime={task.server_time}/><button onClick={() => openModal("progress")} disabled={!task.can_report_progress}><TaskIcon name="gauge"/>ثبت گزارش پیشرفت کار</button></div>}
+            {active && <div className={styles.banner}><DeadlineTimer deadline={task.deadline_at} startedAt={task.started_at} remainingSeconds={task.remaining_seconds} durationMinutes={task.duration_minutes} serverTime={task.server_time} measuredAt={timerMeasuredAt}/><button onClick={() => openModal("progress")} disabled={!task.can_report_progress}><TaskIcon name="gauge"/>ثبت گزارش پیشرفت کار</button></div>}
             <div className={`${styles.layout} ${active ? styles.activeLayout : ""}`}>
               <div className={styles.mainColumn}>
                 <section className={`${styles.card} ${styles.taskSummary}`}>
@@ -105,7 +109,7 @@ function TaskDetails({ taskId }: { taskId: string }) {
                 {active && <section className={`${styles.card} ${styles.private}`}>
                   <div className={styles.sectionTitle}><span className={styles.privateIcon}><TaskIcon name="lock"/></span><h2>اطلاعات محرمانه و دسترسی‌های مستقیم کارفرما</h2><small>فعال و معتبر</small></div>
                   <div className={styles.phoneBox}><h3><TaskIcon name="phone"/>شماره تماس مستقیم کارفرما</h3><div className={styles.phoneRow}>{task.employer_phone ? <><a className={styles.callButton} href={`tel:${task.employer_phone}`} aria-label="تماس با کارفرما"><TaskIcon name="phone"/>تماس</a><a dir="ltr" href={`tel:${task.employer_phone}`}>{task.employer_phone}</a></> : <><button className={styles.callButton} disabled><TaskIcon name="phone"/>تماس</button><span>شماره تماس در دسترس نیست.</span></>}</div></div>
-                  <div className={styles.location}><h3><TaskIcon name="pin"/>موقعیت مکانی</h3>{task.locations.length ? task.locations.map((location, index) => <div key={index}><p>{[location.city, location.region, location.address].filter(Boolean).join("، ")}</p>{typeof location.latitude === "number" && Number.isFinite(location.latitude) && Math.abs(location.latitude) <= 90 && typeof location.longitude === "number" && Number.isFinite(location.longitude) && Math.abs(location.longitude) <= 180 ? <TaskMap latitude={location.latitude} longitude={location.longitude} label={location.notes}/> : <p>مختصات موقعیت در دسترس نیست.</p>}</div>) : <p>موقعیتی ثبت نشده است.</p>}</div>
+                  <TaskLocations locations={task.locations}/>
                 </section>}
                 <section className={`${styles.card} ${styles.requirements}`}>
                   <div className={styles.sectionTitle}><TaskIcon name={active ? "checklist" : "list"}/><h2>توضیحات و الزامات {active ? "تحویل کار" : "کار"}</h2>{active && task.requirements.length > 0 && <small>{taskNumber(task.requirements.length)} گام کلیدی تعریف شده</small>}</div>

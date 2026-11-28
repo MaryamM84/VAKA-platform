@@ -11,10 +11,57 @@ import {
 } from "@/lib/wallet-api";
 
 const SUGGESTED_AMOUNTS = [50000, 100000, 200000, 500000];
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 function formatPrice(amount: number): string {
   return Math.abs(amount).toLocaleString("fa-IR");
+}
+
+// عنوان‌هایی که ممکن است از API به انگلیسی برگردند، در رابط کاربری فارسی نمایش داده می‌شوند.
+function translateTransactionTitle(title: string): string {
+  const normalized = title.trim().toLowerCase();
+
+  const translations: Record<string, string> = {
+    deposit: "افزایش موجودی",
+    "wallet deposit": "افزایش موجودی کیف پول",
+    withdrawal: "برداشت از کیف پول",
+    withdraw: "برداشت از کیف پول",
+    "wallet withdrawal": "برداشت از کیف پول",
+    credit: "واریز",
+    debit: "برداشت",
+    refund: "بازگشت وجه",
+    "task payment": "پرداخت بابت انجام کار",
+    "payment for task": "پرداخت بابت انجام کار",
+    "escrow deposit": "واریز به امانت",
+    "escrow release": "آزادسازی وجه امانی",
+    commission: "کارمزد",
+    "service fee": "کارمزد خدمات",
+    reservation: "رزرو کردن",
+    reserve: "رزرو کردن",
+    "wallet reservation": "رزرو کردن",
+    "task reservation": "رزرو کردن",
+    "reserved amount": "مبلغ رزروشده",
+  };
+
+  if (translations[normalized]) return translations[normalized];
+
+  // پشتیبانی از عنوان‌هایی که نام عملیات را همراه با توضیح بیشتری برمی‌گردانند.
+  if (normalized.includes("deposit")) return "افزایش موجودی کیف پول";
+  if (normalized.includes("withdraw")) return "برداشت از کیف پول";
+  if (normalized.includes("refund")) return "بازگشت وجه";
+  if (
+    normalized.includes("reservation") ||
+    normalized.includes("reserved") ||
+    normalized.includes("reserve")
+  ) {
+    return "رزرو کردن";
+  }
+  if (normalized.includes("commission") || normalized.includes("fee")) {
+    return "کارمزد";
+  }
+  if (normalized.includes("payment")) return "پرداخت بابت انجام کار";
+
+  return title;
 }
 
 function normalizeNumber(value: string): string {
@@ -290,20 +337,6 @@ export default function WalletPage() {
               <span>＋</span>
               افزایش موجودی
             </button>
-
-            <button
-              type="button"
-              className={styles.historyButton}
-              onClick={() =>
-                document.getElementById("wallet-transactions")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                })
-              }
-            >
-              <span>◷</span>
-              مشاهده تاریخچه تراکنش‌ها
-            </button>
           </div>
 
           {successMessage && (
@@ -353,7 +386,7 @@ export default function WalletPage() {
                           {isIncome ? "◇" : "⊖"}
                         </div>
                         <div>
-                          <strong>{transaction.title}</strong>
+                          <strong>{translateTransactionTitle(transaction.title)}</strong>
                           <span>{formatDate(transaction.created_at)}</span>
                           {transaction.description && (
                             <span>{transaction.description}</span>
@@ -384,7 +417,7 @@ export default function WalletPage() {
                 onClick={handleLoadMore}
                 disabled={loadingMore}
               >
-                {loadingMore ? "در حال دریافت..." : "مشاهده تراکنش‌های بیشتر"}
+                {loadingMore ? "در حال دریافت..." : "مشاهده بیشتر"}
               </button>
             )}
           </section>
@@ -410,7 +443,6 @@ export default function WalletPage() {
               ×
             </button>
 
-            <div className={styles.modalIcon}>＋</div>
             <h2 id="deposit-title">افزایش موجودی کیف پول</h2>
             <p className={styles.modalDescription}>
               مبلغ موردنظر خود را انتخاب کنید یا به‌صورت دلخواه وارد کنید.

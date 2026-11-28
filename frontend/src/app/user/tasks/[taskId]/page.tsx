@@ -86,7 +86,7 @@ function TaskDetails({ taskId }: { taskId: string }) {
       </nav>
       </div>
       <div className={styles.workspaceGrid}>
-        <div className={styles.userSidebar}><ProfileSidebar taskMenuLabel="کارهای من"/></div>
+        <div className={styles.userSidebar}><ProfileSidebar /></div>
         <main className={styles.taskContent}>
           {error && !modal && <p role="alert" className={styles.error}>{error}</p>}
           {notice && <p role="status" className={styles.notice}>{notice}</p>}

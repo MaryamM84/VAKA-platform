@@ -51,12 +51,7 @@ const baseMenuItems = [
     icon: "user-round",
   },
   {
-    label: "مهارت‌ها و شرایط فعالیت",
-    href: "/user/skills",
-    icon: "tools",
-  },
-  {
-    label: "تسک‌های من",
+    label: "کارهای من",
     href: "/employer/tasks",
     icon: "clipboard-list",
   },
@@ -73,6 +68,12 @@ const workerMenuItem = {
   icon: "messages-square",
 };
 
+const skillsMenuItem = {
+  label: "مهارت‌ها و شرایط فعالیت",
+  href: "/profile/skills",
+  icon: "briefcase-business",
+};
+
 function MenuIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
     "user-round": (
@@ -82,14 +83,18 @@ function MenuIcon({ name }: { name: string }) {
       </>
     ),
 
+    "briefcase-business": (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" />
+      </>
+    ),
+
     "clipboard-list": (
       <>
         <rect x="5" y="4" width="14" height="17" rx="2" />
         <path d="M9 4.5h6M9 10h6M9 14h6M9 18h3" />
       </>
-    ),
-    tools: (
-      <><path d="M14 6a4 4 0 0 0 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8L16 8.5A4 4 0 0 0 14 6Z" /><path d="m4 4 6 6m4 4 6 6" /></>
     ),
 
     "messages-square": (
@@ -148,13 +153,8 @@ function isVerified(status?: string) {
   );
 }
 
-export default function ProfileSidebar({ taskMenuLabel = "تسک‌های من" }: { taskMenuLabel?: string } = {}) {
-  return <Suspense fallback={null}><ProfileSidebarContent taskMenuLabel={taskMenuLabel} /></Suspense>;
-}
-
-function ProfileSidebarContent({ taskMenuLabel }: { taskMenuLabel: string }) {
+function ProfileSidebarContent() {
   const pathname = usePathname();
-  const [tasksOpen, setTasksOpen] = useState(false);
 
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -174,9 +174,17 @@ function ProfileSidebarContent({ taskMenuLabel }: { taskMenuLabel: string }) {
   );
 
   const verified = isVerified(profile?.verification_status);
-  const menuItems = verified
-    ? [...baseMenuItems, workerMenuItem]
-    : baseMenuItems;
+
+const isApprovedExecutor =
+  profile?.verification_status === "APPROVED";
+
+const menuItems = [
+  baseMenuItems[0],
+  ...(isApprovedExecutor ? [skillsMenuItem] : []),
+  ...baseMenuItems.slice(1),
+  ...(verified ? [workerMenuItem] : []),
+];
+
 
   // دریافت اطلاعات پروفایل
   useEffect(() => {
@@ -328,24 +336,6 @@ function ProfileSidebarContent({ taskMenuLabel }: { taskMenuLabel: string }) {
           aria-label="منوی پروفایل"
         >
           {menuItems.map((item) => {
-            if (item.href === "/employer/tasks") {
-              const active = pathname.startsWith("/user/tasks") || pathname.startsWith("/employer/tasks");
-              const expanded = tasksOpen;
-              return (
-                <div key={item.href} className={styles.taskMenu}
-                  onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setTasksOpen(false); }}
-                  onKeyDown={(event) => { if (event.key === "Escape") setTasksOpen(false); }}>
-                  <button type="button" className={`${styles.menuItem} ${styles.taskToggle} ${active ? styles.active : ""}`}
-                    aria-expanded={expanded} aria-controls="profile-task-menu" onClick={() => setTasksOpen(open => !open)}>
-                    <MenuIcon name={item.icon} /><span className={styles.menuLabel}>{taskMenuLabel}</span><span aria-hidden="true">⌄</span>
-                  </button>
-                  {expanded && <div id="profile-task-menu" className={styles.taskSubmenu}>
-                    <Link href="/user/tasks" className={`${styles.taskSubmenuLink} ${pathname.startsWith("/user/tasks") ? styles.taskSubmenuActive : ""}`} aria-current={pathname.startsWith("/user/tasks") ? "page" : undefined} onClick={() => setTasksOpen(false)}>کار های برای انجام من</Link>
-                    <Link href="/employer/tasks" className={`${styles.taskSubmenuLink} ${pathname.startsWith("/employer/tasks") ? styles.taskSubmenuActive : ""}`} aria-current={pathname.startsWith("/employer/tasks") ? "page" : undefined} onClick={() => setTasksOpen(false)}>کار های منتشر شده من</Link>
-                  </div>}
-                </div>
-              );
-            }
             const active =
               pathname === item.href ||
               (item.href !== "/profile" &&
@@ -472,5 +462,13 @@ function ProfileSidebarContent({ taskMenuLabel }: { taskMenuLabel: string }) {
         </div>
       )}
     </aside>
+  );
+}
+
+export default function ProfileSidebar() {
+  return (
+    <Suspense fallback={null}>
+      <ProfileSidebarContent />
+    </Suspense>
   );
 }

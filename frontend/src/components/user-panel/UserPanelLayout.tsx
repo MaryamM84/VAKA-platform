@@ -12,10 +12,9 @@ type UserPanelLayoutProps = {
   receivedOffersCount?: number;
   activePage?: "profile" | "skills" | "tasks" | "offers" | "security";
   isVerified?: boolean;
-  taskMenuLabel?: string;
 };
 
-export default function UserPanelLayout({ children, activePage, taskMenuLabel }: UserPanelLayoutProps) {
+export default function UserPanelLayout({ children, activePage }: UserPanelLayoutProps) {
   return (
     <div className={styles.page} dir="rtl">
       <div className={styles.container}>
@@ -28,7 +27,7 @@ export default function UserPanelLayout({ children, activePage, taskMenuLabel }:
         </nav>
         <div className={styles.columns}>
           <main className={styles.content}>{children}</main>
-          <div className={styles.sidebar}><ProfileSidebar taskMenuLabel={taskMenuLabel} /></div>
+          <div className={styles.sidebar}><ProfileSidebar /></div>
         </div>
       </div>
     </div>

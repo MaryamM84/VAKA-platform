@@ -7,6 +7,8 @@ interface DashboardLayoutProps {
   description: string;
   action?: ReactNode;
   children: ReactNode;
+  workflowSteps?: ReactNode;
+  variant?: "default" | "workflow";
 }
 
 export default function DashboardLayout({
@@ -14,9 +16,11 @@ export default function DashboardLayout({
   description,
   action,
   children,
+  workflowSteps,
+  variant = "default",
 }: DashboardLayoutProps) {
   return (
-    <div className={styles.pageWrapper}>
+    <div className={`${styles.pageWrapper} ${variant === "workflow" ? styles.workflow : ""}`}>
       <header className={styles.pageHeader}>
         <div className={styles.heading}>
           <h1>{title}</h1>
@@ -26,6 +30,7 @@ export default function DashboardLayout({
         {action && <div className={styles.headerAction}>{action}</div>}
       </header>
 
+      {workflowSteps && <div className={styles.workflowSteps}>{workflowSteps}</div>}
       <div className={styles.dashboardGrid}>
         <aside className={styles.sidebarColumn}>
           <ProfileSidebar />

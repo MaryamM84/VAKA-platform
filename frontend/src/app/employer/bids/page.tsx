@@ -1,13 +1,15 @@
 
 "use client";
 
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard/DashboardLayout";
 import VakaDialog from "@/components/ui/VakaDialog";
 import {
   getEmployerBids,
-  acceptEmployerBid,
+  assignmentPath,
+  trackingPath,
   rejectEmployerBid,
   type EmployerBidListApi,
 } from "@/lib/employer-api";
@@ -90,7 +92,7 @@ export default function EmployerBidsPage() {
   const [expandedBid, setExpandedBid] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
-  const [pendingAction, setPendingAction] = useState<{ bidId: string; action: "accept" | "reject" } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ bidId: string; action: "reject" } | null>(null);
 
   const loadBids = useCallback(async () => {
     setLoading(true);
@@ -130,12 +132,11 @@ export default function EmployerBidsPage() {
     });
   }, [bids]);
 
-  async function handleBidAction(bidId: string, action: "accept" | "reject") {
+  async function handleBidAction(bidId: string) {
     setActionLoading((previous) => ({ ...previous, [bidId]: true }));
     setActionErrors((previous) => ({ ...previous, [bidId]: "" }));
     try {
-      if (action === "accept") await acceptEmployerBid(bidId);
-      else await rejectEmployerBid(bidId);
+      await rejectEmployerBid(bidId);
       await loadBids();
     } catch (err) {
       setActionErrors((previous) => ({
@@ -285,6 +286,7 @@ export default function EmployerBidsPage() {
                         مشاهده پروفایل مجری
                       </Link>
 
+                      {bid.status === "ACCEPTED" && <Link href={trackingPath(bid.task_id)} className={styles.acceptButton}>پیگیری مأموریت</Link>}
                       {bid.status === "ACTIVE" && (
                         <div className={styles.actionButtons}>
                           <button
@@ -296,14 +298,7 @@ export default function EmployerBidsPage() {
                             {actionLoading[bid.bid_id] ? "در حال انجام..." : "رد پیشنهاد"}
                           </button>
 
-                          <button
-                            type="button"
-                            className={styles.acceptButton}
-                            disabled={!!actionLoading[bid.bid_id]}
-                            onClick={() => setPendingAction({ bidId: bid.bid_id, action: "accept" })}
-                          >
-                            {actionLoading[bid.bid_id] ? "در حال انجام..." : "پذیرش پیشنهاد"}
-                          </button>
+                          <Link href={assignmentPath(bid.task_id, bid.bid_id)} className={styles.acceptButton}>پذیرش پیشنهاد</Link>
                         </div>
                       )}
                     </div>
@@ -322,15 +317,15 @@ export default function EmployerBidsPage() {
       </section>
       <VakaDialog
         open={!!pendingAction}
-        title={pendingAction?.action === "accept" ? "پذیرش پیشنهاد مجری" : "رد پیشنهاد مجری"}
-        description={pendingAction?.action === "accept" ? "آیا از پذیرش این پیشنهاد مطمئن هستید؟" : "آیا از رد این پیشنهاد مطمئن هستید؟"}
-        confirmLabel={pendingAction?.action === "accept" ? "بله، پذیرش پیشنهاد" : "بله، رد پیشنهاد"}
+        title="رد پیشنهاد مجری"
+        description="آیا از رد این پیشنهاد مطمئن هستید؟"
+        confirmLabel="بله، رد پیشنهاد"
         onCancel={() => setPendingAction(null)}
         onConfirm={() => {
           if (!pendingAction) return;
           const current = pendingAction;
           setPendingAction(null);
-          void handleBidAction(current.bidId, current.action);
+          void handleBidAction(current.bidId);
         }}
       />
     </DashboardLayout>

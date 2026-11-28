@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useAdminAccess } from "@/components/admin/AdminAccess";
+import AdminHeader from "@/components/admin/AdminHeader";
 import SiteHeader from "./SiteHeader";
 
 // Login and registration use full-screen layouts without the public site header.
@@ -12,5 +14,6 @@ export default function SiteHeaderGate() {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  return hideHeader ? null : <SiteHeader />;
+  const { access } = useAdminAccess();
+  return hideHeader ? null : access === "allowed" ? <AdminHeader /> : <SiteHeader />;
 }

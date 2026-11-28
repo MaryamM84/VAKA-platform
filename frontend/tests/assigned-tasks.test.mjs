@@ -36,6 +36,9 @@ test("maps detail and keeps private data separate until explicitly requested", a
   const task = await client.getAssignedTask("id");
   assert.equal(task.employer_phone, null);
   assert.equal(task.employer_name, "Employer");
+  assert.equal(task.employer_rating, 4);
+  assert.equal(task.employer_completed_tasks, 2);
+  assert.equal(task.duration_minutes, 60);
   const enriched = client.addPrivateDetails(task, { task_id: "id", employer_phone: "123", locations: [{ city: "city", region: "region", latitude: 35, longitude: 51, exact_address: null }] });
   assert.equal(enriched.employer_phone, "123");
   assert.throws(() => client.addPrivateDetails(task, { task_id: "other", locations: [] }));
@@ -47,6 +50,11 @@ test("resolves the employer's preset and uploaded avatar without using the worke
   assert.equal((await client.getAssignedTask("id")).employer_avatar_url, "/images/avatars/avatar-02-hijab.png");
   details.employer = { ...details.employer, avatar_type: "upload", avatar_url: "/media/avatars/employer.png" };
   assert.equal((await client.getAssignedTask("id")).employer_avatar_url, "https://api.example/media/avatars/employer.png");
+  details.employer = { ...details.employer, avatar_url: null, average_rating: null, completed_tasks_count: 0 };
+  const task = await client.getAssignedTask("id");
+  assert.equal(task.employer_avatar_url, null);
+  assert.equal(task.employer_rating, null);
+  assert.equal(task.employer_completed_tasks, 0);
 });
 
 test("keeps financial amounts and structured delivery requirements from the server", async () => {

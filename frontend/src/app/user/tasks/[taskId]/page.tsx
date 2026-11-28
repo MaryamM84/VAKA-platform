@@ -77,19 +77,21 @@ function TaskDetails({ taskId }: { taskId: string }) {
   function openModal(kind: "start" | "progress") { setError(""); setNotice(""); setModal(kind); }
   return <div className={styles.workspace} dir="rtl">
     <div className={styles.workspaceInner}>
+      <div className={styles.workspaceHeader}>
       <header className={styles.pageHeading}><h1>کار های برای انجام من <span>✦</span></h1><p>کارهایی که به شما تخصیص یافته و برای انجام دارید.</p></header>
       <nav className={styles.steps} aria-label="مراحل واگذاری کار">
         <span><i><TaskIcon name="check"/></i>ثبت کار</span><b/>
         <span><i>{active ? <TaskIcon name="check"/> : "۲"}</i>تأیید و رزرو وجه</span><b className={!active ? styles.pendingLine : ""}/>
         <span className={!active ? styles.pendingStep : ""}><i>{active ? <TaskIcon name="check"/> : "۳"}</i>اجرای مأموریت</span>
       </nav>
+      </div>
       <div className={styles.workspaceGrid}>
         <div className={styles.userSidebar}><ProfileSidebar taskMenuLabel="کارهای من"/></div>
         <main className={styles.taskContent}>
           {error && !modal && <p role="alert" className={styles.error}>{error}</p>}
           {notice && <p role="status" className={styles.notice}>{notice}</p>}
           {!task ? !error && <p>در حال دریافت کار...</p> : <>
-            {active && <div className={styles.banner}><DeadlineTimer deadline={task.deadline_at} startedAt={task.started_at} remainingSeconds={task.remaining_seconds}/><button onClick={() => openModal("progress")} disabled={!task.can_report_progress}><TaskIcon name="gauge"/>ثبت گزارش پیشرفت کار</button></div>}
+            {active && <div className={styles.banner}><DeadlineTimer deadline={task.deadline_at} startedAt={task.started_at} remainingSeconds={task.remaining_seconds} durationMinutes={task.duration_minutes} serverTime={task.server_time}/><button onClick={() => openModal("progress")} disabled={!task.can_report_progress}><TaskIcon name="gauge"/>ثبت گزارش پیشرفت کار</button></div>}
             <div className={`${styles.layout} ${active ? styles.activeLayout : ""}`}>
               <div className={styles.mainColumn}>
                 <section className={`${styles.card} ${styles.taskSummary}`}>
@@ -102,7 +104,7 @@ function TaskDetails({ taskId }: { taskId: string }) {
                 </section>
                 {active && <section className={`${styles.card} ${styles.private}`}>
                   <div className={styles.sectionTitle}><span className={styles.privateIcon}><TaskIcon name="lock"/></span><h2>اطلاعات محرمانه و دسترسی‌های مستقیم کارفرما</h2><small>فعال و معتبر</small></div>
-                  <div className={styles.phoneBox}><h3><TaskIcon name="phone"/>شماره تماس مستقیم کارفرما</h3><div className={styles.phoneRow}><span><TaskIcon name="phone"/>تماس</span>{task.employer_phone ? <a dir="ltr" href={`tel:${task.employer_phone}`}>{task.employer_phone}</a> : <span>شماره تماس در دسترس نیست.</span>}</div></div>
+                  <div className={styles.phoneBox}><h3><TaskIcon name="phone"/>شماره تماس مستقیم کارفرما</h3><div className={styles.phoneRow}>{task.employer_phone ? <><a className={styles.callButton} href={`tel:${task.employer_phone}`} aria-label="تماس با کارفرما"><TaskIcon name="phone"/>تماس</a><a dir="ltr" href={`tel:${task.employer_phone}`}>{task.employer_phone}</a></> : <><button className={styles.callButton} disabled><TaskIcon name="phone"/>تماس</button><span>شماره تماس در دسترس نیست.</span></>}</div></div>
                   <div className={styles.location}><h3><TaskIcon name="pin"/>موقعیت مکانی</h3>{task.locations.length ? task.locations.map((location, index) => <div key={index}><p>{[location.city, location.region, location.address].filter(Boolean).join("، ")}</p>{typeof location.latitude === "number" && Number.isFinite(location.latitude) && Math.abs(location.latitude) <= 90 && typeof location.longitude === "number" && Number.isFinite(location.longitude) && Math.abs(location.longitude) <= 180 ? <TaskMap latitude={location.latitude} longitude={location.longitude} label={location.notes}/> : <p>مختصات موقعیت در دسترس نیست.</p>}</div>) : <p>موقعیتی ثبت نشده است.</p>}</div>
                 </section>}
                 <section className={`${styles.card} ${styles.requirements}`}>

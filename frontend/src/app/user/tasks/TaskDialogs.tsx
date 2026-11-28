@@ -56,6 +56,11 @@ export default function TaskDialogs(props: Props) {
         <div className={styles.percent}>{[25,50,75,100].map(value => <button key={value} disabled={busy || value < task.progress_percent} aria-pressed={value === percent} className={value === percent ? styles.selected : ""} onClick={() => props.onPercent(value)}>{taskNumber(value)}٪</button>)}</div>
         <label className={styles.reportLabel} htmlFor="task-report">توضیحات و گزارش انجام کار <span>*</span></label>
         <textarea id="task-report" maxLength={4000} required disabled={busy} value={description} onChange={event => props.onDescription(event.target.value)} placeholder="شرح مختصری از اقدامات انجام‌شده، وضعیت فعلی و گام‌های بعدی بنویسید..."/>
+        <div className={styles.attachmentField}>
+          <label className={styles.reportLabel} htmlFor="task-report-file">آپلود فایل برای کارفرما <small>(اختیاری)</small></label>
+          <input id="task-report-file" type="file" disabled aria-describedby="task-report-file-help"/>
+          <p id="task-report-file-help">سرویس ارسال فایل گزارش هنوز فعال نیست. گزارش را می‌توانید بدون فایل ارسال کنید.</p>
+        </div>
         <label className={styles.check}><input type="checkbox" disabled={busy} checked={onSchedule} onChange={event => props.onScheduleChange(event.target.checked)}/>کار مطابق با زمان‌بندی توافقی در حال انجام است</label>
         {error && <p role="alert" className={styles.error}>{error}</p>}
         <div className={styles.reportActions}><button disabled={busy || !description.trim() || !task.can_report_progress} onClick={onSubmit}><TaskIcon name="send"/>ثبت و ارسال گزارش</button><button disabled={busy} onClick={onClose}>انصراف</button></div>

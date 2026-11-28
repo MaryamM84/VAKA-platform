@@ -36,6 +36,11 @@ function translateTransactionTitle(title: string): string {
     "escrow release": "آزادسازی وجه امانی",
     commission: "کارمزد",
     "service fee": "کارمزد خدمات",
+    reservation: "رزرو کردن",
+    reserve: "رزرو کردن",
+    "wallet reservation": "رزرو کردن",
+    "task reservation": "رزرو کردن",
+    "reserved amount": "مبلغ رزروشده",
   };
 
   if (translations[normalized]) return translations[normalized];
@@ -44,6 +49,13 @@ function translateTransactionTitle(title: string): string {
   if (normalized.includes("deposit")) return "افزایش موجودی کیف پول";
   if (normalized.includes("withdraw")) return "برداشت از کیف پول";
   if (normalized.includes("refund")) return "بازگشت وجه";
+  if (
+    normalized.includes("reservation") ||
+    normalized.includes("reserved") ||
+    normalized.includes("reserve")
+  ) {
+    return "رزرو کردن";
+  }
   if (normalized.includes("commission") || normalized.includes("fee")) {
     return "کارمزد";
   }
@@ -431,7 +443,6 @@ export default function WalletPage() {
               ×
             </button>
 
-            <div className={styles.modalIcon}>＋</div>
             <h2 id="deposit-title">افزایش موجودی کیف پول</h2>
             <p className={styles.modalDescription}>
               مبلغ موردنظر خود را انتخاب کنید یا به‌صورت دلخواه وارد کنید.
